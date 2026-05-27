@@ -1,12 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { scoreApplication } from '../../../lib/scoring-engine'
-import { ApplicationForm } from '../../../types'
+import { ApplicationForm, ScoreFactor } from '../../../types'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 )
+
+// Mock score for when ANTHROPIC_API_KEY is not available
+function getMockScore() {
+  const mockFactors: ScoreFactor[] = [
+    {
+      name: 'Income Stability',
+      weight: 25,
+      score: 65,
+      rationale: 'Employment duration suggests moderate stability'
+    },
+    {
+      name: 'Rent Payment History',
+      weight: 30,
+      score: 70,
+      rationale: 'Consistent rent payments indicate responsibility'
+    },
+    {
+      name: 'Loan-to-Income Ratio',
+      weight: 25,
+      score: 60,
+      rationale: 'Loan amount relative to income is acceptable'
+    },
+    {
+      name: 'Savings Buffer',
+      weight: 15,
+      score: 55,
+      rationale: 'Moderate savings provide some financial cushion'
+    },
+    {
+      name: 'Gig Income Stability',
+      weight: 5,
+      score: 50,
+      rationale: 'Gig income trends require further assessment'
+    }
+  ]
+
+  return {
+    result: {
+      etho_score: 64,
+      risk_band: 'medium' as const,
+      recommendation: 'review' as const,
+      ai_summary: 'Mock score: Applicant shows moderate credit signals. Income is stable with consistent rent payments, but requires manual review for final decision.',
+      factors: mockFactors,
+      model_version: 'mock-v1'
+    },
+    rawPrompt: 'Mock scoring (ANTHROPIC_API_KEY not configured)',
+    rawResponse: 'Mock response'
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,8 +88,16 @@ export async function POST(req: NextRequest) {
 
     if (appError) throw appError
 
-    // 2. Score with Claude
-    const { result, rawPrompt, rawResponse } = await scoreApplication(form)
+    // 2. Score with Claude (or mock if API key not available)
+    let scoreData: any
+    if (process.env.ANTHROPIC_API_KEY) {
+      scoreData = await scoreApplication(form)
+    } else {
+      console.warn('ANTHROPIC_API_KEY not set, using mock score for application:', application.id)
+      scoreData = getMockScore()
+    }
+
+    const { result, rawPrompt, rawResponse } = scoreData
 
     // 3. Save score
     const { data: score, error: scoreError } = await supabase
