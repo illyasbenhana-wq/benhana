@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { ScoreResult, Application } from '@/types'
 
@@ -14,21 +15,23 @@ const BAND_CONFIG = {
   high:   { color: '#E24B4A', bg: '#2a0d0d', label: 'Higher risk', headline: 'We\'ve found a path.' }
 }
 
-export default function ScorePage({ params }: { params: { id: string } }) {
+export default function ScorePage() {
+  const params = useParams()
+  const id = params?.id as string
   const [app, setApp] = useState<Application | null>(null)
   const [score, setScore] = useState<ScoreResult | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
-      const { data: appData } = await supabase.from('applications').select('*').eq('id', params.id).single()
-      const { data: scoreData } = await supabase.from('scores').select('*').eq('application_id', params.id).single()
+      const { data: appData } = await supabase.from('applications').select('*').eq('id', id).single()
+      const { data: scoreData } = await supabase.from('scores').select('*').eq('application_id', id).single()
       setApp(appData)
       setScore(scoreData)
       setLoading(false)
     }
-    load()
-  }, [params.id])
+    if (id) load()
+  }, [id])
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#0a0a0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

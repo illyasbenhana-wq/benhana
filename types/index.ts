@@ -38,6 +38,9 @@ export interface ScoreResult {
   ai_summary: string
   factors: ScoreFactor[]
   recommendation: Recommendation
+  model_version: string
+  raw_prompt?: string
+  raw_response?: string
   created_at: string
 }
 
