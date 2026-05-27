@@ -1,0 +1,142 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+import { ScoreResult, Application } from '@/types'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+const BAND_CONFIG = {
+  low:    { color: '#1D9E75', bg: '#0d2a20', label: 'Low risk',    headline: 'Great news.' },
+  medium: { color: '#BA7517', bg: '#2a1e0a', label: 'Medium risk', headline: 'Good standing.' },
+  high:   { color: '#E24B4A', bg: '#2a0d0d', label: 'Higher risk', headline: 'We\'ve found a path.' }
+}
+
+export default function ScorePage({ params }: { params: { id: string } }) {
+  const [app, setApp] = useState<Application | null>(null)
+  const [score, setScore] = useState<ScoreResult | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: appData } = await supabase.from('applications').select('*').eq('id', params.id).single()
+      const { data: scoreData } = await supabase.from('scores').select('*').eq('application_id', params.id).single()
+      setApp(appData)
+      setScore(scoreData)
+      setLoading(false)
+    }
+    load()
+  }, [params.id])
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#0a0a0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ textAlign: 'center', color: '#4a9eff', fontFamily: '"DM Sans", sans-serif' }}>
+        <div style={{ fontSize: 13, letterSpacing: '0.1em', marginBottom: 16 }}>CALCULATING YOUR ETHOSCORE™</div>
+        <div style={{ width: 240, height: 2, background: '#1a1a28', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', background: '#4a9eff', animation: 'load 1.5s ease-in-out infinite', width: '40%' }} />
+        </div>
+        <style>{`@keyframes load { 0%{transform:translateX(-100%)} 100%{transform:translateX(700%)} }`}</style>
+      </div>
+    </div>
+  )
+
+  if (!score || !app) return <div style={{ color: '#fff', padding: 40 }}>Score not found.</div>
+
+  const band = BAND_CONFIG[score.risk_band]
+  const rec = score.recommendation
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif' }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+      <style>{`* { box-sizing: border-box; } @keyframes countUp { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }`}</style>
+
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 24px' }}>
+
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+          </div>
+          <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 16 }}>EthosFi</span>
+        </div>
+
+        <p style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>Hello {app.full_name.split(' ')[0]},</p>
+        <h1 style={{ fontFamily: '"DM Serif Display", serif', fontSize: 36, fontWeight: 400, margin: '0 0 32px', lineHeight: 1.1 }}>
+          {band.headline}
+        </h1>
+
+        {/* Score card */}
+        <div style={{ background: band.bg, border: `1px solid ${band.color}33`, borderRadius: 20, padding: '32px', marginBottom: 24, textAlign: 'center' }}>
+          <p style={{ fontSize: 11, letterSpacing: '0.12em', color: band.color, margin: '0 0 12px', textTransform: 'uppercase' }}>Your EthoScore™</p>
+          <div style={{ fontSize: 96, fontFamily: '"DM Serif Display", serif', color: band.color, lineHeight: 1, animation: 'countUp 0.6s ease forwards' }}>
+            {score.etho_score}
+          </div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: `${band.color}22`, border: `1px solid ${band.color}44`, borderRadius: 20, padding: '6px 16px', marginTop: 12 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: band.color }} />
+            <span style={{ fontSize: 13, color: band.color }}>{band.label}</span>
+          </div>
+
+          {/* Score bar */}
+          <div style={{ marginTop: 24, position: 'relative' }}>
+            <div style={{ height: 6, background: '#1a1a28', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${score.etho_score}%`, background: band.color, borderRadius: 3, transition: 'width 1s ease' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: '#444' }}>
+              <span>0</span><span>50</span><span>100</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Recommendation banner */}
+        <div style={{
+          background: rec === 'approve' ? '#0d2a20' : rec === 'review' ? '#2a1e0a' : '#2a0d0d',
+          border: `1px solid ${rec === 'approve' ? '#1D9E7533' : rec === 'review' ? '#BA751733' : '#E24B4A33'}`,
+          borderRadius: 12, padding: '16px 20px', marginBottom: 24
+        }}>
+          <p style={{ margin: 0, fontSize: 14, color: rec === 'approve' ? '#1D9E75' : rec === 'review' ? '#BA7517' : '#E24B4A' }}>
+            {rec === 'approve' && '✓ AI recommendation: Approve — your profile meets lending criteria.'}
+            {rec === 'review' && '◎ AI recommendation: Manual review — a lender will assess your application.'}
+            {rec === 'decline' && '○ AI recommendation: Not approved at this time — see improvement tips below.'}
+          </p>
+        </div>
+
+        {/* AI Summary */}
+        <div style={{ background: '#13131a', border: '1px solid #2a2a38', borderRadius: 14, padding: '20px 24px', marginBottom: 24 }}>
+          <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>AI assessment</p>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: '#ccc' }}>{score.ai_summary}</p>
+        </div>
+
+        {/* Factors */}
+        <div style={{ marginBottom: 32 }}>
+          <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Score breakdown — 5 factors</p>
+          {score.factors.map((f, i) => (
+            <div key={i} style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: 14, fontWeight: 500 }}>{f.name}</span>
+                <span style={{ fontSize: 14, color: f.score >= 70 ? '#1D9E75' : f.score >= 40 ? '#BA7517' : '#E24B4A', fontWeight: 500 }}>{f.score}/100</span>
+              </div>
+              <div style={{ height: 4, background: '#1a1a28', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
+                <div style={{ height: '100%', width: `${f.score}%`, background: f.score >= 70 ? '#1D9E75' : f.score >= 40 ? '#BA7517' : '#E24B4A', borderRadius: 2 }} />
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: '#666', lineHeight: 1.5 }}>{f.rationale}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* EU AI Act notice */}
+        <div style={{ borderTop: '1px solid #1a1a28', paddingTop: 24, marginBottom: 24 }}>
+          <p style={{ fontSize: 12, color: '#444', lineHeight: 1.6 }}>
+            <strong style={{ color: '#555' }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: '#4a9eff' }}>review@ethosfai.com</span> within 30 days.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12 }}>
+          <a href="/apply" style={{ flex: 1, padding: '14px 20px', borderRadius: 10, border: '1px solid #2a2a38', color: '#888', textAlign: 'center', textDecoration: 'none', fontSize: 14 }}>Apply again</a>
+          <button onClick={() => window.print()} style={{ flex: 1, padding: '14px 20px', borderRadius: 10, background: '#4a9eff', color: '#000', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, fontFamily: 'inherit' }}>Save results</button>
+        </div>
+      </div>
+    </div>
+  )
+}
