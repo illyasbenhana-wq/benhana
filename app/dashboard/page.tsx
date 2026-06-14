@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { MerchantIntelligence } from './components/MerchantIntelligence'
+import { fatimaOkoyeComplianceCase, FATIMA_OKOYE_CASE_REF } from '../../lib/fatima-okoye-demo'
 
 const _url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const _key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -134,6 +136,7 @@ const MOCK_CASES: ComplianceCase[] = [
       { name: 'Geographic Dispersion',   score: 32, rationale: 'Counterparties are UK and Switzerland domiciled — within expected profile. No high-risk jurisdiction exposure.' },
     ],
   },
+  fatimaOkoyeComplianceCase,
 ]
 
 const ANALYST_ROLES: Record<string, string> = {
@@ -144,6 +147,7 @@ const ANALYST_ROLES: Record<string, string> = {
 }
 
 const MOCK_AUDIT: AuditEvent[] = [
+  { time: '10:02', analyst: 'R. Okonkwo',  action: 'Merchant corridor flag — Fatima Okoye', case_ref: FATIMA_OKOYE_CASE_REF, severity: 'medium' },
   { time: '09:41', analyst: 'S. Chen',     action: 'Escalated to Senior Compliance',   case_ref: 'INV-1047', severity: 'critical' },
   { time: '09:28', analyst: 'R. Okonkwo',  action: 'Evidence package uploaded',        case_ref: 'INV-1038' },
   { time: '09:15', analyst: 'M. Vasquez',  action: 'Information request sent',         case_ref: 'INV-1015' },
@@ -201,12 +205,18 @@ function timeAgo(iso: string) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [cases, setCases] = useState<ComplianceCase[]>([])
   const [activeCase, setActiveCase] = useState<ComplianceCase | null>(null)
   const [filter, setFilter] = useState('all')
   const [acting, setActing] = useState(false)
   const [audit, setAudit] = useState<AuditEvent[]>([])
   const [txSignals, setTxSignals] = useState<TxSignal[]>(MOCK_TX_SIGNALS)
+
+  async function handleLogout() {
+    if (supabase) await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   const analysts = useMemo<Analyst[]>(() => {
     const map: Record<string, Analyst> = {}
@@ -232,6 +242,11 @@ export default function DashboardPage() {
       setCases(MOCK_CASES)
       return
     }
+
+    // Auth guard — redirect to /login if no active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) router.push('/login')
+    })
     console.log('[EthosFi] Supabase client initialised. Fetching cases...')
     supabase
       .from('cases')
@@ -271,18 +286,48 @@ export default function DashboardPage() {
     setActing(true)
     const newStatus = act === 'escalate' ? 'escalated' : act === 'clear' ? 'cleared' : 'pending_info'
     const c = cases.find(c => c.id === caseId)
+    const previousStatus = c?.status ?? 'open'
     const actionLabel = act === 'escalate' ? 'Escalated to Senior Compliance' : act === 'clear' ? 'Case cleared' : 'Information request sent'
-    if (supabase) {
-      await supabase.from('case_actions').insert({ case_id: caseId, action: act, acted_by: 'analyst' })
-      await supabase.from('cases').update({ status: newStatus }).eq('id', caseId)
-      await supabase.from('audit_events').insert({
-        case_id: caseId,
-        case_ref: c?.case_ref ?? '',
-        analyst: 'analyst',
-        action: actionLabel,
-        severity: act === 'escalate' ? (c?.severity ?? null) : null,
-      })
+
+    // Write to Supabase via server API route (uses service role key, checks errors)
+    console.log('[dashboard] calling /api/case-action', { caseId, act, previousStatus, newStatus })
+    const res = await fetch('/api/case-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        caseId,
+        caseRef: c?.case_ref ?? '',
+        act,
+        previousStatus,
+        newStatus,
+        severity: c?.severity ?? null,
+      }),
+    })
+
+    const resBody = await res.json().catch(() => ({ error: 'Failed to parse response' }))
+    console.log('[dashboard] /api/case-action response:', res.status, JSON.stringify(resBody))
+    if (!res.ok) {
+      console.error('[dashboard] case-action failed:', resBody)
     }
+
+    // Re-fetch cases from Supabase to reflect persisted state
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('cases')
+        .select('*, signals(*)')
+        .order('opened_at', { ascending: false })
+      if (!error && data) {
+        setCases(data)
+        if (activeCase?.id === caseId) {
+          const updated = data.find((r: ComplianceCase) => r.id === caseId)
+          if (updated) setActiveCase(updated)
+        }
+        setActing(false)
+        return
+      }
+    }
+
+    // Fallback: optimistic update if Supabase read unavailable
     const timeStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
     setAudit(prev => [{ time: timeStr, analyst: 'analyst', action: actionLabel, case_ref: c?.case_ref ?? '', severity: act === 'escalate' ? c?.severity : undefined }, ...prev])
     setCases(prev => prev.map(c => c.id === caseId ? { ...c, status: newStatus } : c))
@@ -313,7 +358,7 @@ export default function DashboardPage() {
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif', overflow: 'hidden' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display&display=swap" rel="stylesheet" />
-      <style>{`* { box-sizing: border-box; } ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #0a0a0f; } ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 2px; }`}</style>
+      <style>{`* { box-sizing: border-box; } ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #0a0a0f; } ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 2px; } .logout-btn { margin-left: 8px; background: none; border: 1px solid #2a2a38; border-radius: 4px; padding: 3px 8px; color: #555; font-size: 11px; cursor: pointer; font-family: inherit; transition: color 0.15s, border-color 0.15s; } .logout-btn:hover { color: #e24b4a; border-color: #3a1a1a; }`}</style>
 
       {/* ── Sidebar ── */}
       <div style={{ width: 320, borderRight: '1px solid #1a1a28', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
@@ -328,6 +373,14 @@ export default function DashboardPage() {
             </div>
             <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 15 }}>EthosFi</span>
             <span style={{ marginLeft: 'auto', fontSize: 11, color: '#555', background: '#13131a', border: '1px solid #2a2a38', borderRadius: 4, padding: '2px 8px' }}>Compliance</span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Sign out"
+              className="logout-btn"
+            >
+              Sign out
+            </button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
