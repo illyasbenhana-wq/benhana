@@ -45,7 +45,7 @@ async function sendEscalationEmail({
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'EthosFi Compliance <notifications@ethosfiai.com>',
+      from: 'EthosFi Compliance <onboarding@resend.dev>',
       to:   ['compliance@ethosfi.com'],
       subject: `[ESCALATED] ${caseRef} — ${entityName}`,
       html,
