@@ -427,13 +427,25 @@ export default function DashboardPage() {
 
         {/* Filter tabs */}
         <div style={{ display: 'flex', gap: 4, padding: '8px 12px 0' }}>
-          {['all', 'critical', 'escalated', 'pending'].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11,
-              background: filter === f ? '#1a1a28' : 'transparent',
-              color: filter === f ? '#e8e6df' : '#555', fontFamily: 'inherit', transition: 'all 0.15s',
-            }}>{f}</button>
-          ))}
+          {([
+            { key: 'all',       label: 'All',       count: cases.length },
+            { key: 'critical',  label: 'Critical',  count: cases.filter(c => c.severity === 'critical').length },
+            { key: 'escalated', label: 'Escalated', count: cases.filter(c => c.status === 'escalated').length },
+            { key: 'pending',   label: 'Pending',   count: cases.filter(c => c.status === 'pending_info').length },
+          ] as const).map(({ key, label, count }) => {
+            const active = filter === key
+            return (
+              <button key={key} type="button" onClick={() => setFilter(key)} style={{
+                flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: active ? '#1a1a28' : 'transparent',
+                color: active ? '#e8e6df' : '#555', fontFamily: 'inherit', transition: 'all 0.15s',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 500, color: active ? '#e8e6df' : '#444', lineHeight: 1 }}>{count}</span>
+                <span style={{ fontSize: 10, letterSpacing: '0.03em' }}>{label}</span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Case list */}
