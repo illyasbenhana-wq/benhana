@@ -177,12 +177,17 @@ function fmtCurrency(n: number) {
 
 function fmtSLA(hours: number) {
   if (hours <= 0) return 'OVERDUE'
-  if (hours < 1) return `${Math.round(hours * 60)}m`
-  return `${hours.toFixed(1)}h`
+  const totalSecs = Math.round(hours * 3600)
+  const h = Math.floor(totalSecs / 3600)
+  const m = Math.floor((totalSecs % 3600) / 60)
+  const s = totalSecs % 60
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 function slaColor(hours: number, total: number) {
   if (hours <= 0) return '#E24B4A'
+  if (hours < 1) return '#E24B4A'           // under 1 hour → red
   const pct = hours / total
   if (pct < 0.3) return '#E24B4A'
   if (pct < 0.6) return '#BA7517'
@@ -215,6 +220,17 @@ export default function DashboardPage() {
   const [txSignals, setTxSignals] = useState<TxSignal[]>(MOCK_TX_SIGNALS)
   const [userRole, setUserRole] = useState<UserRole>('analyst')
   const [search, setSearch] = useState('')
+  const [elapsed, setElapsed] = useState(0) // seconds since cases loaded
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(e => e + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Live SLA hours = snapshot value minus elapsed seconds
+  function liveSLA(snapshotHours: number) {
+    return snapshotHours - elapsed / 3600
+  }
 
   async function handleLogout() {
     if (supabase) await supabase.auth.signOut()
@@ -352,7 +368,7 @@ export default function DashboardPage() {
   const activeCount  = cases.filter(c => c.status === 'open' || c.status === 'escalated').length
   const critCount    = cases.filter(c => c.severity === 'critical').length
   const escalCount   = cases.filter(c => c.status === 'escalated').length
-  const slaBreaching = cases.filter(c => c.sla_remaining_hours / c.sla_hours < 0.3 && c.status !== 'cleared').length
+  const slaBreaching = cases.filter(c => liveSLA(c.sla_remaining_hours) / c.sla_hours < 0.3 && c.status !== 'cleared').length
 
   const kpis = [
     { label: 'Active Cases',  val: activeCount,  color: '#e8e6df' },
@@ -456,7 +472,8 @@ export default function DashboardPage() {
           {filtered.map(c => {
             const sc = SEV_COLOR[c.severity] || '#555'
             const isSelected = activeCase?.id === c.id
-            const slaCol = slaColor(c.sla_remaining_hours, c.sla_hours)
+            const lsla = liveSLA(c.sla_remaining_hours)
+            const slaCol = slaColor(lsla, c.sla_hours)
             return (
               <div key={c.id} onClick={() => setActiveCase(c)} style={{
                 padding: '12px 14px', borderRadius: 10, marginBottom: 4, cursor: 'pointer',
@@ -471,7 +488,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ fontSize: 11, color: '#555' }}>{c.case_ref} · {fmtCurrency(c.exposure_amount)}</div>
                   <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                    <div style={{ fontSize: 10, color: slaCol }}>SLA {fmtSLA(c.sla_remaining_hours)}</div>
+                    <div style={{ fontSize: 10, color: slaCol, fontVariantNumeric: 'tabular-nums' }}>SLA {fmtSLA(lsla)}</div>
                     <div style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: `${sc}22`, color: sc }}>{SEV_LABEL[c.severity]}</div>
                   </div>
                 </div>
@@ -523,7 +540,7 @@ export default function DashboardPage() {
                         <div style={{ fontSize: 11, color: '#555' }}>{c.case_ref} · {c.case_type}</div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 11, color: slaColor(c.sla_remaining_hours, c.sla_hours) }}>SLA {fmtSLA(c.sla_remaining_hours)}</div>
+                        <div style={{ fontSize: 11, color: slaColor(liveSLA(c.sla_remaining_hours), c.sla_hours), fontVariantNumeric: 'tabular-nums' }}>SLA {fmtSLA(liveSLA(c.sla_remaining_hours))}</div>
                         <div style={{ fontSize: 11, color: '#555' }}>{fmtCurrency(c.exposure_amount)}</div>
                       </div>
                     </div>
@@ -632,7 +649,7 @@ export default function DashboardPage() {
                 { label: 'Case Type',     val: activeCase.case_type },
                 { label: 'Jurisdiction',  val: activeCase.jurisdiction },
                 { label: 'Exposure',      val: fmtCurrency(activeCase.exposure_amount) },
-                { label: 'SLA Remaining', val: fmtSLA(activeCase.sla_remaining_hours), color: slaColor(activeCase.sla_remaining_hours, activeCase.sla_hours) },
+                { label: 'SLA Remaining', val: fmtSLA(liveSLA(activeCase.sla_remaining_hours)), color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours) },
               ].map(m => (
                 <div key={m.label} style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 10, padding: '12px 14px' }}>
                   <div style={{ fontSize: 11, color: '#555', marginBottom: 4 }}>{m.label}</div>
