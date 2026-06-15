@@ -107,20 +107,20 @@ export default function ScorePage() {
   const rec = score.recommendation
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif' }}>
+    <>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+    <div id="ethofi-screen" style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif' }}>
       <style>{`
         * { box-sizing: border-box; }
         @keyframes countUp { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
 
         /* ── Print / PDF styles ── */
+        #ethofi-pdf { display: none; }
         @media print {
           @page { margin: 18mm 16mm; size: A4; }
-          body * { visibility: hidden; }
-          #ethofi-pdf, #ethofi-pdf * { visibility: visible; }
-          #ethofi-pdf { position: fixed; top: 0; left: 0; width: 100%; background: #fff; }
+          #ethofi-screen { display: none !important; }
+          #ethofi-pdf { display: block !important; color: #111 !important; background: #fff !important; font-family: Georgia, serif; padding: 0; margin: 0; width: 100%; }
         }
-        #ethofi-pdf { display: none; }
 
         /* PDF internal styles */
         .pdf-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 2px solid #111; margin-bottom: 24px; }
@@ -232,6 +232,8 @@ export default function ScorePage() {
         </div>
       </div>
 
+    </div>
+
       {/* ── Hidden PDF layout — visible only on print ── */}
       <div id="ethofi-pdf" style={{ fontFamily: 'Georgia, "Times New Roman", serif', color: '#111', background: '#fff', padding: '0 8px' }}>
 
@@ -330,6 +332,6 @@ export default function ScorePage() {
           <span>Generated {new Date().toLocaleDateString('en-GB')}</span>
         </div>
       </div>
-    </div>
+    </>
   )
 }
