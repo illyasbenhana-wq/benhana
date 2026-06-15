@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
+import { getRoleFromSession, ROLE_HOME } from '../../lib/user-role'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,7 +21,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
@@ -28,7 +29,8 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/dashboard')
+    const role = getRoleFromSession(data.session)
+    router.push(ROLE_HOME[role])
   }
 
   return (

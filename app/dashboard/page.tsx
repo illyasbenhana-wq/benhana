@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../lib/user-role'
 import { MerchantIntelligence } from './components/MerchantIntelligence'
 import { fatimaOkoyeComplianceCase, FATIMA_OKOYE_CASE_REF } from '../../lib/fatima-okoye-demo'
 
@@ -212,6 +213,7 @@ export default function DashboardPage() {
   const [acting, setActing] = useState(false)
   const [audit, setAudit] = useState<AuditEvent[]>([])
   const [txSignals, setTxSignals] = useState<TxSignal[]>(MOCK_TX_SIGNALS)
+  const [userRole, setUserRole] = useState<UserRole>('analyst')
 
   async function handleLogout() {
     if (supabase) await supabase.auth.signOut()
@@ -245,7 +247,8 @@ export default function DashboardPage() {
 
     // Auth guard — redirect to /login if no active session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) router.push('/login')
+      if (!session) { router.push('/login'); return }
+      setUserRole(getRoleFromSession(session))
     })
     console.log('[EthosFi] Supabase client initialised. Fetching cases...')
     supabase
@@ -372,7 +375,7 @@ export default function DashboardPage() {
               </svg>
             </div>
             <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 15 }}>EthosFi</span>
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: '#555', background: '#13131a', border: '1px solid #2a2a38', borderRadius: 4, padding: '2px 8px' }}>Compliance</span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: '#4a9eff', background: '#0d1f33', border: '1px solid #1a3a5c', borderRadius: 4, padding: '2px 8px' }}>{ROLE_LABEL[userRole]}</span>
             <button
               type="button"
               onClick={handleLogout}

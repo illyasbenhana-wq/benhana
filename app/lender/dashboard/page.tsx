@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
+import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../../lib/user-role'
 
 const supabase = (() => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -81,6 +82,7 @@ export default function LenderDashboard() {
   const router = useRouter()
   const [apps, setApps] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState<UserRole>('lender')
 
   useEffect(() => {
     if (!supabase) {
@@ -91,6 +93,7 @@ export default function LenderDashboard() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.push('/login'); return }
+      setUserRole(getRoleFromSession(session))
 
       supabase!
         .from('applications')
@@ -158,7 +161,7 @@ export default function LenderDashboard() {
             </svg>
           </div>
           <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 16 }}>EthosFi</span>
-          <span style={{ fontSize: 11, color: '#555', background: '#13131a', border: '1px solid #1e1e2e', borderRadius: 4, padding: '2px 8px', marginLeft: 4 }}>Lender</span>
+          <span style={{ fontSize: 11, color: '#4a9eff', background: '#0d1f33', border: '1px solid #1a3a5c', borderRadius: 4, padding: '2px 8px', marginLeft: 4 }}>{ROLE_LABEL[userRole]}</span>
         </div>
         <button
           type="button"
