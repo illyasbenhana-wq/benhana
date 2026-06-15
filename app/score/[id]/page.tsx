@@ -1,13 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
-import { ScoreResult, Application } from '@/types'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { ScoreResult } from '@/types'
+import { readScoreSession, ScoreSessionPayload } from '@/lib/score-session'
 
 const BAND_CONFIG = {
   low:    { color: '#1D9E75', bg: '#0d2a20', label: 'Low risk',    headline: 'Great news.' },
@@ -15,22 +10,72 @@ const BAND_CONFIG = {
   high:   { color: '#E24B4A', bg: '#2a0d0d', label: 'Higher risk', headline: 'We\'ve found a path.' }
 }
 
+type ScoreView = {
+  fullName: string
+  score: ScoreResult
+}
+
+function fromSession(payload: ScoreSessionPayload): ScoreView {
+  return {
+    fullName: payload.full_name,
+    score: {
+      id: payload.score_id,
+      application_id: payload.application_id,
+      etho_score: payload.etho_score,
+      risk_band: payload.risk_band,
+      recommendation: payload.recommendation,
+      ai_summary: payload.ai_summary,
+      factors: payload.factors,
+      model_version: payload.model_version || 'unknown',
+      created_at: new Date().toISOString(),
+    },
+  }
+}
+
+function fromApi(application: { full_name: string }, score: ScoreResult): ScoreView {
+  return { fullName: application.full_name, score }
+}
+
 export default function ScorePage() {
   const params = useParams()
   const id = params?.id as string
-  const [app, setApp] = useState<Application | null>(null)
-  const [score, setScore] = useState<ScoreResult | null>(null)
+  const [view, setView] = useState<ScoreView | null>(null)
   const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
+    if (!id) return
+
     const load = async () => {
-      const { data: appData } = await supabase.from('applications').select('*').eq('id', id).single()
-      const { data: scoreData } = await supabase.from('scores').select('*').eq('application_id', id).single()
-      setApp(appData)
-      setScore(scoreData)
+      setLoading(true)
+      setNotFound(false)
+
+      // 1. sessionStorage (immediate after apply — no Supabase client read)
+      const cached = readScoreSession(id)
+      if (cached) {
+        setView(fromSession(cached))
+        setLoading(false)
+        return
+      }
+
+      // 2. API fetch (service role on server — RLS-safe)
+      try {
+        const res = await fetch(`/api/score/${id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setView(fromApi(data.application, data.score))
+          setLoading(false)
+          return
+        }
+      } catch (e) {
+        console.error('Score fetch failed:', e)
+      }
+
+      setNotFound(true)
       setLoading(false)
     }
-    if (id) load()
+
+    load()
   }, [id])
 
   if (loading) return (
@@ -45,15 +90,61 @@ export default function ScorePage() {
     </div>
   )
 
-  if (!score || !app) return <div style={{ color: '#fff', padding: 40 }}>Score not found.</div>
+  if (notFound || !view) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif', padding: 40 }}>
+        <p style={{ marginBottom: 16 }}>Score not found.</p>
+        <p style={{ fontSize: 14, color: '#666', maxWidth: 420, lineHeight: 1.6 }}>
+          Results are available right after you submit an application. If you opened this link in a new tab, submit again from the apply flow.
+        </p>
+        <a href="/apply" style={{ display: 'inline-block', marginTop: 20, color: '#4a9eff', fontSize: 14 }}>Go to apply →</a>
+      </div>
+    )
+  }
 
+  const { fullName, score } = view
   const band = BAND_CONFIG[score.risk_band]
   const rec = score.recommendation
 
   return (
     <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
-      <style>{`* { box-sizing: border-box; } @keyframes countUp { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }`}</style>
+      <style>{`
+        * { box-sizing: border-box; }
+        @keyframes countUp { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
+
+        /* ── Print / PDF styles ── */
+        @media print {
+          @page { margin: 18mm 16mm; size: A4; }
+          body * { visibility: hidden; }
+          #ethofi-pdf, #ethofi-pdf * { visibility: visible; }
+          #ethofi-pdf { position: fixed; top: 0; left: 0; width: 100%; background: #fff; }
+        }
+        #ethofi-pdf { display: none; }
+
+        /* PDF internal styles */
+        .pdf-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 2px solid #111; margin-bottom: 24px; }
+        .pdf-logo { display: flex; align-items: center; gap: 8px; }
+        .pdf-logo-icon { width: 28px; height: 28px; border-radius: 6px; background: #1a56db; display: flex; align-items: center; justify-content: center; }
+        .pdf-brand { font-family: Georgia, serif; font-size: 17px; font-weight: 700; color: #111; }
+        .pdf-meta { font-size: 11px; color: #888; text-align: right; line-height: 1.6; }
+        .pdf-section { margin-bottom: 22px; }
+        .pdf-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+        .pdf-score-row { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 6px; }
+        .pdf-score-num { font-size: 56px; font-family: Georgia, serif; font-weight: 700; line-height: 1; }
+        .pdf-band-badge { display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+        .pdf-bar-track { height: 6px; background: #e5e5e5; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+        .pdf-bar-fill { height: 100%; border-radius: 3px; }
+        .pdf-rec-box { border-radius: 8px; padding: 12px 16px; font-size: 13px; font-weight: 500; border: 1.5px solid; margin-bottom: 6px; }
+        .pdf-summary { font-size: 13px; color: #333; line-height: 1.65; background: #f7f7f9; border-radius: 8px; padding: 14px 16px; }
+        .pdf-factor { margin-bottom: 14px; }
+        .pdf-factor-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+        .pdf-factor-bar { height: 4px; background: #e5e5e5; border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+        .pdf-factor-rationale { font-size: 12px; color: #555; line-height: 1.5; }
+        .pdf-divider { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
+        .pdf-compliance { font-size: 11px; color: #666; line-height: 1.7; background: #f7f7f9; border-radius: 8px; padding: 12px 16px; border-left: 3px solid #1a56db; }
+        .pdf-footer { margin-top: 24px; padding-top: 14px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #aaa; }
+      `}</style>
 
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 24px' }}>
 
@@ -65,7 +156,7 @@ export default function ScorePage() {
           <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 16 }}>EthosFi</span>
         </div>
 
-        <p style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>Hello {app.full_name.split(' ')[0]},</p>
+        <p style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>Hello {fullName.split(' ')[0]},</p>
         <h1 style={{ fontFamily: '"DM Serif Display", serif', fontSize: 36, fontWeight: 400, margin: '0 0 32px', lineHeight: 1.1 }}>
           {band.headline}
         </h1>
@@ -137,7 +228,106 @@ export default function ScorePage() {
 
         <div style={{ display: 'flex', gap: 12 }}>
           <a href="/apply" style={{ flex: 1, padding: '14px 20px', borderRadius: 10, border: '1px solid #2a2a38', color: '#888', textAlign: 'center', textDecoration: 'none', fontSize: 14 }}>Apply again</a>
-          <button onClick={() => window.print()} style={{ flex: 1, padding: '14px 20px', borderRadius: 10, background: '#4a9eff', color: '#000', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, fontFamily: 'inherit' }}>Save results</button>
+          <button type="button" onClick={() => window.print()} style={{ flex: 1, padding: '14px 20px', borderRadius: 10, background: '#4a9eff', color: '#000', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, fontFamily: 'inherit' }}>Export PDF</button>
+        </div>
+      </div>
+
+      {/* ── Hidden PDF layout — visible only on print ── */}
+      <div id="ethofi-pdf" style={{ fontFamily: 'Georgia, "Times New Roman", serif', color: '#111', background: '#fff', padding: '0 8px' }}>
+
+        {/* Header */}
+        <div className="pdf-header">
+          <div className="pdf-logo">
+            <div className="pdf-logo-icon">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+            </div>
+            <span className="pdf-brand">EthosFi AI</span>
+          </div>
+          <div className="pdf-meta">
+            <div>Credit Score Report</div>
+            <div>Application ID: {score.application_id}</div>
+            <div>{new Date(score.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          </div>
+        </div>
+
+        {/* Applicant */}
+        <div className="pdf-section">
+          <div className="pdf-label">Applicant</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{fullName}</div>
+        </div>
+
+        {/* Score & band */}
+        <div className="pdf-section">
+          <div className="pdf-label">EthoScore™</div>
+          <div className="pdf-score-row">
+            <div className="pdf-score-num" style={{ color: band.color }}>{score.etho_score}</div>
+            <div>
+              <div className="pdf-band-badge" style={{ color: band.color, borderColor: band.color }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: band.color }} />
+                {band.label}
+              </div>
+            </div>
+          </div>
+          <div className="pdf-bar-track">
+            <div className="pdf-bar-fill" style={{ width: `${score.etho_score}%`, background: band.color }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#aaa', marginTop: 4 }}>
+            <span>0</span><span>50</span><span>100</span>
+          </div>
+        </div>
+
+        {/* Decision */}
+        <div className="pdf-section">
+          <div className="pdf-label">AI Decision</div>
+          <div className="pdf-rec-box" style={{
+            color:       rec === 'approve' ? '#166534' : rec === 'review' ? '#92400e' : '#991b1b',
+            borderColor: rec === 'approve' ? '#bbf7d0' : rec === 'review' ? '#fde68a' : '#fecaca',
+            background:  rec === 'approve' ? '#f0fdf4'  : rec === 'review' ? '#fffbeb'  : '#fef2f2',
+          }}>
+            {rec === 'approve' && '✓ Approved — profile meets lending criteria'}
+            {rec === 'review'  && '◎ Manual review required — lender assessment pending'}
+            {rec === 'decline' && '○ Not approved at this time'}
+          </div>
+        </div>
+
+        {/* AI Summary */}
+        <div className="pdf-section">
+          <div className="pdf-label">AI Assessment</div>
+          <div className="pdf-summary">{score.ai_summary}</div>
+        </div>
+
+        {/* Risk factors */}
+        <div className="pdf-section">
+          <div className="pdf-label">Score Breakdown — 5 Factors</div>
+          {score.factors.map((f, i) => {
+            const fc = f.score >= 70 ? '#166534' : f.score >= 40 ? '#92400e' : '#991b1b'
+            return (
+              <div key={i} className="pdf-factor">
+                <div className="pdf-factor-row">
+                  <span>{f.name}</span>
+                  <span style={{ color: fc }}>{f.score}/100</span>
+                </div>
+                <div className="pdf-factor-bar">
+                  <div style={{ height: '100%', width: `${f.score}%`, background: fc, borderRadius: 2 }} />
+                </div>
+                <div className="pdf-factor-rationale">{f.rationale}</div>
+              </div>
+            )
+          })}
+        </div>
+
+        <hr className="pdf-divider" />
+
+        {/* EU AI Act */}
+        <div className="pdf-compliance">
+          <strong>EU AI Act Compliance Notice (Article 22).</strong> This credit assessment was produced by an automated AI system (EthosFi AI, model: {score.model_version}). You have the right to request human review of this decision within 30 days of issue. To exercise this right, contact <strong>review@ethosfai.com</strong> with your Application ID. You may also request a plain-language explanation of the factors that influenced this score.
+        </div>
+
+        {/* Footer */}
+        <div className="pdf-footer">
+          <span>EthosFi AI · ethosfiai.com</span>
+          <span>This report is confidential and intended solely for the named applicant.</span>
+          <span>Generated {new Date().toLocaleDateString('en-GB')}</span>
         </div>
       </div>
     </div>
