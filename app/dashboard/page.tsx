@@ -214,6 +214,7 @@ export default function DashboardPage() {
   const [audit, setAudit] = useState<AuditEvent[]>([])
   const [txSignals, setTxSignals] = useState<TxSignal[]>(MOCK_TX_SIGNALS)
   const [userRole, setUserRole] = useState<UserRole>('analyst')
+  const [search, setSearch] = useState('')
 
   async function handleLogout() {
     if (supabase) await supabase.auth.signOut()
@@ -338,12 +339,15 @@ export default function DashboardPage() {
     setActing(false)
   }
 
-  const filtered = filter === 'all' ? cases : cases.filter(c => {
-    if (filter === 'critical')  return c.severity === 'critical'
-    if (filter === 'escalated') return c.status === 'escalated'
-    if (filter === 'pending')   return c.status === 'pending_info' || c.status === 'open'
-    return true
-  })
+  const q = search.trim().toLowerCase()
+  const filtered = cases
+    .filter(c => {
+      if (filter === 'critical')  return c.severity === 'critical'
+      if (filter === 'escalated') return c.status === 'escalated'
+      if (filter === 'pending')   return c.status === 'pending_info' || c.status === 'open'
+      return true
+    })
+    .filter(c => !q || c.entity_name.toLowerCase().includes(q) || c.case_ref.toLowerCase().includes(q))
 
   const activeCount  = cases.filter(c => c.status === 'open' || c.status === 'escalated').length
   const critCount    = cases.filter(c => c.severity === 'critical').length
@@ -400,8 +404,29 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Search */}
+        <div style={{ padding: '12px 12px 0' }}>
+          <div style={{ position: 'relative' }}>
+            <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <circle cx="6.5" cy="6.5" r="4.5" stroke="#555" strokeWidth="1.5"/>
+              <path d="M10 10L13.5 13.5" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            <input
+              type="search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search entity or case ref…"
+              style={{
+                width: '100%', background: '#13131a', border: '1px solid #1e1e2e',
+                borderRadius: 8, padding: '7px 10px 7px 28px', color: '#e8e6df',
+                fontSize: 12, fontFamily: 'inherit', outline: 'none',
+              }}
+            />
+          </div>
+        </div>
+
         {/* Filter tabs */}
-        <div style={{ display: 'flex', gap: 4, padding: '12px 12px 0' }}>
+        <div style={{ display: 'flex', gap: 4, padding: '8px 12px 0' }}>
           {['all', 'critical', 'escalated', 'pending'].map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{
               flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11,
