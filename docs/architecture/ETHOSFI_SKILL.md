@@ -1,470 +1,316 @@
-# EthosFiAI — Chief Architect Reference
+---
+name: ethosfi-chief-architect
+description: "Chief Architect skill for the EthosFi project. Load at the start of every Claude Code session working on EthosFi. Gives Claude Code the full architectural vision, current phase (Phase 2 — Enterprise Foundation), phase roadmap (Phases 1–6), database conventions, EthoScore algorithm, and strict rules to extend without breaking the existing MVP. Triggers on: 'work on EthosFi', 'continue EthosFi', 'EthosFi phase 2', 'build EthosFi feature', 'EthosFi architecture'."
+license: Proprietary
+---
 
-**Classification:** Internal Architecture Guidance  
-**Owner:** Chief Architect  
-**Last Updated:** June 2026  
-**Current Phase:** 1.5 (in progress)
+# EthosFi — Chief Architect Skill
+
+## What This Skill Is
+
+You are the **Chief Architect** of EthosFi — a Decision Intelligence Platform for cross-border SME finance.
+
+This skill gives you the complete architectural vision, current project state, phase roadmap, and strict rules to follow so you always build toward the long-term goal without losing direction, breaking existing work, or making decisions that create future technical debt.
+
+**Read this entire file before writing a single line of code.**
 
 ---
 
-## Platform Identity
+## The Vision — EthosFi in One Sentence
 
-EthosFiAI is a **Decision Intelligence Platform for cross-border SME finance**.
+EthosFi is a **Palantir-tier Decision Intelligence Platform** specifically designed for **cross-border SME finance**, combining ethical scoring (EthoScore), workflow automation, multi-party collaboration, and deep operational intelligence — available to SMEs, financial institutions, and advisors.
 
-It is not a credit scoring app. It is not a compliance tool. It is the intersection of both — a unified intelligence layer that enables financial institutions to make faster, fairer, and more defensible decisions across the full SME lending and compliance lifecycle.
+---
 
-**Inspirational peers:**
-- **Palantir Foundry** — ontology-driven data platform, case management, workflow orchestration
-- **Feedzai** — real-time transaction risk scoring at scale
-- **ComplyAdvantage** — AI-native AML/sanctions/PEP screening
-- **Quantexa** — network analytics and entity resolution for financial crime
+## What "Palantir-Tier" Actually Means
 
-EthosFiAI is smaller in scope today but is architected to grow into this class of software. Every decision made now should be defensible against that ambition.
+Palantir's value comes from four core concepts. EthosFi mirrors all four:
+
+| Palantir Concept | EthosFi Implementation |
+|---|---|
+| **Ontology** — a live model of the business world | EthosFi Ontology: Companies, Deals, Parties, Scores, Workflows, Events |
+| **Operational Intelligence** — decisions backed by data | EthoScore engine, risk dashboards, compliance monitoring |
+| **Workflow Orchestration** — human + AI working together | Case management, approval chains, document workflows |
+| **Multi-party Collaboration** — different actors on one platform | SMEs, lenders, advisors, partners all operating in the same workspace |
+
+Do not implement generic features. Every feature must map to one of these four pillars.
+
+---
+
+## Current State — Phase 1.5 (MVP Live)
+
+The MVP is **already built and working**. It includes:
+
+- **Authentication** — JWT, email/password, session management
+- **EthoScore Engine (v1)** — scoring algorithm for cross-border SME transactions
+- **Basic Dashboard** — overview metrics, recent activity
+- **Company Profiles** — entity creation and management
+- **Deal Tracking (basic)** — deal creation, status, basic workflow
+- **Document Management (basic)** — upload, attach to deals
+- **API Layer** — RESTful API, basic endpoints working
+- **Database Schema (v1)** — core tables: users, companies, deals, documents, scores
+
+### ⚠️ Critical Rule: Do Not Break the MVP
+
+Never rewrite, replace, or restructure existing working code unless:
+1. A bug makes it non-functional, OR
+2. A Phase 2 feature is architecturally incompatible with the current implementation AND you've explained why to the user first.
+
+Extend. Don't replace.
+
+---
+
+## Phase Roadmap
+
+### PHASE 1 — MVP (DONE ✅)
+Core platform: auth, EthoScore v1, deals, documents, basic dashboard.
+
+---
+
+### PHASE 2 — Enterprise Foundation (CURRENT FOCUS 🎯)
+
+**Objective:** Make the platform multi-tenant and partner-ready.
+
+Build in this order:
+
+#### 2.1 — Multi-Tenancy & Organizations
+- `organizations` table with `id`, `name`, `slug`, `plan`, `settings`, `created_at`
+- Every resource (deals, companies, documents) scoped to an `organization_id`
+- Workspace isolation: no data leakage between tenants
+- Subdomain or path-based routing per organization
+
+#### 2.2 — Role-Based Access Control (RBAC)
+- Roles: `owner`, `admin`, `analyst`, `viewer`, `partner`
+- Permissions matrix (per resource: read / write / delete / approve)
+- `organization_members` table: `user_id`, `organization_id`, `role`, `invited_by`
+- Middleware guard: all API routes check `org_id` + `role` before proceeding
+
+#### 2.3 — Workflow Engine (v1)
+- Configurable deal states: `draft → submitted → under_review → approved → active → closed`
+- State machine: define valid transitions, required actors per transition
+- `workflow_events` table: immutable log of every state change with `actor_id`, `timestamp`, `metadata`
+- Hook system: trigger actions on state change (notifications, document requests, score recalculation)
+
+#### 2.4 — Partner API
+- Scoped API keys per organization (`api_keys` table)
+- Rate limiting per key
+- Webhook system: `webhook_endpoints` table, event delivery with retry logic
+- API documentation (OpenAPI 3.0 spec)
+
+#### 2.5 — Case Management
+- A "case" wraps a deal with its full context: parties, documents, scores, events, comments, tasks
+- `cases` table extending `deals`: `assigned_to`, `priority`, `sla_deadline`, `status`
+- Internal notes and comments (not visible to deal counterparties)
+- Task assignment within a case
+
+#### 2.6 — Notification System
+- In-app notifications (`notifications` table)
+- Email notifications via template engine (Resend or SendGrid)
+- Notification preferences per user
+- Real-time delivery via WebSocket or SSE
+
+---
+
+### PHASE 3 — Intelligence Layer
+
+**Objective:** Move from data storage to decision intelligence.
+
+- **EthoScore v2** — multi-factor scoring: payment history, cross-border track record, ESG signals, financial health
+- **Risk Dashboard** — live risk exposure view per organization
+- **Anomaly Detection** — flag unusual patterns in deal flow, document quality, counterparty behavior
+- **Benchmarking** — compare a deal/company against anonymized peer cohorts
+- **AI-Assisted Review** — Claude-powered document analysis and deal summarization
+- **Predictive Analytics** — deal success probability, time-to-close estimates
+
+---
+
+### PHASE 4 — Palantir Tier (Full Platform)
+
+**Objective:** Full operational intelligence and ontology.
+
+- **EthosFi Ontology** — live graph of all entities and their relationships
+- **Graph Explorer** — visual navigation of company networks, deal relationships, party connections
+- **Cross-Deal Intelligence** — surface patterns across the entire platform (anonymized)
+- **Regulatory Intelligence** — jurisdiction-specific compliance rules engine
+- **White-Label Platform** — financial institutions deploy EthosFi under their own brand
+- **Marketplace** — ecosystem of advisors, lenders, service providers discoverable by SMEs
+
+---
+
+### PHASE 5 — Network Effects & Ecosystem
+
+- **EthosFi Network** — SMEs discover each other, build cross-border relationships
+- **Lender Marketplace** — deals matched to lenders based on criteria
+- **Advisor Network** — verified advisors bookable through the platform
+- **Data Products** — anonymized aggregate intelligence sold to institutional buyers
+
+---
+
+### PHASE 6 — Autonomous Operations
+
+- **AI Agents** — autonomous deal processing, document verification, compliance checking
+- **Autonomous Underwriting** — AI-generated risk assessments replacing manual review for standard deals
+- **Self-Optimizing Workflows** — workflows that adapt based on historical outcomes
 
 ---
 
 ## Architecture Principles
 
-These principles govern every phase of development. They are not aspirational — they are constraints.
+### 1. Ontology-First Design
+Every new entity must be modeled as part of the EthosFi ontology:
+- What is it? (entity definition)
+- What does it relate to? (relationships)
+- What events can happen to it? (state changes)
+- Who can act on it? (actors)
 
-1. **Preserve and extend.** Never replace working functionality. Phase N+1 wraps Phase N.
-2. **Backward compatibility is non-negotiable.** Existing API contracts, database schemas, and UI surfaces remain stable across phases.
-3. **Build incrementally.** No big-bang rewrites. Each phase ships independently.
-4. **Separation of concerns.** AI scoring, business rules, audit, and case management are distinct layers with clean interfaces.
-5. **EU AI Act by default.** Every AI decision is auditable, explainable, and logged. This is not optional compliance — it is a competitive advantage.
-6. **No dependencies without justification.** Every new package must earn its place. Prefer native platform capabilities (Next.js, Supabase, Node built-ins) before adding dependencies.
-7. **Enterprise data model.** Multi-tenant from Phase 2 onwards. Every entity belongs to an organisation. Every action belongs to a user.
+Before creating a new database table, answer these four questions.
 
----
+### 2. Immutable Event Log
+Every significant action must be logged as an immutable event:
+- Never update in place when you can append an event
+- State is derived from event history
+- This enables full audit trails, debugging, and future analytics
 
-## Platform Layers (Permanent)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        PRESENTATION LAYER                        │
-│   Next.js App Router · React 19 · Inline styles · DM Sans      │
-├─────────────────────────────────────────────────────────────────┤
-│                         API LAYER                                │
-│   Next.js Route Handlers (app/api/**)                           │
-│   Stateless · JSON · No session state server-side               │
-├──────────────────────────┬──────────────────────────────────────┤
-│     DECISION ENGINE       │        COMPLIANCE ENGINE             │
-│   scoring-engine.ts       │   case-action/route.ts               │
-│   decision-engine.ts      │   audit-engine.ts                    │
-│   risk-factors.ts         │   Cases · Signals · Actions          │
-├──────────────────────────┴──────────────────────────────────────┤
-│                         AI LAYER                                 │
-│   Claude (Anthropic SDK) · Prompt versioning · Mock fallback    │
-├─────────────────────────────────────────────────────────────────┤
-│                       PERSISTENCE LAYER                          │
-│   Supabase (PostgreSQL) · Row-Level Security · Service Key      │
-│   Supabase Auth · app_metadata for roles                        │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Phase 1 — Foundation (COMPLETE · Do Not Modify)
-
-**Status:** Production. Live at ethosfiai-mvp.vercel.app.
-
-### What was built
-
-#### Application & Scoring Pipeline (`app/api/score/route.ts`)
-An 8-step pipeline executed on every loan application:
-1. Receive `ApplicationForm` via POST
-2. Persist application to `applications` table
-3. Call Claude (`claude-sonnet-4-6`) via Anthropic SDK for AI scoring
-4. Extract structured risk signals via `lib/risk-factors.ts`
-5. Apply deterministic business rules via `lib/decision-engine.ts`
-6. Record EU AI Act audit event via `lib/audit-engine.ts`
-7. Persist score + factors to `scores` table
-8. Return full decision response to client
-
-**Mock fallback:** if `ANTHROPIC_API_KEY` is absent, a deterministic mock score is returned. The pipeline continues identically. This preserves testability without a live AI key.
-
-#### Decision Engine (`lib/decision-engine.ts`)
-Pure business logic. No AI. No I/O. Deterministic.
-
-| Score | Outcome | Human Review |
-|-------|---------|--------------|
-| > 70 | Approved | No |
-| 50–70 | Pending review | Yes |
-| < 50 | Declined | No |
-
-Returns: `approved`, `confidence` (0–1), `requiresHumanReview`, `reasonCodes[]`
-
-Confidence is derived from distance to nearest threshold — not from the AI model.
-
-#### Risk Factors (`lib/risk-factors.ts`)
-Transforms raw AI scoring output (factor names + scores) into named `RiskSignal[]` objects. Uses keyword matching against a curated signal vocabulary. High factor score → low risk score (inverted). Sorted by `weight × score` descending.
-
-#### Audit Engine (`lib/audit-engine.ts`)
-EU AI Act Article 22 compliance. Records every AI scoring event with:
-- `auditId` (UUID), `applicationId`, `inputSnapshot` (full form data)
-- `modelVersion`, `promptVersion`, `aiProvider`
-- `rawPrompt`, `rawResponse` (complete AI I/O preserved)
-- `createdAt` (ISO 8601)
-
-Degrades gracefully if Supabase is unavailable — logs warning, does not throw.
-
-#### Compliance Dashboard (`app/dashboard/page.tsx`)
-- Real-time SLA countdown timers (single `setInterval`, no polling)
-- Filter tabs with live counts from Supabase data
-- Search by entity name (client-side, no refetch)
-- Escalate / Clear / Request Info actions via `app/api/case-action/route.ts`
-- Escalation triggers email notification via Resend REST API (fire-and-forget)
-
-#### Lender Dashboard (`app/lender/dashboard/page.tsx`)
-- KPIs: total loan volume, approval rate, average EthoScore, pending review count
-- Risk distribution bar (low / medium / high)
-- Applications table with score, risk band, decision
-- Supabase nested select: `applications` → `scores` (unwrapped from array)
-
-#### Authentication (`app/login/page.tsx`, `lib/user-role.ts`)
-- Supabase Auth (`signInWithPassword`)
-- Session stored in localStorage (Supabase JS v2 default — no cookies)
-- Client-side auth guard via `getSession()` on mount — not middleware
-- Three roles: `analyst`, `senior_analyst`, `lender`
-- Roles stored in `app_metadata` (server-set, secure) with fallback to `user_metadata`
-- Role-based redirect after login: analyst/senior_analyst → `/dashboard`, lender → `/lender/dashboard`
-
-### Database Schema (Phase 1)
-
+Schema pattern:
 ```sql
-applications     -- borrower loan applications
-scores           -- AI scoring results + raw AI I/O
-decisions        -- lender decisions (override audit trail)
-cases            -- compliance investigation cases
-signals          -- risk signals per case
-case_actions     -- analyst actions (escalate / clear / request_info)
-audit_events     -- persistent audit log (AI Act + case actions)
-tx_metrics       -- transaction intelligence KPIs
+CREATE TABLE workflow_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id UUID NOT NULL,
+  event_type VARCHAR(100) NOT NULL,
+  actor_id UUID REFERENCES users(id),
+  payload JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
-### Technology Stack (Phase 1)
+### 3. Multi-Tenancy is Non-Negotiable
+Every query must be scoped by `organization_id`. No exceptions.
 
-| Concern | Choice | Rationale |
-|---------|--------|-----------|
-| Framework | Next.js 15 (App Router) | API routes + SSR + static pages in one repo |
-| Language | TypeScript 5 | Type safety across the full stack |
-| AI | Anthropic SDK (`claude-sonnet-4-6`) | Best-in-class reasoning for credit/compliance |
-| Database | Supabase (PostgreSQL) | Managed Postgres + Auth + RLS + realtime |
-| Auth | Supabase Auth | No additional dependency |
-| Email | Resend REST API (native `fetch`) | Zero dependencies, free tier |
-| Deployment | Vercel | Zero-config Next.js deployment |
-| Styling | Inline styles | No build step, no CSS conflicts, portable |
-| UUID | `crypto.randomUUID()` | Node 14.17+ built-in, no package needed |
+### 4. API-First
+Build the API endpoint before the UI. The UI is a consumer of the API.
 
-### Environment Variables (Phase 1)
+### 5. Extend, Don't Replace
+Add new columns (nullable or with defaults) rather than restructuring tables.
+Add new endpoints rather than modifying existing ones.
 
-```
-NEXT_PUBLIC_SUPABASE_URL    Supabase project URL
-SUPABASE_SERVICE_KEY        Service role key (bypasses RLS — server-side only)
-ANTHROPIC_API_KEY           Claude API key (optional — mock fallback if absent)
-RESEND_API_KEY              Resend email API key (optional — skipped if absent)
-```
+### 6. No Magic, All Explicit
+No implicit side effects. No global mutable state.
+All side effects (emails, webhooks, score recalculations) must be explicit and traceable.
 
 ---
 
-## Phase 1.5 — Hardening (IN PROGRESS)
+## Technology Stack
 
-Phase 1.5 is not a feature phase. It is a stability and observability phase. Do not add new user-facing features until 1.5 is complete.
+### Current (Phase 1 — do not change without user approval)
+| Layer | Technology |
+|---|---|
+| **Runtime** | Node.js |
+| **Database** | PostgreSQL |
+| **Auth** | JWT |
 
-### Objectives
-- [ ] Email notification system verified end-to-end (Resend + escalation flow)
-- [ ] Sender domain verified in Resend (move off `onboarding@resend.dev`)
-- [ ] Error boundaries added to dashboard pages (prevent white screens)
-- [ ] Supabase RLS policies defined and tested
-- [ ] Environment variable validation at startup (fail loudly if misconfigured)
-- [ ] TypeScript `strict: true` enabled and all errors resolved
-- [ ] `audit_events` table extended to include `application_id` for cross-domain audit queries
+> ⚠️ Confirm the exact framework and ORM by reading `package.json` before writing queries.
 
-### Do Not Build in 1.5
-Multi-tenancy, new roles, workflow engine, external APIs. Those are Phase 2.
+### Phase 2 Additions (introduce as needed)
+| Addition | Purpose |
+|---|---|
+| BullMQ + Redis | Job queues for async processing |
+| WebSocket / SSE | Real-time notifications |
+| Resend | Email delivery |
+| OpenAPI 3.0 | Partner API documentation |
+
+### Phase 4+ Only (do not introduce earlier)
+Graph database, ML microservices, vector search.
 
 ---
 
-## Phase 2 — Multi-Tenancy & Workflow Engine (NEXT)
+## Database Schema Conventions
 
-**Target audience:** Multiple financial institutions running on the same EthosFiAI deployment. Each organisation has isolated data, its own analysts, and its own configuration.
-
-**Do not begin Phase 2 until Phase 1.5 is signed off.**
-
-### Core Concepts
-
-#### Organisations & Workspaces
-Every entity in the system belongs to an `organisation`. A workspace is a named operational context within an organisation (e.g. "UK Lending Desk", "AML Operations – Dubai").
-
+Every table must have:
 ```sql
-organisations (
-  id uuid primary key,
-  name text not null,
-  slug text unique not null,        -- used in URLs: /org/barclays-uk/dashboard
-  plan text not null,               -- 'starter' | 'professional' | 'enterprise'
-  created_at timestamptz,
-  settings jsonb default '{}'       -- org-level config: thresholds, notification prefs, etc.
-)
-
-workspaces (
-  id uuid primary key,
-  org_id uuid references organisations(id),
-  name text not null,
-  type text not null,               -- 'lending' | 'compliance' | 'combined'
-  config jsonb default '{}'
-)
+id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
-All existing tables gain `org_id uuid references organisations(id)` as a non-nullable column. Row-Level Security policies enforce isolation: `WHERE org_id = auth.jwt()->>'org_id'`.
-
-**Migration strategy:** Create a `default` organisation. Backfill all existing rows with its ID. All existing functionality continues to work. Multi-tenancy is transparent to Phase 1 code paths.
-
-#### Advanced RBAC
-
-Phase 1 has three flat roles. Phase 2 introduces permission-scoped roles within organisations.
-
-```typescript
-// Phase 2 role model
-type OrgRole =
-  | 'org_admin'          // manages org settings, users, billing
-  | 'workspace_admin'    // manages workspace config and team
-  | 'senior_analyst'     // all case actions, can escalate to external
-  | 'analyst'            // standard case actions, cannot clear critical cases
-  | 'lender'             // read-only access to scoring results and decisions
-  | 'auditor'            // read-only access to audit_events only
-  | 'api_client'         // machine-to-machine, no UI
-
-// Stored in app_metadata:
-// { org_id: "uuid", workspace_id: "uuid", role: "analyst" }
-```
-
-Permissions are checked via a `hasPermission(session, action, resource)` helper — never inline role checks scattered across components. This makes future role changes a single-file edit.
-
-#### Workflow Engine
-
-Phase 1 case actions are one-shot (escalate → done). Phase 2 introduces configurable multi-step workflows with SLA enforcement, assignment rules, and approval chains.
-
-```typescript
-interface WorkflowDefinition {
-  id: string
-  org_id: string
-  name: string               // "AML Escalation Workflow"
-  trigger: WorkflowTrigger   // { type: 'case_status_change', from: 'open', to: 'escalated' }
-  steps: WorkflowStep[]
-  sla_hours: number
-  notifications: NotificationRule[]
-}
-
-interface WorkflowStep {
-  order: number
-  name: string
-  assignee_role: OrgRole     // who gets assigned this step
-  required_action: string    // 'review' | 'approve' | 'reject' | 'request_info'
-  auto_escalate_after_hours: number
-  form_schema?: JsonSchema   // structured data capture at this step
-}
-```
-
-The workflow engine is a server-side state machine. State transitions are persisted as `workflow_runs` and `workflow_events`. The UI renders the current step and available actions — it does not contain workflow logic.
-
-**Do not store workflow state in React.** The workflow engine lives entirely in `lib/workflow-engine.ts` and the database.
-
-#### Case Management v2
-
-Phase 1 cases are flat records with status fields. Phase 2 cases are rich objects with full lifecycle management.
-
-New capabilities:
-- **Case linking:** relate cases to applications, to other cases, to entities
-- **Evidence management:** file attachments (Supabase Storage), document versioning
-- **Commentary thread:** structured notes per case with @mentions and timestamps
-- **Assignment queue:** unassigned cases routable by workload, jurisdiction, or expertise
-- **SLA inheritance:** SLA rules defined at workflow level, overridable per case
-
+Every tenant-scoped table must have:
 ```sql
--- Phase 2 additions to cases table
-ALTER TABLE cases ADD COLUMN workflow_id uuid references workflow_definitions(id);
-ALTER TABLE cases ADD COLUMN assigned_workspace_id uuid references workspaces(id);
-ALTER TABLE cases ADD COLUMN parent_case_id uuid references cases(id);  -- for linked cases
-ALTER TABLE cases ADD COLUMN evidence jsonb default '[]';               -- [{name, url, uploaded_by, at}]
+organization_id UUID NOT NULL REFERENCES organizations(id)
 ```
 
-#### Partner APIs
-
-Phase 2 exposes a public REST API for lenders, fintech partners, and data providers.
-
-**Design constraints:**
-- API versioned from day one: `/api/v1/score`, `/api/v1/cases`
-- Machine-to-machine auth via API keys (separate from Supabase user sessions)
-- Rate limited per API key
-- All API access logged in `audit_events` with `ai_provider = 'api_client'`
-- Response envelopes follow a consistent shape: `{ data, meta, errors }`
-
-```typescript
-// API key model
-interface ApiKey {
-  id: string
-  org_id: string
-  name: string           // "Barclays Production Key"
-  key_hash: string       // never store plaintext
-  scopes: ApiScope[]     // ['score:read', 'cases:write', 'audit:read']
-  rate_limit_rpm: number
-  last_used_at: string
-  expires_at: string | null
-}
+Use soft delete (never hard delete business data):
+```sql
+deleted_at TIMESTAMPTZ  -- NULL means active
 ```
-
-**Phase 2 public endpoints:**
-```
-POST /api/v1/applications          Submit a loan application for scoring
-GET  /api/v1/applications/:id      Retrieve application + score result
-GET  /api/v1/applications/:id/audit  Full EU AI Act audit trail for an application
-POST /api/v1/cases                 Create a compliance case
-PATCH /api/v1/cases/:id            Update case status
-GET  /api/v1/cases/:id/timeline    Full action and event history
-```
-
-### Phase 2 File Structure
-
-```
-lib/
-  workflow-engine.ts         # state machine, step transitions
-  permissions.ts             # hasPermission(session, action, resource)
-  api-keys.ts                # API key generation, validation, hashing
-
-app/
-  api/
-    v1/                      # Partner API — versioned from the start
-      applications/
-        route.ts
-        [id]/route.ts
-      cases/
-        route.ts
-        [id]/route.ts
-  [org]/                     # Org-scoped UI routes (slug-based)
-    dashboard/page.tsx
-    cases/page.tsx
-    settings/page.tsx
-
-middleware.ts                # Phase 2: real auth middleware once @supabase/ssr is adopted
-```
-
-### Phase 2 Migration Rules
-
-1. All new database columns must have defaults — no nullable columns without a fallback.
-2. The `default` organisation created in migration must pass all Phase 1 tests unchanged.
-3. Phase 1 API routes (`/api/score`, `/api/case-action`) remain unchanged. The new `/api/v1/` routes are additive.
-4. The existing dashboard at `/dashboard` remains the entry point for the default workspace. Multi-tenant routing (`/[org]/dashboard`) is added alongside it, not replacing it.
 
 ---
 
-## Phase 3 — Intelligence Graph (Future)
+## EthoScore — The Core Algorithm
 
-**Do not design for this during Phase 2.**
+EthoScore is EthosFi's proprietary ethical + financial risk score for cross-border SME transactions. Score range: **0–1000**.
 
-Phase 3 introduces entity resolution and network intelligence — inspired by Quantexa's connected intelligence approach.
+### v1 Factors (current implementation)
+- Company age and registration status
+- Cross-border transaction history
+- Document completeness
+- Identity verification level
 
-### Concepts
-- **Entity graph:** resolve individuals, companies, addresses, and accounts across cases and applications into a unified entity model. "Fatima Okoye the loan applicant" and "Fatima Okoye the compliance flag" are the same node.
-- **Network analysis:** detect shared directors, addresses, phone numbers, and payment corridors across the customer base.
-- **Relationship scoring:** enrich every application and case with network-derived risk signals.
-- **Graph visualisation:** interactive network explorer in the compliance dashboard.
+### v2 Target Architecture (Phase 3 only)
+```
+EthoScore: 0–1000
+├── Trust Pillar      (0–300) — identity, verification, network
+├── Track Record      (0–300) — history, completion rate, disputes
+├── Financial Health  (0–200) — revenue proxies, growth signals
+└── ESG Alignment     (0–200) — where data is available
+```
 
-### Key technical prerequisite from Phase 2
-Entity resolution requires a canonical `entities` table that acts as a reference across `applications`, `cases`, and external watchlists. Phase 2 should begin tracking `entity_id` as a foreign key on both `applications` and `cases` — even if the entity graph itself is not built until Phase 3.
-
----
-
-## Phase 4 — Real-Time Data Fabric (Future)
-
-**Do not design for this during Phase 3.**
-
-Phase 4 connects EthosFiAI to live data streams — replacing the current application-form-based input model with continuous data ingestion.
-
-### Concepts
-- **Transaction stream ingestion:** consume real-time payment flows from core banking via webhooks or Kafka
-- **Continuous scoring:** re-score entities as new transactions arrive, not just at application time
-- **Alert management:** replace static SLA timers with event-driven alerts from the data fabric
-- **Data connectors:** pre-built integrations for Plaid (open banking), Companies House (UK), GLEIF (global entity LEI)
-
-### Key technical prerequisite from Phase 3
-Entity graph must be stable before ingesting live transactions. Streaming data is meaningless without resolved entities to attach it to.
+Never expose raw factor weights publicly. The score is an output, not a formula.
 
 ---
 
-## Phase 5 — Adaptive AI (Future)
+## What NOT To Do
 
-**Do not design for this during Phase 4.**
+### 🚫 Never
+- Rewrite working Phase 1 code without user approval
+- Create generic CRUD features that don't map to the EthosFi ontology
+- Skip multi-tenancy scoping on any new query
+- Hard-delete business data (use soft delete)
+- Implement Phase 3+ features when working in Phase 2
+- Make architectural decisions without explaining the trade-off
 
-Phase 5 makes the AI layer adaptive — learning from human decisions to continuously improve model calibration.
-
-### Concepts
-- **Decision feedback loop:** when an analyst overrides an AI recommendation, that signal is captured as a labelled training example
-- **Threshold calibration:** decision thresholds (currently hardcoded: 70 approve, 50 review) become dynamic, tuned per organisation and loan type
-- **Prompt versioning:** structured A/B testing of prompt variants with performance tracking in `audit_events`
-- **Model switching:** the AI provider abstraction (`AiProvider` type in `audit-engine.ts`) already supports this — Phase 5 builds the routing and evaluation layer on top of it
-- **Explainability v2:** SHAP-style feature importance surfaced directly in the UI alongside AI narrative
-
-### Key technical prerequisite from Phase 4
-Feedback loop requires sufficient historical volume. Minimum threshold: 500 labelled decisions per organisation before calibration is statistically meaningful.
-
----
-
-## Phase 6 — Enterprise Distribution (Future)
-
-**Do not design for this during Phase 5.**
-
-Phase 6 is the commercialisation and enterprise deployment phase.
-
-### Concepts
-- **White-label:** organisations can deploy EthosFiAI under their own brand with custom theming, domain, and email templates
-- **On-premise deployment:** enterprise customers with data residency requirements receive a self-hosted Docker/Kubernetes distribution
-- **Marketplace integrations:** pre-certified integrations with Temenos, Finastra, FIS, and other core banking platforms
-- **Compliance certifications:** SOC 2 Type II, ISO 27001, FCA sandbox, MAS FinTech regulatory sandbox
+### ✅ Always
+- Read `package.json` and existing files before writing queries
+- Add `organization_id` to every new table holding business data
+- Log every significant state change as an immutable event
+- Write migrations (not schema drops/recreates)
+- Return consistent error shapes: `{ error: { code, message, details } }`
+- Comment complex business logic, especially EthoScore calculations
 
 ---
 
-## Decision Log
+## How to Start a Work Session
 
-Significant architectural decisions made during Phase 1 and why they must not be casually reversed.
-
-### ADR-001: Client-side auth guard (not middleware)
-**Decision:** Auth guard implemented via `supabase.auth.getSession()` in `useEffect`, not Next.js middleware.  
-**Reason:** Supabase JS v2 stores sessions in localStorage. Middleware runs on the Edge before the browser loads, so it cannot read localStorage. Middleware is a pass-through placeholder.  
-**Phase 2 change:** When `@supabase/ssr` is adopted (it handles cookies correctly), middleware can be re-enabled. Do not attempt this in Phase 1.5 — it requires a coordinated auth migration.
-
-### ADR-002: Roles in `app_metadata`, not a roles table
-**Decision:** User roles stored in Supabase `app_metadata` JSON, not in a separate database table.  
-**Reason:** `app_metadata` is set server-side (service key only), making it tamper-resistant from the client. Simpler than a join table for three roles.  
-**Phase 2 change:** When per-workspace roles are needed, introduce an `org_memberships` table (`user_id, org_id, workspace_id, role`). Keep `app_metadata` for the primary role. The `getRoleFromSession` function in `lib/user-role.ts` is the single place to update.
-
-### ADR-003: Fire-and-forget email
-**Decision:** Escalation email is sent without awaiting the result. Errors are logged but do not fail the API response.  
-**Reason:** Email delivery is a best-effort side effect. A failed email must never prevent a compliance case action from being recorded. The audit trail in Supabase is the source of truth — not the email.  
-**This decision is permanent.** Email is never in the critical path.
-
-### ADR-004: No ORM
-**Decision:** Raw Supabase client calls throughout, no ORM (Prisma, Drizzle, etc.).  
-**Reason:** Supabase's JS client is already a thin, typed query builder. Adding an ORM adds a migration layer, a schema duplication problem, and build complexity for minimal gain given the current scale.  
-**Phase 2 consideration:** If the schema grows to 20+ tables with complex join patterns, revisit Drizzle (lightweight, SQL-first). Do not add Prisma — its migration model conflicts with Supabase's managed migrations.
-
-### ADR-005: Inline styles
-**Decision:** All UI styling uses inline style objects. No CSS files, no Tailwind, no CSS modules.  
-**Reason:** Established project convention. Consistent across all components. No build-time CSS processing. Portable to any renderer.  
-**This decision is permanent for existing components.** New Phase 2 components must follow the same convention unless there is an explicit architectural decision to migrate — and that migration must be complete, not partial.
-
-### ADR-006: `crypto.randomUUID()` not `uuid` package
-**Decision:** IDs generated with `crypto.randomUUID()` (Node 14.17+ built-in).  
-**Reason:** The `uuid` npm package was not installed and this avoids adding a dependency for a capability already available in the Node runtime and modern browsers.  
-**This decision applies everywhere.** Never add the `uuid` package.
+1. **Confirm current phase** — ask if unclear
+2. **Read existing code** — use `find`, `cat`, `grep` to understand what already exists
+3. **Confirm the stack** — read `package.json` and existing source files
+4. **Plan before coding** — state what you'll build, what tables/endpoints are affected, what risks exist
+5. **Build incrementally** — one feature at a time, verify before moving on
 
 ---
 
-## What EthosFiAI Is Not
+## Phase 2 Completion Checklist
 
-These are explicit non-goals that inform scope decisions.
+- [ ] `organizations` table exists; all resources scoped by `organization_id`
+- [ ] RBAC middleware guards all API routes
+- [ ] Deal state machine defined and enforced
+- [ ] `workflow_events` table captures all state changes
+- [ ] API keys issuable per organization
+- [ ] Webhooks registered and receiving events
+- [ ] Cases wrap deals with full context
+- [ ] Notification system delivers in-app and email alerts
+- [ ] All new tables follow schema conventions
+- [ ] OpenAPI spec updated for all new endpoints
 
-- **Not a core banking system.** EthosFiAI does not process payments, hold balances, or issue loans. It scores, decides, and monitors.
-- **Not a data warehouse.** Historical analytics and BI belong in a separate reporting layer (e.g. Metabase pointed at the Supabase read replica). EthosFiAI is operational, not analytical.
-- **Not a document management system.** Evidence attachments in Phase 2 are lightweight references to files stored in Supabase Storage. Full document lifecycle management (versioning, redlining, e-signatures) is out of scope.
-- **Not a customer portal.** The applicant-facing `/apply` form is a thin intake surface. EthosFiAI does not have a borrower login, borrower communications, or account management.
-- **Not a replacement for human judgement.** EU AI Act Article 22 compliance is a design requirement, not a checkbox. The platform supports human decision-making — it does not replace it. Every AI recommendation is a recommendation, not a decision.
+---
+
+*This skill is the persistent architectural memory of EthosFi. Load it at the start of every Claude Code session working on this project.*
