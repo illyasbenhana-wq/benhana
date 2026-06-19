@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requirePermission } from '../../../lib/api-guard'
+import { transition, registerHook } from '../../../lib/workflow-engine'
 
 async function sendEscalationEmail({
   caseRef, entityName, riskScore, analystName,
@@ -61,6 +62,17 @@ async function sendEscalationEmail({
   console.log('[case-action] escalation email sent for', caseRef)
 }
 
+// Hook: send escalation email when a case transitions to 'escalated'
+registerHook('case', 'escalated', async (event) => {
+  const meta = event.metadata as Record<string, any>
+  await sendEscalationEmail({
+    caseRef: meta.caseRef ?? '',
+    entityName: meta.entityName ?? '',
+    riskScore: meta.riskScore ?? null,
+    analystName: meta.analystName ?? 'Unknown',
+  })
+})
+
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_KEY
@@ -109,22 +121,25 @@ export async function POST(req: NextRequest) {
     act === 'clear'    ? `Case ${caseRef} cleared. No further action required.` :
                          `Information request sent for case ${caseRef}.`
 
-  // 1. Update case status
-  console.log('[case-action] step 1: updating cases table, id=', caseId, 'status=', newStatus)
-  const { error: caseErr, count } = await supabase
-    .from('cases')
-    .update({ status: newStatus })
-    .eq('id', caseId)
-    .eq('organization_id', auth.context.orgId)
-    .select('id')
+  // 1. Workflow transition (validates, updates status, logs event, fires hooks)
+  console.log('[case-action] step 1: workflow transition', { caseId, from: previousStatus, to: newStatus })
+  const txResult = await transition({
+    entityType: 'case',
+    entityId: caseId,
+    fromState: previousStatus,
+    toState: newStatus,
+    actorId: auth.context.userId,
+    orgId: auth.context.orgId,
+    metadata: { act, caseRef, entityName, riskScore, analystName, severity },
+  })
 
-  if (caseErr) {
-    console.error('[case-action] cases update failed:', JSON.stringify(caseErr))
-    return NextResponse.json({ error: caseErr.message, detail: caseErr }, { status: 500 })
+  if (txResult.success === false) {
+    console.error('[case-action] workflow transition failed:', txResult.error)
+    return NextResponse.json({ error: { code: 'INVALID_TRANSITION', message: txResult.error } }, { status: 400 })
   }
-  console.log('[case-action] cases updated, rows affected:', count)
+  console.log('[case-action] workflow transition succeeded, event:', txResult.event.id)
 
-  // 2. Insert case_action record
+  // 2. Insert case_action record (analyst-facing action log — separate from workflow events)
   console.log('[case-action] step 2: inserting into case_actions')
   const { data: insertedAction, error: actionErr } = await supabase
     .from('case_actions')
@@ -165,13 +180,8 @@ export async function POST(req: NextRequest) {
   }
   console.log('[case-action] audit_events inserted:', JSON.stringify(insertedAudit))
 
-  // 4. Send escalation email (fire-and-forget — never block the response)
-  if (act === 'escalate') {
-    sendEscalationEmail({ caseRef, entityName, riskScore, analystName }).catch(err =>
-      console.error('[case-action] email send failed (non-fatal):', err)
-    )
-  }
+  // Email hook fires automatically via workflow engine when toState === 'escalated'
 
-  console.log('[case-action] all 3 writes succeeded')
-  return NextResponse.json({ ok: true, action: insertedAction, audit: insertedAudit })
+  console.log('[case-action] all writes succeeded')
+  return NextResponse.json({ ok: true, action: insertedAction, audit: insertedAudit, workflowEvent: txResult.event })
 }

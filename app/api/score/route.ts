@@ -6,6 +6,7 @@ import { makeDecision } from '../../../lib/decision-engine'
 import { recordAuditEvent } from '../../../lib/audit-engine'
 import { resolveApiContext } from '../../../lib/api-guard'
 import { getDefaultOrgId } from '../../../lib/org-context'
+import { transition } from '../../../lib/workflow-engine'
 import { ApplicationForm, ScoreFactor } from '../../../types'
 
 function getSupabase() {
@@ -186,10 +187,19 @@ export async function POST(req: NextRequest) {
       if (scoreError) throw scoreError
       scoreId = score.id
 
-      await supabase
-        .from('applications')
-        .update({ status: 'scored' })
-        .eq('id', applicationId)
+      // Workflow transition: pending → scored
+      const txResult = await transition({
+        entityType: 'application',
+        entityId: applicationId,
+        fromState: 'pending',
+        toState: 'scored',
+        actorId: authContext?.userId ?? 'system',
+        orgId: orgId,
+        metadata: { scoreId, ethoScore: result.etho_score, riskBand: result.risk_band },
+      })
+      if (txResult.success === false) {
+        console.warn('[score] workflow transition failed (non-fatal):', txResult.error)
+      }
     }
 
     // Step 7: Return response
