@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { createHmac } from 'crypto'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -152,5 +153,95 @@ export async function transition(params: TransitionParams): Promise<TransitionRe
   // Step 3: Fire hooks (async, non-blocking — never fails the transition)
   fireHooks(event as WorkflowEvent)
 
+  // Step 4: Deliver webhooks (async, non-blocking)
+  deliverWebhooks(event as WorkflowEvent, supabase)
+
   return { success: true, event: event as WorkflowEvent }
+}
+
+// ─── Webhook Delivery ────────────────────────────────────────────────────────
+
+function toWebhookEventName(entityType: EntityType, toState: string): string {
+  return `${entityType}.${toState}`
+}
+
+function signPayload(secret: string, body: string): string {
+  return createHmac('sha256', secret).update(body).digest('hex')
+}
+
+async function deliverToEndpoint(
+  url: string,
+  secret: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const body = JSON.stringify(payload)
+  const signature = signPayload(secret, body)
+
+  const attempt = async () => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-EthosFi-Signature': `sha256=${signature}`,
+        'User-Agent': 'EthosFi-Webhooks/1.0',
+      },
+      body,
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) {
+      throw new Error(`Webhook delivery failed: ${res.status} ${res.statusText}`)
+    }
+  }
+
+  try {
+    await attempt()
+  } catch (firstErr) {
+    // Single retry after 2 seconds
+    console.warn(`[webhook] first attempt failed for ${url}:`, firstErr)
+    try {
+      await new Promise(r => setTimeout(r, 2000))
+      await attempt()
+    } catch (retryErr) {
+      console.error(`[webhook] retry failed for ${url}:`, retryErr)
+    }
+  }
+}
+
+function deliverWebhooks(event: WorkflowEvent, supabase: ReturnType<typeof getSupabase>) {
+  if (!supabase) return
+
+  const eventName = toWebhookEventName(event.entity_type as EntityType, event.to_state)
+
+  supabase
+    .from('webhook_endpoints')
+    .select('id, url, secret, events')
+    .eq('organization_id', event.organization_id)
+    .eq('active', true)
+    .is('deleted_at', null)
+    .then(({ data: endpoints, error }) => {
+      if (error || !endpoints) {
+        if (error) console.error('[webhook] failed to query endpoints:', error.message)
+        return
+      }
+
+      const payload = {
+        event: eventName,
+        timestamp: event.created_at,
+        data: {
+          entity_type: event.entity_type,
+          entity_id: event.entity_id,
+          from_state: event.from_state,
+          to_state: event.to_state,
+          actor_id: event.actor_id,
+          metadata: event.metadata,
+        },
+      }
+
+      for (const ep of endpoints) {
+        const subscribedEvents = ep.events as string[]
+        if (subscribedEvents.includes(eventName)) {
+          deliverToEndpoint(ep.url, ep.secret, payload).catch(() => {})
+        }
+      }
+    })
 }
