@@ -82,7 +82,7 @@ export default function LenderDashboard() {
   const router = useRouter()
   const [apps, setApps] = useState<Application[]>([])
   const [loading, setLoading] = useState(true)
-  const [userRole, setUserRole] = useState<UserRole>('lender')
+  const [userRole, setUserRole] = useState<UserRole>('viewer')
 
   useEffect(() => {
     if (!supabase) {

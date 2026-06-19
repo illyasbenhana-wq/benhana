@@ -311,12 +311,19 @@ export default function DashboardPage() {
 
     // Write to Supabase via server API route (uses service role key, checks errors)
     console.log('[dashboard] calling /api/case-action', { caseId, act, previousStatus, newStatus })
+    const { data: { session: currentSession } } = await supabase!.auth.getSession()
     const res = await fetch('/api/case-action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(currentSession?.access_token ? { 'Authorization': `Bearer ${currentSession.access_token}` } : {}),
+      },
       body: JSON.stringify({
         caseId,
-        caseRef: c?.case_ref ?? '',
+        caseRef:     c?.case_ref     ?? '',
+        entityName:  c?.entity_name  ?? '',
+        riskScore:   c?.risk_score   ?? null,
+        analystName: c?.assigned_to  ?? 'Unknown',
         act,
         previousStatus,
         newStatus,

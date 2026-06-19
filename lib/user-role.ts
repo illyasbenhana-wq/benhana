@@ -1,29 +1,58 @@
 import type { Session } from '@supabase/supabase-js'
+import type { OrgRole } from './permissions'
 
-export type UserRole = 'analyst' | 'senior_analyst' | 'lender'
+// ─── Phase 1 legacy roles (kept for backward compatibility) ──────────────────
 
-const VALID_ROLES = new Set<UserRole>(['analyst', 'senior_analyst', 'lender'])
+export type LegacyRole = 'analyst' | 'senior_analyst' | 'lender'
 
-export const ROLE_LABEL: Record<UserRole, string> = {
-  analyst:        'Analyst',
-  senior_analyst: 'Senior Analyst',
-  lender:         'Lender',
+const LEGACY_TO_ORG: Record<LegacyRole, OrgRole> = {
+  analyst:        'analyst',
+  senior_analyst: 'admin',
+  lender:         'viewer',
 }
 
-export const ROLE_HOME: Record<UserRole, string> = {
-  analyst:        '/dashboard',
-  senior_analyst: '/dashboard',
-  lender:         '/lender/dashboard',
+const LEGACY_ROLES = new Set<string>(Object.keys(LEGACY_TO_ORG))
+
+// ─── Phase 2 org roles ──────────────────────────────────────────────────────
+
+export type UserRole = OrgRole
+
+const VALID_ORG_ROLES = new Set<OrgRole>(['owner', 'admin', 'analyst', 'viewer', 'partner'])
+
+export const ROLE_LABEL: Record<OrgRole, string> = {
+  owner:   'Owner',
+  admin:   'Admin',
+  analyst: 'Analyst',
+  viewer:  'Viewer',
+  partner: 'Partner',
 }
 
-// Reads role from app_metadata (set server-side / admin) with fallback to
-// user_metadata (set at signup) so both storage paths work.
-export function getRoleFromSession(session: Session | null): UserRole {
-  if (!session) return 'analyst'
+export const ROLE_HOME: Record<OrgRole, string> = {
+  owner:   '/dashboard',
+  admin:   '/dashboard',
+  analyst: '/dashboard',
+  viewer:  '/dashboard',
+  partner: '/lender/dashboard',
+}
+
+// ─── Role resolution ─────────────────────────────────────────────────────────
+
+export function getRoleFromSession(session: Session | null): OrgRole {
+  if (!session) return 'viewer'
 
   const meta = session.user.app_metadata ?? {}
   const userMeta = session.user.user_metadata ?? {}
   const raw = meta['role'] ?? userMeta['role']
 
-  return VALID_ROLES.has(raw) ? (raw as UserRole) : 'analyst'
+  if (!raw) return 'viewer'
+
+  if (VALID_ORG_ROLES.has(raw as OrgRole)) {
+    return raw as OrgRole
+  }
+
+  if (LEGACY_ROLES.has(raw)) {
+    return LEGACY_TO_ORG[raw as LegacyRole]
+  }
+
+  return 'viewer'
 }

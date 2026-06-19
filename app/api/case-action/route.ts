@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { requirePermission } from '../../../lib/api-guard'
 
 async function sendEscalationEmail({
   caseRef, entityName, riskScore, analystName,
@@ -72,6 +73,10 @@ function getSupabase() {
 export async function POST(req: NextRequest) {
   console.log('[case-action] POST received')
 
+  // RBAC: require write permission on cases
+  const auth = await requirePermission(req, 'write', 'cases')
+  if ('error' in auth) return auth.error
+
   const supabase = getSupabase()
   if (!supabase) {
     console.error('[case-action] No Supabase client — env vars missing')
@@ -110,6 +115,7 @@ export async function POST(req: NextRequest) {
     .from('cases')
     .update({ status: newStatus })
     .eq('id', caseId)
+    .eq('organization_id', auth.context.orgId)
     .select('id')
 
   if (caseErr) {
@@ -123,9 +129,10 @@ export async function POST(req: NextRequest) {
   const { data: insertedAction, error: actionErr } = await supabase
     .from('case_actions')
     .insert({
+      organization_id: auth.context.orgId,
       case_id: caseId,
       action: act,
-      acted_by: 'analyst',
+      acted_by: auth.context.userId,
       previous_status: previousStatus,
       new_status: newStatus,
     })
@@ -142,9 +149,10 @@ export async function POST(req: NextRequest) {
   const { data: insertedAudit, error: auditErr } = await supabase
     .from('audit_events')
     .insert({
+      organization_id: auth.context.orgId,
       case_id: caseId,
       case_ref: caseRef ?? '',
-      analyst: 'analyst',
+      analyst: auth.context.userId,
       action: actionLabel,
       description,
       severity: act === 'escalate' ? (severity ?? null) : null,

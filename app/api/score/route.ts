@@ -4,6 +4,8 @@ import { scoreApplication } from '../../../lib/scoring-engine'
 import { extractRiskSignals } from '../../../lib/risk-factors'
 import { makeDecision } from '../../../lib/decision-engine'
 import { recordAuditEvent } from '../../../lib/audit-engine'
+import { resolveApiContext } from '../../../lib/api-guard'
+import { getDefaultOrgId } from '../../../lib/org-context'
 import { ApplicationForm, ScoreFactor } from '../../../types'
 
 function getSupabase() {
@@ -64,8 +66,32 @@ function getMockScore() {
 
 export async function POST(req: NextRequest) {
   try {
-    const form: ApplicationForm = await req.json()
+    const form: ApplicationForm & { organization_id?: string } = await req.json()
     const supabase = getSupabase()
+
+    // Resolve org: authenticated user → their org, public → validate body or default
+    const authContext = await resolveApiContext(req)
+    let orgId: string
+
+    if (authContext) {
+      orgId = authContext.orgId
+    } else if (form.organization_id) {
+      if (!supabase) {
+        return NextResponse.json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Database not configured' } }, { status: 503 })
+      }
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('id', form.organization_id)
+        .is('deleted_at', null)
+        .single()
+      if (error || !data) {
+        return NextResponse.json({ error: { code: 'INVALID_ORG', message: 'Organization not found' } }, { status: 400 })
+      }
+      orgId = data.id
+    } else {
+      orgId = getDefaultOrgId()
+    }
 
     // Step 1: Save application to Supabase
     let applicationId = 'demo'
@@ -73,6 +99,7 @@ export async function POST(req: NextRequest) {
       const { data: application, error: appError } = await supabase
         .from('applications')
         .insert({
+          organization_id: orgId,
           full_name: form.full_name,
           email: form.email,
           monthly_income: form.monthly_income,
@@ -142,6 +169,7 @@ export async function POST(req: NextRequest) {
       const { data: score, error: scoreError } = await supabase
         .from('scores')
         .insert({
+          organization_id: orgId,
           application_id: applicationId,
           etho_score: result.etho_score,
           risk_band: result.risk_band,
