@@ -7,6 +7,7 @@ import { recordAuditEvent } from '../../../lib/audit-engine'
 import { resolveApiContext } from '../../../lib/api-guard'
 import { getDefaultOrgId } from '../../../lib/org-context'
 import { transition } from '../../../lib/workflow-engine'
+import { computeEthoScoreV2 } from '../../../lib/ethoscore-v2'
 import { ApplicationForm, ScoreFactor } from '../../../types'
 
 function getSupabase() {
@@ -153,6 +154,14 @@ export async function POST(req: NextRequest) {
       riskFactors: result.factors,
     })
 
+    // Step 4b: Compute structured EthoScore v2 (deterministic, no AI)
+    let v2: ReturnType<typeof computeEthoScoreV2> | null = null
+    try {
+      v2 = computeEthoScoreV2(form)
+    } catch (err) {
+      console.warn('[score] EthoScore v2 computation failed (non-fatal):', err)
+    }
+
     // Step 5: Save audit record (EU AI Act compliance)
     await recordAuditEvent({
       applicationId,
@@ -180,6 +189,8 @@ export async function POST(req: NextRequest) {
           model_version: result.model_version,
           raw_prompt: rawPrompt,
           raw_response: rawResponse,
+          score_version: v2 ? 'v2' : 'v1',
+          score_pillars: v2?.pillars ?? null,
         })
         .select()
         .single()
@@ -207,6 +218,20 @@ export async function POST(req: NextRequest) {
       application_id: applicationId,
       score_id: scoreId,
       full_name: form.full_name,
+      ai_assessment: {
+        score: result.etho_score,
+        risk_band: result.risk_band,
+        recommendation: result.recommendation,
+        summary: result.ai_summary,
+        factors: result.factors,
+        model_version: result.model_version,
+      },
+      structured_score: v2 ? {
+        total: v2.total,
+        normalized: v2.normalized,
+        pillars: v2.pillars,
+      } : null,
+      // Backward compat — existing consumers read these top-level fields
       etho_score: result.etho_score,
       risk_band: result.risk_band,
       recommendation: result.recommendation,
