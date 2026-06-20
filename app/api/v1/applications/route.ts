@@ -6,7 +6,7 @@ import { extractRiskSignals } from '../../../../lib/risk-factors'
 import { makeDecision } from '../../../../lib/decision-engine'
 import { recordAuditEvent } from '../../../../lib/audit-engine'
 import { transition } from '../../../../lib/workflow-engine'
-import { ApplicationForm, ScoreFactor } from '../../../../types'
+import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../../types'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -39,7 +39,12 @@ export async function POST(req: NextRequest) {
   if ('error' in auth) return auth.error
 
   try {
-    const form: ApplicationForm = await req.json()
+    const rawBody = await req.json()
+    const validation = validateApplicationForm(rawBody)
+    if (validation.valid === false) {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: validation.error } }, { status: 400 })
+    }
+    const form = validation.data
     const supabase = getSupabase()
     if (!supabase) {
       return NextResponse.json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Database not configured' } }, { status: 503 })

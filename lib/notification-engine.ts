@@ -225,13 +225,25 @@ async function getOrgUsersByRole(
 
   if (!members || members.length === 0) return []
 
+  const userIds = members.map(m => m.user_id)
+
+  // Single batch query instead of N individual getUserById calls
+  const { data: users, error } = await supabase
+    .rpc('get_user_emails', { user_ids: userIds })
+
+  if (!error && users && users.length > 0) {
+    const emailMap = new Map<string, string>()
+    for (const u of users as Array<{ id: string; email: string }>) {
+      emailMap.set(u.id, u.email)
+    }
+    return userIds.map(id => ({ userId: id, email: emailMap.get(id) ?? undefined }))
+  }
+
+  // Fallback: if RPC doesn't exist yet, use sequential calls
   const recipients: Recipient[] = []
-  for (const m of members) {
-    const { data: user } = await supabase.auth.admin.getUserById(m.user_id)
-    recipients.push({
-      userId: m.user_id,
-      email: user?.user?.email ?? undefined,
-    })
+  for (const id of userIds) {
+    const { data: user } = await supabase.auth.admin.getUserById(id)
+    recipients.push({ userId: id, email: user?.user?.email ?? undefined })
   }
   return recipients
 }

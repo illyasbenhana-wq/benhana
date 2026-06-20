@@ -8,7 +8,7 @@ import { resolveApiContext } from '../../../lib/api-guard'
 import { getDefaultOrgId } from '../../../lib/org-context'
 import { transition } from '../../../lib/workflow-engine'
 import { computeEthoScoreV2 } from '../../../lib/ethoscore-v2'
-import { ApplicationForm, ScoreFactor } from '../../../types'
+import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../types'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -68,7 +68,13 @@ function getMockScore() {
 
 export async function POST(req: NextRequest) {
   try {
-    const form: ApplicationForm & { organization_id?: string } = await req.json()
+    const rawBody = await req.json()
+    const validation = validateApplicationForm(rawBody)
+    if (validation.valid === false) {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: validation.error } }, { status: 400 })
+    }
+    const form = validation.data
+    const orgIdFromBody = (rawBody as Record<string, unknown>).organization_id as string | undefined
     const supabase = getSupabase()
 
     // Resolve org: authenticated user → their org, public → validate body or default
@@ -77,14 +83,14 @@ export async function POST(req: NextRequest) {
 
     if (authContext) {
       orgId = authContext.orgId
-    } else if (form.organization_id) {
+    } else if (orgIdFromBody) {
       if (!supabase) {
         return NextResponse.json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Database not configured' } }, { status: 503 })
       }
       const { data, error } = await supabase
         .from('organizations')
         .select('id')
-        .eq('id', form.organization_id)
+        .eq('id', orgIdFromBody)
         .is('deleted_at', null)
         .single()
       if (error || !data) {

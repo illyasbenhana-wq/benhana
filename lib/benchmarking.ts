@@ -27,7 +27,7 @@ export interface BenchmarkResult {
   basis: 'sufficient_data' | 'insufficient_data'
 }
 
-const MIN_COHORT_SIZE = 5
+const MIN_COHORT_SIZE = 12
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

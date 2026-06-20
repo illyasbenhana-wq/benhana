@@ -17,6 +17,32 @@ export interface Anomaly {
   metadata: Record<string, unknown>
 }
 
+// ─── Thresholds ─────────────────────────────────────────────────────────────
+//
+// Velocity spike:      2× prior 24h volume → medium, 3× → high
+//   Rationale: 2× is a common anomaly detection baseline for volume spikes.
+//   A 3× spike is almost always non-organic (bulk submission, API abuse, or data import).
+//
+// Score drift:         >10 point avg shift over 7 days → medium, >20 → high
+//   Rationale: EthoScore range is 0–100. A 10-point weekly shift (10% of range)
+//   signals a meaningful change in applicant quality or model behavior. 20+ is alarming.
+//
+// Concentration risk:  >70% of 30-day apps from one employment_type → medium, >85% → high
+//   Rationale: A healthy portfolio has diversified exposure. 70%+ concentration in one
+//   segment (e.g. all gig workers) creates correlated default risk. 85%+ is critical.
+//   Minimum 5 applications required to avoid false positives on small samples.
+//
+// Threshold clustering: >30% of scores within ±2 of decision boundaries (50, 70) → medium, >50% → high
+//   Rationale: Decision thresholds at 50 (review) and 70 (approve) are fixed in
+//   decision-engine.ts. Scores clustering just above/below suggest applicants gaming
+//   inputs or model calibration drift. ±2 band is tight enough to flag real clustering.
+//   Minimum 10 scores required.
+//
+// SLA breach rate:     >20% of active cases breached → medium, >40% → high
+//   Rationale: Industry standard SLA compliance target is >90% (i.e. <10% breach).
+//   20% breach rate means the team is consistently missing deadlines. 40%+ suggests
+//   structural understaffing or process failure. Minimum 3 active cases required.
+
 // ─── Detection Functions ─────────────────────────────────────────────────────
 
 async function detectVelocitySpike(

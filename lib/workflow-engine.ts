@@ -249,7 +249,9 @@ function deliverWebhooks(event: WorkflowEvent, supabase: ReturnType<typeof getSu
       for (const ep of endpoints) {
         const subscribedEvents = ep.events as string[]
         if (subscribedEvents.includes(eventName)) {
-          deliverToEndpoint(ep.url, ep.secret, payload).catch(() => {})
+          deliverToEndpoint(ep.url, ep.secret, payload).catch(err =>
+            console.error(`[webhook] delivery failed for endpoint ${ep.id} (${ep.url}), org ${event.organization_id}:`, err)
+          )
         }
       }
     })
