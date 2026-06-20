@@ -100,7 +100,16 @@ export function isValidTransition(entityType: EntityType, fromState: string, toS
   return allowed.has(toState)
 }
 
+let hooksLoaded = false
+async function ensureHooks() {
+  if (hooksLoaded) return
+  hooksLoaded = true
+  await import('./notification-engine')
+}
+
 export async function transition(params: TransitionParams): Promise<TransitionResult> {
+  await ensureHooks()
+
   const { entityType, entityId, fromState, toState, actorId, orgId, metadata } = params
 
   if (!isValidTransition(entityType, fromState, toState)) {
