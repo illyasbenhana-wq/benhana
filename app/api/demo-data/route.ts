@@ -31,7 +31,12 @@ const SAMPLE_APPLICATION: ApplicationForm = {
   consent_ai_decision: true,
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const token = url.searchParams.get('token')
+  if (token !== process.env.DEMO_ACCESS_TOKEN && process.env.DEMO_ACCESS_TOKEN) {
+    return NextResponse.json({ error: { code: 'UNAUTHORIZED', message: 'Invalid or missing demo token' } }, { status: 401 })
+  }
   const orgId = getDefaultOrgId()
 
   // 1. EthoScore v2 breakdown (real engine, deterministic)

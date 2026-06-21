@@ -51,13 +51,31 @@ function ScoreRing({ total, max }: { total: number; max: number }) {
 export default function DemoPage() {
   const [data, setData] = useState<DemoData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState(false)
 
   useEffect(() => {
-    fetch('/api/demo-data')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false) })
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token') ?? ''
+    fetch(`/api/demo-data?token=${encodeURIComponent(token)}`)
+      .then(r => {
+        if (r.status === 401) { setAuthError(true); setLoading(false); return null }
+        return r.json()
+      })
+      .then(d => { if (d) { setData(d); setLoading(false) } })
       .catch(() => setLoading(false))
   }, [])
+
+  if (authError) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"DM Sans", sans-serif', flexDirection: 'column', gap: 12 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+        </div>
+        <p style={{ fontSize: 16, fontWeight: 500 }}>EthosFi Demo</p>
+        <p style={{ color: '#555', fontSize: 13 }}>This demo requires an access link. Please contact us for access.</p>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -272,8 +290,14 @@ export default function DemoPage() {
             })}
           </div>
           {bm.basis === 'illustrative' && (
-            <div style={{ marginTop: 12, fontSize: 11, color: '#555', fontStyle: 'italic' }}>
-              Illustrative data shown. Live benchmarking activates with 12+ scored applications in the same segment.
+            <div style={{ marginTop: 16, padding: '12px 16px', background: '#1a1a28', border: '1px solid #2a2a38', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 24, minWidth: 24, height: 24, borderRadius: 6, background: '#BA751722', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: '#BA7517', fontSize: 14, fontWeight: 700 }}>!</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: '#BA7517', marginBottom: 2 }}>Illustrative Comparison</div>
+                <div style={{ fontSize: 12, color: '#888' }}>This peer comparison uses representative data. Live benchmarking activates automatically once 12 or more applications have been scored in this segment.</div>
+              </div>
             </div>
           )}
         </div>
