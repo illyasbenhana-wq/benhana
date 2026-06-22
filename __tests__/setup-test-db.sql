@@ -283,9 +283,9 @@ INSERT INTO applications (id, organization_id, full_name, email, monthly_income,
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO scores (id, organization_id, application_id, etho_score, risk_band, ai_summary, factors, recommendation, score_version, score_pillars) VALUES
-  ('s1000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001', 72, 'low', 'Strong applicant with stable employment.', '[{"name":"Income","weight":30,"score":75,"rationale":"Stable income"}]', 'approve', 'v2', '{"trust":{"score":220,"max":300},"track_record":{"score":195,"max":300},"financial_health":{"score":140,"max":200},"esg":{"score":100,"max":200}}'),
-  ('s1000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000002', 58, 'medium', 'Moderate risk, review recommended.', '[{"name":"Income","weight":30,"score":55,"rationale":"Variable income"}]', 'review', 'v2', '{"trust":{"score":160,"max":300},"track_record":{"score":140,"max":300},"financial_health":{"score":110,"max":200},"esg":{"score":100,"max":200}}'),
-  ('s1000000-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000003', 81, 'low', 'Excellent applicant, recommend approval.', '[{"name":"Income","weight":30,"score":85,"rationale":"High stable income"}]', 'approve', 'v2', '{"trust":{"score":260,"max":300},"track_record":{"score":230,"max":300},"financial_health":{"score":160,"max":200},"esg":{"score":100,"max":200}}')
+  ('51000000-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001', 72, 'low', 'Strong applicant with stable employment.', '[{"name":"Income","weight":30,"score":75,"rationale":"Stable income"}]', 'approve', 'v2', '{"trust":{"score":220,"max":300},"track_record":{"score":195,"max":300},"financial_health":{"score":140,"max":200},"esg":{"score":100,"max":200}}'),
+  ('51000000-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000002', 58, 'medium', 'Moderate risk, review recommended.', '[{"name":"Income","weight":30,"score":55,"rationale":"Variable income"}]', 'review', 'v2', '{"trust":{"score":160,"max":300},"track_record":{"score":140,"max":300},"financial_health":{"score":110,"max":200},"esg":{"score":100,"max":200}}'),
+  ('51000000-0000-0000-0000-000000000003', 'aaaaaaaa-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000003', 81, 'low', 'Excellent applicant, recommend approval.', '[{"name":"Income","weight":30,"score":85,"rationale":"High stable income"}]', 'approve', 'v2', '{"trust":{"score":260,"max":300},"track_record":{"score":230,"max":300},"financial_health":{"score":160,"max":200},"esg":{"score":100,"max":200}}')
 ON CONFLICT (id) DO NOTHING;
 
 -- Org A: 1 case with signals
@@ -304,7 +304,7 @@ INSERT INTO applications (id, organization_id, full_name, email, monthly_income,
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO scores (id, organization_id, application_id, etho_score, risk_band, ai_summary, factors, recommendation, score_version) VALUES
-  ('s2000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 45, 'high', 'High risk applicant.', '[{"name":"Income","weight":30,"score":35,"rationale":"Gig income volatile"}]', 'decline', 'v1')
+  ('52000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 45, 'high', 'High risk applicant.', '[{"name":"Income","weight":30,"score":35,"rationale":"Gig income volatile"}]', 'decline', 'v1')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO cases (id, organization_id, case_ref, entity_name, case_type, jurisdiction, exposure_amount, severity, sla_hours, sla_remaining_hours, status, assigned_to, risk_score, ai_summary) VALUES
