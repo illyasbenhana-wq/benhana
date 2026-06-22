@@ -6,9 +6,15 @@ import { createHash, randomBytes } from 'crypto'
 const TEST_URL = process.env.TEST_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 const TEST_SERVICE_KEY = process.env.TEST_SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_KEY ?? ''
 
+// SAFETY: allowlist approach — only the test project ref is permitted
+const ALLOWED_TEST_PROJECT_REF = 'ehmingbvknavehcjgkou'
+
 export function getTestSupabase() {
   if (!TEST_URL || !TEST_SERVICE_KEY) {
     throw new Error('Test Supabase credentials not set. Create .env.test with TEST_SUPABASE_URL and TEST_SUPABASE_SERVICE_KEY')
+  }
+  if (!TEST_URL.includes(ALLOWED_TEST_PROJECT_REF)) {
+    throw new Error(`FATAL: integration tests will ONLY run against the test project (${ALLOWED_TEST_PROJECT_REF}). Current URL points elsewhere: ${TEST_URL}`)
   }
   return createClient(TEST_URL, TEST_SERVICE_KEY)
 }
