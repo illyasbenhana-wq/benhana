@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
       meta: { model_version: result.model_version, api_version: 'v1' },
     })
   } catch (err) {
-    console.error('[v1/applications] scoring error:', err)
+    const { log } = require('../../../lib/logger'); log.error('v1 scoring pipeline failed', { route: 'v1/applications', error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: { code: 'INTERNAL_ERROR', message: 'Scoring failed' } }, { status: 500 })
   }
 }

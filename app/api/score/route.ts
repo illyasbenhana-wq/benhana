@@ -9,6 +9,7 @@ import { getDefaultOrgId } from '../../../lib/org-context'
 import { transition } from '../../../lib/workflow-engine'
 import { computeEthoScoreV2 } from '../../../lib/ethoscore-v2'
 import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../types'
+import { log } from '../../../lib/logger'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
     if (process.env.ANTHROPIC_API_KEY) {
       scoreData = await scoreApplication(form)
     } else {
-      console.warn('ANTHROPIC_API_KEY not set, using mock score')
+      log.warn('ANTHROPIC_API_KEY not set, using mock score', { route: 'score' })
       scoreData = getMockScore()
     }
     const { result, rawPrompt, rawResponse } = scoreData
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
     try {
       v2 = computeEthoScoreV2(form)
     } catch (err) {
-      console.warn('[score] EthoScore v2 computation failed (non-fatal):', err)
+      log.warn('EthoScore v2 computation failed (non-fatal)', { route: 'score', error: err instanceof Error ? err.message : String(err) })
     }
 
     // Step 5: Save audit record (EU AI Act compliance)
@@ -215,7 +216,7 @@ export async function POST(req: NextRequest) {
         metadata: { scoreId, ethoScore: result.etho_score, riskBand: result.risk_band },
       })
       if (txResult.success === false) {
-        console.warn('[score] workflow transition failed (non-fatal):', txResult.error)
+        log.warn('workflow transition failed (non-fatal)', { route: 'score', error: txResult.error })
       }
     }
 
@@ -254,7 +255,7 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (err) {
-    console.error('Scoring error:', err)
+    log.error('scoring pipeline failed', { route: 'score', error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Scoring failed' }, { status: 500 })
   }
 }

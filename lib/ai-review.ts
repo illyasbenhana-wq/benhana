@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { log } from './logger'
 import { createClient } from '@supabase/supabase-js'
 import { getCaseContext } from './case-manager'
 
@@ -244,7 +245,7 @@ async function executeReview(
     const review = validateReviewOutput(parsed)
 
     if (!review) {
-      console.error(`[ai-review] output validation failed for ${entityType} ${entityId}. Keys: ${Object.keys(parsed).join(', ')}`)
+      log.error('ai-review output validation failed', { entityType, entityId, keys: Object.keys(parsed) })
       return { success: false, error: 'AI response did not match expected schema' }
     }
 
@@ -272,7 +273,7 @@ async function executeReview(
     return { success: true, review }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'AI review failed'
-    console.error(`[ai-review] ${entityType} ${entityId} failed:`, message)
+    log.error('ai-review failed', { entityType, entityId, error: message })
     return { success: false, error: message }
   }
 }

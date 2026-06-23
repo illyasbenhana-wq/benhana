@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   // Large batch: return immediately, run async
   runBacktest(run.id, orgId, rows, mapping).catch(async (err) => {
-    console.error('[backtest] async run failed:', err)
+    const { log } = require('../../../../lib/logger'); log.error('async backtest run failed', { runId: run.id, error: err instanceof Error ? err.message : String(err) })
     await supabase?.from('backtest_runs').update({ status: 'failed' }).eq('id', run.id)
   })
 

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHmac } from 'crypto'
+import { log } from './logger'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -84,7 +85,7 @@ function fireHooks(event: WorkflowEvent) {
   for (const hook of hooks) {
     if (hook.entityType === event.entity_type && hook.toState === event.to_state) {
       hook.handler(event).catch(err =>
-        console.error(`[workflow] hook failed for ${event.entity_type}→${event.to_state}:`, err)
+        log.error('workflow hook failed', { entityType: event.entity_type, toState: event.to_state, error: err instanceof Error ? err.message : String(err) })
       )
     }
   }
@@ -134,7 +135,7 @@ export async function transition(params: TransitionParams): Promise<TransitionRe
     .eq('organization_id', orgId)
 
   if (updateErr) {
-    console.error(`[workflow] ${table} update failed:`, updateErr.message)
+    log.error('entity status update failed', { table, entityId, orgId, error: updateErr.message })
     return { success: false, error: `Failed to update ${entityType} status: ${updateErr.message}` }
   }
 
@@ -155,7 +156,7 @@ export async function transition(params: TransitionParams): Promise<TransitionRe
     .single()
 
   if (eventErr || !event) {
-    console.error('[workflow] workflow_events insert failed:', eventErr?.message)
+    log.error('workflow_events insert failed', { entityType, entityId, orgId, error: eventErr?.message })
     return { success: false, error: `Failed to log workflow event: ${eventErr?.message}` }
   }
 
@@ -206,12 +207,12 @@ async function deliverToEndpoint(
     await attempt()
   } catch (firstErr) {
     // Single retry after 2 seconds
-    console.warn(`[webhook] first attempt failed for ${url}:`, firstErr)
+    log.warn('webhook first attempt failed', { url, error: firstErr instanceof Error ? firstErr.message : String(firstErr) })
     try {
       await new Promise(r => setTimeout(r, 2000))
       await attempt()
     } catch (retryErr) {
-      console.error(`[webhook] retry failed for ${url}:`, retryErr)
+      log.error('webhook retry failed', { url, error: retryErr instanceof Error ? retryErr.message : String(retryErr) })
     }
   }
 }
@@ -229,7 +230,7 @@ function deliverWebhooks(event: WorkflowEvent, supabase: ReturnType<typeof getSu
     .is('deleted_at', null)
     .then(({ data: endpoints, error }) => {
       if (error || !endpoints) {
-        if (error) console.error('[webhook] failed to query endpoints:', error.message)
+        if (error) log.error('webhook endpoints query failed', { orgId: event.organization_id, error: error.message })
         return
       }
 
@@ -250,7 +251,7 @@ function deliverWebhooks(event: WorkflowEvent, supabase: ReturnType<typeof getSu
         const subscribedEvents = ep.events as string[]
         if (subscribedEvents.includes(eventName)) {
           deliverToEndpoint(ep.url, ep.secret, payload).catch(err =>
-            console.error(`[webhook] delivery failed for endpoint ${ep.id} (${ep.url}), org ${event.organization_id}:`, err)
+            log.error('webhook delivery failed', { endpointId: ep.id, url: ep.url, orgId: event.organization_id, error: err instanceof Error ? err.message : String(err) })
           )
         }
       }

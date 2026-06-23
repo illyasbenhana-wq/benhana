@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { log } from './logger'
 
 export type AiProvider = 'claude' | 'palantir' | 'fallback'
 
@@ -58,10 +59,10 @@ export async function recordAuditEvent(input: AuditInput): Promise<AuditRecord> 
       created_at: record.createdAt,
     })
     if (error) {
-      console.error('[audit-engine] Failed to persist audit event:', error.message)
+      log.error('audit event persist failed', { auditId: record.auditId, error: error.message })
     }
   } else {
-    console.warn('[audit-engine] Supabase unavailable — audit event not persisted:', record.auditId)
+    log.warn('supabase unavailable, audit event not persisted', { auditId: record.auditId })
   }
 
   return record

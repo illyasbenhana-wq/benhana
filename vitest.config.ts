@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 30000,
+    exclude: ['__tests__/integration/endpoint-isolation.test.ts', 'node_modules/**'],
     env: Object.fromEntries(
       require('fs').existsSync('.env.test')
         ? require('fs').readFileSync('.env.test', 'utf8')

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { registerHook } from './workflow-engine'
+import { log } from './logger'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -86,7 +87,7 @@ function emailTemplate(type: NotificationType, title: string, body: string): { s
 async function sendEmail(to: string, type: NotificationType, title: string, body: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
-    console.warn('[notifications] RESEND_API_KEY not set — skipping email')
+    log.warn('RESEND_API_KEY not set, skipping email', { to, type })
     return
   }
 
@@ -111,7 +112,7 @@ async function sendEmail(to: string, type: NotificationType, title: string, body
     throw new Error(`Resend API error ${res.status}: ${err}`)
   }
 
-  console.log('[notifications] email sent to', to, 'type:', type)
+  log.info('email sent', { to, type })
 }
 
 // ─── Core Dispatch ───────────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ async function sendEmail(to: string, type: NotificationType, title: string, body
 export async function notify(params: NotifyParams): Promise<void> {
   const supabase = getSupabase()
   if (!supabase) {
-    console.warn('[notifications] no Supabase client — skipping')
+    log.warn('supabase not configured, skipping notifications')
     return
   }
 
@@ -139,13 +140,13 @@ export async function notify(params: NotifyParams): Promise<void> {
           entity_id: params.entityId ?? null,
         })
       if (error) {
-        console.error('[notifications] in-app insert failed:', error.message)
+        log.error('in-app notification insert failed', { userId: recipient.userId, type: params.type, error: error.message })
       }
     }
 
     if (prefs.email && recipient.email) {
       sendEmail(recipient.email, params.type, params.title, params.body).catch(err =>
-        console.error('[notifications] email failed:', err)
+        log.error('email send failed', { to: recipient.email, type: params.type, error: err instanceof Error ? err.message : String(err) })
       )
     }
   }
