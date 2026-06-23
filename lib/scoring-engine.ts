@@ -1,6 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { ApplicationForm, ScoreResult, RiskBand, Recommendation } from '@/types'
 
+export function computeRiskBand(ethoScore: number): RiskBand {
+  if (ethoScore >= 70) return 'low'
+  if (ethoScore >= 40) return 'medium'
+  return 'high'
+}
+
 const client = new Anthropic()
 
 const SCORING_SYSTEM_PROMPT = `You are EthosFi-AI, an ethical alternative credit scoring engine.
@@ -82,7 +88,7 @@ LOAN REQUEST
   return {
     result: {
       etho_score: parsed.etho_score,
-      risk_band: parsed.risk_band as RiskBand,
+      risk_band: computeRiskBand(parsed.etho_score),
       recommendation: parsed.recommendation as Recommendation,
       ai_summary: parsed.ai_summary,
       factors: parsed.factors,

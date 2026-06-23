@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requirePartnerAuth } from '../../../../lib/partner-auth'
-import { scoreApplication } from '../../../../lib/scoring-engine'
+import { scoreApplication, computeRiskBand } from '../../../../lib/scoring-engine'
 import { extractRiskSignals } from '../../../../lib/risk-factors'
 import { makeDecision } from '../../../../lib/decision-engine'
 import { recordAuditEvent } from '../../../../lib/audit-engine'
@@ -25,7 +25,7 @@ function getMockScore() {
   ]
   return {
     result: {
-      etho_score: 64, risk_band: 'medium' as const, recommendation: 'review' as const,
+      etho_score: 64, risk_band: computeRiskBand(64), recommendation: 'review' as const,
       ai_summary: 'Applicant shows moderate credit signals. Requires manual review.',
       factors, model_version: 'mock-v1',
     },

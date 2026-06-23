@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { scoreApplication } from '../../../lib/scoring-engine'
+import { scoreApplication, computeRiskBand } from '../../../lib/scoring-engine'
 import { extractRiskSignals } from '../../../lib/risk-factors'
 import { makeDecision } from '../../../lib/decision-engine'
 import { recordAuditEvent } from '../../../lib/audit-engine'
@@ -55,7 +55,7 @@ function getMockScore() {
   return {
     result: {
       etho_score: 64,
-      risk_band: 'medium' as const,
+      risk_band: computeRiskBand(64),
       recommendation: 'review' as const,
       ai_summary: 'Mock score: Applicant shows moderate credit signals. Income is stable with consistent rent payments, but requires manual review for final decision.',
       factors: mockFactors,
