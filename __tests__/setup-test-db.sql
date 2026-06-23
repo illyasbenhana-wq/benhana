@@ -304,7 +304,7 @@ INSERT INTO applications (id, organization_id, full_name, email, monthly_income,
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO scores (id, organization_id, application_id, etho_score, risk_band, ai_summary, factors, recommendation, score_version) VALUES
-  ('52000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 45, 'high', 'High risk applicant.', '[{"name":"Income","weight":30,"score":35,"rationale":"Gig income volatile"}]', 'decline', 'v1')
+  ('52000000-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 45, 'medium', 'Moderate risk applicant with volatile gig income.', '[{"name":"Income","weight":30,"score":35,"rationale":"Gig income volatile"}]', 'decline', 'v1')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO cases (id, organization_id, case_ref, entity_name, case_type, jurisdiction, exposure_amount, severity, sla_hours, sla_remaining_hours, status, assigned_to, risk_score, ai_summary) VALUES

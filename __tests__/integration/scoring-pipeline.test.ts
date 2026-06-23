@@ -111,16 +111,16 @@ describe('Scoring pipeline integration', () => {
       }
     })
 
-    it('FINDING: seed data score 45 has risk_band=high (should be medium per AI prompt thresholds 40-69)', async () => {
+    it('risk_band matches AI prompt thresholds (low=70-100, medium=40-69, high=0-39)', async () => {
       const { data } = await supabase
         .from('scores')
         .select('etho_score, risk_band')
-        .eq('etho_score', 45)
-        .single()
 
-      // This documents a known seed data inconsistency:
-      // AI scoring prompt defines medium as 40-69, but seed data says high for score 45
-      expect(data!.risk_band).toBe('high')
+      for (const s of data!) {
+        if (s.etho_score >= 70) expect(s.risk_band).toBe('low')
+        else if (s.etho_score >= 40) expect(s.risk_band).toBe('medium')
+        else expect(s.risk_band).toBe('high')
+      }
     })
   })
 })
