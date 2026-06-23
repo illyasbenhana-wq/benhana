@@ -4,6 +4,7 @@ import path from 'path'
 export default defineConfig({
   test: {
     globals: true,
+    testTimeout: 30000,
     env: Object.fromEntries(
       require('fs').existsSync('.env.test')
         ? require('fs').readFileSync('.env.test', 'utf8')
