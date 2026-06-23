@@ -1,52 +1,44 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 
 describe('Production safety check', () => {
-  it('getTestSupabase refuses to run against a non-test URL', async () => {
-    // Temporarily override env to simulate pointing at production
-    const origUrl = process.env.TEST_SUPABASE_URL
-    const origKey = process.env.TEST_SUPABASE_SERVICE_KEY
+  const ORIGINAL_URL = process.env.TEST_SUPABASE_URL
+  const ORIGINAL_KEY = process.env.TEST_SUPABASE_SERVICE_KEY
 
+  afterEach(() => {
+    process.env.TEST_SUPABASE_URL = ORIGINAL_URL
+    process.env.TEST_SUPABASE_SERVICE_KEY = ORIGINAL_KEY
+    vi.resetModules()
+  })
+
+  it('getTestSupabase() throws when URL points at a non-test project', async () => {
     process.env.TEST_SUPABASE_URL = 'https://some-production-project.supabase.co'
     process.env.TEST_SUPABASE_SERVICE_KEY = 'fake-key'
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://some-production-project.supabase.co'
+    process.env.SUPABASE_SERVICE_KEY = 'fake-key'
 
-    // Re-import to pick up new env (dynamic import bypasses module cache)
-    // Instead, directly test the logic:
-    const ALLOWED_TEST_PROJECT_REF = 'ehmingbvknavehcjgkou'
-    const url = process.env.TEST_SUPABASE_URL
-
-    expect(url!.includes(ALLOWED_TEST_PROJECT_REF)).toBe(false)
-
-    // Restore
-    process.env.TEST_SUPABASE_URL = origUrl
-    process.env.TEST_SUPABASE_SERVICE_KEY = origKey
+    const { getTestSupabase } = await import('./test-helpers')
+    expect(() => getTestSupabase()).toThrow('FATAL')
   })
 
-  it('getTestSupabase accepts the test project URL', () => {
-    const ALLOWED_TEST_PROJECT_REF = 'ehmingbvknavehcjgkou'
+  it('getTestSupabase() throws when credentials are empty', async () => {
+    process.env.TEST_SUPABASE_URL = ''
+    process.env.TEST_SUPABASE_SERVICE_KEY = ''
+    process.env.NEXT_PUBLIC_SUPABASE_URL = ''
+    process.env.SUPABASE_SERVICE_KEY = ''
+
+    const { getTestSupabase } = await import('./test-helpers')
+    expect(() => getTestSupabase()).toThrow('credentials not set')
+  })
+
+  it('getTestSupabase() succeeds for the real test project URL', async () => {
+    // Uses the actual env vars from .env.test (loaded by vitest config)
+    const { getTestSupabase } = await import('./test-helpers')
+    const client = getTestSupabase()
+    expect(client).toBeDefined()
+  })
+
+  it('the allowlisted project ref matches the test env URL', () => {
     const url = process.env.TEST_SUPABASE_URL ?? ''
-
-    expect(url.includes(ALLOWED_TEST_PROJECT_REF)).toBe(true)
-  })
-
-  it('safety check blocks exact production URL pattern', () => {
-    const ALLOWED_TEST_PROJECT_REF = 'ehmingbvknavehcjgkou'
-
-    const productionUrls = [
-      'https://lrmwkqfmxhpbkfmbnkwq.supabase.co',
-      'https://anything-else.supabase.co',
-      'https://supabase.co',
-      '',
-    ]
-
-    for (const url of productionUrls) {
-      expect(url.includes(ALLOWED_TEST_PROJECT_REF)).toBe(false)
-    }
-  })
-
-  it('safety check passes only for the test project', () => {
-    const ALLOWED_TEST_PROJECT_REF = 'ehmingbvknavehcjgkou'
-    const testUrl = 'https://ehmingbvknavehcjgkou.supabase.co'
-
-    expect(testUrl.includes(ALLOWED_TEST_PROJECT_REF)).toBe(true)
+    expect(url).toContain('ehmingbvknavehcjgkou')
   })
 })
