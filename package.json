@@ -9,7 +9,7 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:http": "vitest run __tests__/integration/endpoint-isolation.test.ts"
+    "test:http": "vitest run --config vitest.http.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
