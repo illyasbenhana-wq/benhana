@@ -1,5 +1,46 @@
 import * as Sentry from '@sentry/nextjs'
 
+// Allowlist: only these keys survive in event.extra / event.contexts
+// Everything else is stripped. This is safer than blocklisting PII fields.
+const SAFE_EXTRA_KEYS = new Set([
+  'route',
+  'orgId',
+  'error',
+  'caseId',
+  'entityType',
+  'entityId',
+  'eventId',
+  'toState',
+  'fromState',
+  'table',
+  'runId',
+  'endpointId',
+  'url',
+  'type',
+  'keys',
+  'status',
+  'model_id',
+  'actions_count',
+  'confidence',
+  'summary_length',
+  'raw_response_length',
+  'scored_count',
+  'skipped_count',
+  'error_count',
+])
+
+function scrubObject(obj: Record<string, unknown>): Record<string, unknown> {
+  const cleaned: Record<string, unknown> = {}
+  for (const key of Object.keys(obj)) {
+    if (SAFE_EXTRA_KEYS.has(key)) {
+      cleaned[key] = obj[key]
+    } else {
+      cleaned[key] = '[scrubbed]'
+    }
+  }
+  return cleaned
+}
+
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   tracesSampleRate: 0.1,
@@ -19,11 +60,19 @@ Sentry.init({
       delete event.request.headers['cookie']
     }
 
-    // Only include org_id UUID in context, never names/slugs
-    if (event.contexts?.organization) {
-      const org = event.contexts.organization as Record<string, unknown>
-      delete org['name']
-      delete org['slug']
+    // Scrub extra data — allowlist only safe keys
+    if (event.extra) {
+      event.extra = scrubObject(event.extra as Record<string, unknown>)
+    }
+
+    // Scrub contexts — only keep org UUID
+    if (event.contexts) {
+      for (const [ctxName, ctxValue] of Object.entries(event.contexts)) {
+        if (ctxName === 'organization' && ctxValue && typeof ctxValue === 'object') {
+          const org = ctxValue as Record<string, unknown>
+          event.contexts[ctxName] = { id: org['id'], type: 'organization' } as any
+        }
+      }
     }
 
     return event
