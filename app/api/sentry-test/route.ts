@@ -32,6 +32,9 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // Wait for Sentry to actually send before the serverless function exits
+  await Sentry.flush(3000)
+
   return NextResponse.json({
     status: 'sent',
     triggered_at: new Date().toISOString(),
