@@ -179,40 +179,45 @@ function signPayload(secret: string, body: string): string {
   return createHmac('sha256', secret).update(body).digest('hex')
 }
 
+const MAX_WEBHOOK_ATTEMPTS = 3
+const BACKOFF_BASE_MS = 1000
+
 async function deliverToEndpoint(
   url: string,
   secret: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  eventId: string
 ): Promise<void> {
   const body = JSON.stringify(payload)
   const signature = signPayload(secret, body)
 
-  const attempt = async () => {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-EthosFi-Signature': `sha256=${signature}`,
-        'User-Agent': 'EthosFi-Webhooks/1.0',
-      },
-      body,
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!res.ok) {
-      throw new Error(`Webhook delivery failed: ${res.status} ${res.statusText}`)
-    }
-  }
-
-  try {
-    await attempt()
-  } catch (firstErr) {
-    // Single retry after 2 seconds
-    log.warn('webhook first attempt failed', { url, error: firstErr instanceof Error ? firstErr.message : String(firstErr) })
+  for (let attempt = 1; attempt <= MAX_WEBHOOK_ATTEMPTS; attempt++) {
     try {
-      await new Promise(r => setTimeout(r, 2000))
-      await attempt()
-    } catch (retryErr) {
-      log.error('webhook retry failed', { url, error: retryErr instanceof Error ? retryErr.message : String(retryErr) })
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-EthosFi-Signature': `sha256=${signature}`,
+          'X-EthosFi-Event-Id': eventId,
+          'X-EthosFi-Delivery-Attempt': String(attempt),
+          'User-Agent': 'EthosFi-Webhooks/1.0',
+        },
+        body,
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!res.ok) {
+        throw new Error(`Webhook delivery failed: ${res.status} ${res.statusText}`)
+      }
+      return
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      if (attempt < MAX_WEBHOOK_ATTEMPTS) {
+        const delay = BACKOFF_BASE_MS * Math.pow(2, attempt - 1)
+        log.warn('webhook attempt failed, retrying', { url, attempt, maxAttempts: MAX_WEBHOOK_ATTEMPTS, delayMs: delay, error: errMsg })
+        await new Promise(r => setTimeout(r, delay))
+      } else {
+        log.error('webhook delivery failed after all attempts', { url, attempts: MAX_WEBHOOK_ATTEMPTS, eventId, error: errMsg })
+      }
     }
   }
 }
@@ -250,7 +255,7 @@ function deliverWebhooks(event: WorkflowEvent, supabase: ReturnType<typeof getSu
       for (const ep of endpoints) {
         const subscribedEvents = ep.events as string[]
         if (subscribedEvents.includes(eventName)) {
-          deliverToEndpoint(ep.url, ep.secret, payload).catch(err =>
+          deliverToEndpoint(ep.url, ep.secret, payload, event.id).catch(err =>
             log.error('webhook delivery failed', { endpointId: ep.id, url: ep.url, orgId: event.organization_id, error: err instanceof Error ? err.message : String(err) })
           )
         }

@@ -84,6 +84,9 @@ function emailTemplate(type: NotificationType, title: string, body: string): { s
   return { subject, html }
 }
 
+const MAX_EMAIL_ATTEMPTS = 3
+const EMAIL_BACKOFF_MS = 1000
+
 async function sendEmail(to: string, type: NotificationType, title: string, body: string): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) {
@@ -93,26 +96,41 @@ async function sendEmail(to: string, type: NotificationType, title: string, body
 
   const { subject, html } = emailTemplate(type, title, body)
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'EthosFi Compliance <onboarding@resend.dev>',
-      to: [to],
-      subject,
-      html,
-    }),
-  })
+  for (let attempt = 1; attempt <= MAX_EMAIL_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'EthosFi Compliance <onboarding@resend.dev>',
+          to: [to],
+          subject,
+          html,
+        }),
+      })
 
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Resend API error ${res.status}: ${err}`)
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(`Resend API error ${res.status}: ${err}`)
+      }
+
+      log.info('email sent', { to, type, attempt })
+      return
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      if (attempt < MAX_EMAIL_ATTEMPTS) {
+        const delay = EMAIL_BACKOFF_MS * Math.pow(2, attempt - 1)
+        log.warn('email send failed, retrying', { to, type, attempt, maxAttempts: MAX_EMAIL_ATTEMPTS, delayMs: delay, error: errMsg })
+        await new Promise(r => setTimeout(r, delay))
+      } else {
+        log.error('email send failed after all attempts', { to, type, attempts: MAX_EMAIL_ATTEMPTS, error: errMsg })
+        throw err
+      }
+    }
   }
-
-  log.info('email sent', { to, type })
 }
 
 // ─── Core Dispatch ───────────────────────────────────────────────────────────

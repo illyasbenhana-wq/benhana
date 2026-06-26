@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { log } from '../../../lib/logger'
 
 export async function GET() {
   const ts = new Date().toISOString()
@@ -20,7 +21,8 @@ export async function GET() {
     }
 
     return NextResponse.json({ status: 'ok', db: 'connected', ts })
-  } catch {
+  } catch (err) {
+    log.error('health check: database unreachable', { error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ status: 'degraded', db: 'unreachable', ts })
   }
 }

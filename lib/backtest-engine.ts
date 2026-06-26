@@ -105,6 +105,7 @@ function mapRow(row: BacktestRow, mapping: FieldMapping): { form: ApplicationFor
   let gigPlatforms: string[] = []
   const gigRaw = get(mapping.gig_platforms)
   if (gigRaw) {
+    // Intentional fallback: if gig_platforms isn't valid JSON, treat as semicolon-separated string
     try { gigPlatforms = JSON.parse(gigRaw) } catch { gigPlatforms = gigRaw.split(';').map(s => s.trim()).filter(Boolean) }
   }
 
