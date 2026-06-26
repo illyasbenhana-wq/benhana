@@ -4,6 +4,43 @@ import { useParams } from 'next/navigation'
 import { ScoreResult } from '@/types'
 import { readScoreSession, ScoreSessionPayload } from '@/lib/score-session'
 
+type PillarFactor = { name: string; score: number; max: number; rationale: string }
+type Pillar = { score: number; max: number; factors: PillarFactor[] }
+type ScorePillars = { trust: Pillar; track_record: Pillar; financial_health: Pillar; esg: Pillar }
+
+const PILLAR_LABELS: Record<string, { label: string; color: string }> = {
+  trust:            { label: 'Trust',            color: '#4a9eff' },
+  track_record:     { label: 'Track Record',     color: '#1D9E75' },
+  financial_health: { label: 'Financial Health',  color: '#BA7517' },
+  esg:              { label: 'ESG Alignment',    color: '#9b59b6' },
+}
+
+function PillarBar({ value, max, color }: { value: number; max: number; color: string }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0
+  return (
+    <div style={{ height: 6, background: '#1a1a28', borderRadius: 3, overflow: 'hidden' }}>
+      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3, transition: 'width 0.8s ease' }} />
+    </div>
+  )
+}
+
+function ScoreRing({ total, max }: { total: number; max: number }) {
+  const pct = Math.round((total / max) * 100)
+  const color = pct >= 70 ? '#1D9E75' : pct >= 45 ? '#BA7517' : '#E24B4A'
+  return (
+    <div style={{ position: 'relative', width: 120, height: 120, margin: '0 auto' }}>
+      <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#1a1a28" strokeWidth="8" />
+        <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="8" strokeDasharray={`${pct * 2.64} 264`} strokeLinecap="round" />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontSize: 28, fontWeight: 700, color, fontFamily: '"DM Serif Display", serif' }}>{total}</div>
+        <div style={{ fontSize: 10, color: '#555' }}>/ {max}</div>
+      </div>
+    </div>
+  )
+}
+
 const BAND_CONFIG = {
   low:    { color: '#1D9E75', bg: '#0d2a20', label: 'Low risk',    headline: 'Great news.' },
   medium: { color: '#BA7517', bg: '#2a1e0a', label: 'Medium risk', headline: 'Good standing.' },
@@ -13,6 +50,7 @@ const BAND_CONFIG = {
 type ScoreView = {
   fullName: string
   score: ScoreResult
+  pillars: ScorePillars | null
 }
 
 function fromSession(payload: ScoreSessionPayload): ScoreView {
@@ -29,11 +67,16 @@ function fromSession(payload: ScoreSessionPayload): ScoreView {
       model_version: payload.model_version || 'unknown',
       created_at: new Date().toISOString(),
     },
+    pillars: null,
   }
 }
 
-function fromApi(application: { full_name: string }, score: ScoreResult): ScoreView {
-  return { fullName: application.full_name, score }
+function fromApi(application: { full_name: string }, score: any): ScoreView {
+  return {
+    fullName: application.full_name,
+    score,
+    pillars: score.score_pillars ?? null,
+  }
 }
 
 export default function ScorePage() {
@@ -102,7 +145,7 @@ export default function ScorePage() {
     )
   }
 
-  const { fullName, score } = view
+  const { fullName, score, pillars } = view
   const band = BAND_CONFIG[score.risk_band]
   const rec = score.recommendation
 
@@ -218,6 +261,47 @@ export default function ScorePage() {
             </div>
           ))}
         </div>
+
+        {/* Why This Score — v2 pillar breakdown */}
+        {pillars && (
+          <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '24px', marginBottom: 24 }}>
+            <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 20 }}>Why this score</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 20, alignItems: 'start' }}>
+              <div style={{ textAlign: 'center' }}>
+                <ScoreRing total={Object.values(pillars).reduce((s: number, p: Pillar) => s + p.score, 0)} max={1000} />
+                <div style={{ marginTop: 8, fontSize: 11, color: '#555' }}>Structured Score</div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => {
+                  const meta = PILLAR_LABELS[key] ?? { label: key, color: '#888' }
+                  return (
+                    <div key={key} style={{ background: '#0a0a0f', border: '1px solid #1a1a28', borderRadius: 10, padding: '12px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: meta.color }}>{meta.label}</span>
+                        <span style={{ fontSize: 11, color: '#555' }}>{pillar.score}/{pillar.max}</span>
+                      </div>
+                      <PillarBar value={pillar.score} max={pillar.max} color={meta.color} />
+                      <div style={{ marginTop: 8 }}>
+                        {pillar.factors.map((f: PillarFactor) => (
+                          <div key={f.name} style={{ marginBottom: 6 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#666', marginBottom: 2 }}>
+                              <span>{f.name}</span>
+                              <span>{f.score}/{f.max}</span>
+                            </div>
+                            <PillarBar value={f.score} max={f.max} color={meta.color} />
+                            <div style={{ fontSize: 9, color: '#444', marginTop: 1 }}>{f.rationale}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* EU AI Act notice */}
         <div style={{ borderTop: '1px solid #1a1a28', paddingTop: 24, marginBottom: 24 }}>
