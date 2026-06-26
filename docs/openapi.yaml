@@ -1,0 +1,368 @@
+openapi: 3.0.3
+info:
+  title: EthosFi API
+  version: 1.0.0
+  description: |
+    Decision Intelligence Platform for cross-border SME finance.
+    Partner API (v1) uses API key auth. Internal routes use Supabase JWT.
+
+servers:
+  - url: https://ethosfiai-mvp.vercel.app
+    description: Production
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      description: "API key: Bearer etho_ak_..."
+    SupabaseJWT:
+      type: http
+      scheme: bearer
+      description: Supabase session JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+
+paths:
+  # ─── Health ────────────────────────────────────────────────────────────
+  /api/health:
+    get:
+      summary: Health check
+      tags: [System]
+      description: Unauthenticated. Confirms app is running and can reach the database.
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  db: { type: string, enum: [connected, not_configured, error, unreachable] }
+                  ts: { type: string, format: date-time }
+
+  # ─── Internal Scoring ──────────────────────────────────────────────────
+  /api/score:
+    post:
+      summary: Submit application for scoring
+      tags: [Internal Scoring]
+      description: |
+        Public (no auth) or authenticated (Supabase JWT).
+        Runs AI scoring + EthoScore v2 + decision engine.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [full_name, email, monthly_income, employment_type, loan_amount, loan_purpose, loan_term_months, consent_data_use, consent_ai_decision]
+              properties:
+                full_name: { type: string }
+                email: { type: string }
+                monthly_income: { type: number }
+                employment_type: { type: string, enum: [employed, self_employed, gig, freelance, unemployed] }
+                loan_amount: { type: number }
+                loan_purpose: { type: string }
+                loan_term_months: { type: integer }
+                consent_data_use: { type: boolean }
+                consent_ai_decision: { type: boolean }
+      responses:
+        "200": { description: Score result with ai_assessment + structured_score }
+        "400": { description: Validation error }
+        "500": { description: Scoring failed }
+
+  /api/score/{id}:
+    get:
+      summary: Get application + score by ID
+      tags: [Internal Scoring]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Application and score }
+        "404": { description: Not found }
+
+  # ─── Case Actions (Internal) ───────────────────────────────────────────
+  /api/case-action:
+    post:
+      summary: Perform case action (escalate/clear/request info)
+      tags: [Internal Cases]
+      security: [{ SupabaseJWT: [] }]
+      description: Requires write permission on cases. Triggers workflow transition + notifications.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [caseId, act, newStatus]
+              properties:
+                caseId: { type: string, format: uuid }
+                act: { type: string, enum: [escalate, clear, request_info] }
+                newStatus: { type: string }
+                caseRef: { type: string }
+                entityName: { type: string }
+                previousStatus: { type: string }
+      responses:
+        "200": { description: Action completed }
+        "400": { description: Invalid transition or missing fields }
+        "401": { description: Not authenticated }
+        "403": { description: Insufficient permissions }
+
+  # ─── Notifications (Internal) ──────────────────────────────────────────
+  /api/notifications:
+    get:
+      summary: List notifications for current user
+      tags: [Internal Notifications]
+      security: [{ SupabaseJWT: [] }]
+      parameters:
+        - name: unread
+          in: query
+          schema: { type: string, enum: ["true"] }
+      responses:
+        "200": { description: Notifications list with unread_count }
+    patch:
+      summary: Mark notification(s) as read
+      tags: [Internal Notifications]
+      security: [{ SupabaseJWT: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties: { id: { type: string, format: uuid } }
+                - type: object
+                  properties: { all: { type: boolean } }
+      responses:
+        "200": { description: Marked }
+
+  /api/notifications/preferences:
+    get:
+      summary: Get notification preferences
+      tags: [Internal Notifications]
+      security: [{ SupabaseJWT: [] }]
+      responses:
+        "200": { description: Preferences list }
+    put:
+      summary: Upsert notification preference
+      tags: [Internal Notifications]
+      security: [{ SupabaseJWT: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [event_type, channel_in_app, channel_email]
+              properties:
+                event_type: { type: string }
+                channel_in_app: { type: boolean }
+                channel_email: { type: boolean }
+      responses:
+        "200": { description: Updated }
+
+  # ─── Partner API v1 ────────────────────────────────────────────────────
+  /api/v1/applications:
+    post:
+      summary: Submit application for scoring
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: applications:write. Full scoring pipeline."
+      responses:
+        "201": { description: Scored application }
+        "401": { description: Invalid API key }
+        "403": { description: Missing scope }
+        "429": { description: Rate limited }
+
+  /api/v1/applications/{id}:
+    get:
+      summary: Get application + score
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: applications:read"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: "{ data: { application, score }, meta }" }
+        "404": { description: Not found (or wrong org) }
+
+  /api/v1/applications/{id}/audit:
+    get:
+      summary: EU AI Act audit trail
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: audit_events:read"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Workflow events + audit records }
+
+  /api/v1/applications/{id}/benchmark:
+    get:
+      summary: Peer cohort comparison
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: applications:read. Min cohort 12 for privacy."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Percentile, peer cohort stats, factor comparisons }
+        "404": { description: Application not found }
+
+  /api/v1/applications/{id}/predict:
+    get:
+      summary: Outcome prediction
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: applications:read. Needs 20+ historical apps."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Approval probability, time-to-close, confidence }
+
+  /api/v1/applications/{id}/ai-review:
+    post:
+      summary: Trigger AI-assisted application review
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: applications:write. Requires ANTHROPIC_API_KEY."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: AI review (summary, actions, risk assessment, confidence) }
+        "404": { description: Application not found }
+        "500": { description: AI review failed }
+
+  /api/v1/cases/{id}:
+    get:
+      summary: Full case context
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: cases:read. Returns case + signals + comments + tasks + events + application."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Full case context }
+        "404": { description: Case not found }
+
+  /api/v1/cases/{id}/timeline:
+    get:
+      summary: Case workflow event history
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: cases:read"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Workflow events + case actions }
+
+  /api/v1/cases/{id}/comments:
+    post:
+      summary: Add comment to case
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: cases:write"
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string }
+                internal: { type: boolean, default: true }
+      responses:
+        "201": { description: Comment created }
+
+  /api/v1/cases/{id}/ai-review:
+    post:
+      summary: Trigger AI-assisted case review
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: cases:write. Requires ANTHROPIC_API_KEY."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: AI review }
+        "404": { description: Case not found }
+
+  /api/v1/risk/snapshot:
+    get:
+      summary: Latest risk snapshot for org
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: applications:read"
+      responses:
+        "200": { description: Snapshot (exposure, distribution, top risks, anomalies) }
+        "404": { description: No snapshot generated yet }
+    post:
+      summary: Generate new risk snapshot
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: applications:write. Runs anomaly detection."
+      responses:
+        "201": { description: New snapshot }
+
+  /api/v1/events:
+    get:
+      summary: Query workflow events
+      tags: [Partner API]
+      security: [{ ApiKeyAuth: [] }]
+      description: "Scope: audit_events:read. Filterable."
+      parameters:
+        - name: entity_type
+          in: query
+          schema: { type: string, enum: [application, case] }
+        - name: event_type
+          in: query
+          schema: { type: string, enum: [status_change, assignment, note, score_complete, ai_review] }
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+        - name: until
+          in: query
+          schema: { type: string, format: date-time }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200": { description: "{ data: [...events], meta: { count, limit } }" }
