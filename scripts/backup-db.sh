@@ -1,7 +1,16 @@
 #!/bin/bash
-# EthosFi — Manual database backup via Supabase CLI
-# Run periodically or before any risky operation.
-# Requires: npx supabase (installed via npm)
+# ⚠️ UNTESTED — requires pg_dump/psql which are not installed on this machine.
+# This script has never been run successfully.
+#
+# For the VERIFIED working backup method, use instead:
+#   node scripts/backup-restore-test.mjs
+# That script uses the Supabase REST API (JSON export/upsert restore)
+# and has been tested end-to-end with a real delete-and-restore cycle.
+#
+# This pg_dump-based script is kept for future use once Postgres client
+# tools are installed, but should be tested before relying on it.
+#
+# Requires: pg_dump, psql (Postgres client tools)
 #
 # Usage:
 #   ./scripts/backup-db.sh
