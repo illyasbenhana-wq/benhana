@@ -1,9 +1,10 @@
 @echo off
-REM Loads env vars from .env.test and starts the Next.js dev server on port 3847
-REM Usage: __tests__\start-test-server.cmd
-
-cd /d %~dp0..
-for /f "usebackq tokens=1,* delims==" %%a in (".env.test") do (
-  if not "%%a"=="" if not "%%a:~0,1%"=="#" set "%%a=%%b"
+REM Load test credentials from .env.test (never commit secrets here)
+REM Copy .env.test.example to .env.test and fill in real values.
+cd /d c:\Users\illya\Downloads\ethosfiai-mvp
+if not exist .env.test (
+  echo ERROR: .env.test not found. Copy .env.test.example and fill in credentials.
+  exit /b 1
 )
+for /f "usebackq tokens=1,* delims==" %%A in (".env.test") do set "%%A=%%B"
 npx next dev --port 3847

@@ -6,4 +6,5 @@ node_modules
 .vercel
 .env*.local
 .env.test
+.env.prod-check
 backups/

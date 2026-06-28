@@ -87,10 +87,5 @@ insert into audit_events (case_id, case_ref, analyst, action, severity, created_
 ('00000000-0000-0000-0000-000000000002', 'INV-1038', 'R. Okonkwo', 'Velocity threshold breach logged', null, now() - interval '108 minutes'),
 ('00000000-0000-0000-0000-000000000004', 'INV-1015', 'M. Vasquez', 'Case assigned from queue', null, now() - interval '122 minutes'),
 ('00000000-0000-0000-0000-000000000001', 'INV-1047', 'S. Chen', 'Sanctions hit confirmed - OFAC', 'critical', now() - interval '147 minutes');
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVobWluZ2J2a25hdmVoY2pna291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5Mjk3MzQsImV4cCI6MjA5NDUwNTczNH0.IuG6z5pBORVF8cabjcWIy5LxgRNCHRa3HVwarLQ6_yQ
-
-eyJhbGciOiJIUzI1N
-iIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVobWluZ2J2a25hdmVoY2pna291Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODkyOTczNCwiZXhwIjoyMDk0NTA1NzM0fQ.Mg21_OiO5SesztjyO_NQvhLRhoZduUkkLGpfUl3XYh8
-npm run dev
-
-
+-- NOTE: Supabase anon/service_role JWTs belong in .env.test, not here.
+-- See .env.test.example for setup instructions.

@@ -213,3 +213,224 @@ describe('HTTP endpoint isolation: /api/v1/cases/[id]/ai-review', () => {
     expect(JSON.stringify(body)).not.toContain('Beta Entity')
   })
 })
+
+describe('HTTP endpoint isolation: /api/v1/applications (POST)', () => {
+  it('POSITIVE: Org A key can create an application scoped to Org A', async () => {
+    await requireServer()
+
+    const res = await fetch(`${BASE_URL}/api/v1/applications`, {
+      method: 'POST',
+      headers: authHeaders(orgAKey),
+      body: JSON.stringify({
+        full_name: 'Isolation Test Applicant',
+        email: 'isolation-test@example.com',
+        monthly_income: 4000,
+        employment_type: 'employed',
+        employer_name: 'Test Corp',
+        months_at_current_job: 24,
+        rent_months_paid: 12,
+        rent_monthly_amount: 1200,
+        savings_amount: 5000,
+        loan_amount: 10000,
+        loan_purpose: 'business',
+        loan_term_months: 12,
+        consent_data_use: true,
+        consent_ai_decision: true,
+      }),
+    })
+
+    expect([200, 201]).toContain(res.status)
+    const body = await res.json()
+    expect(body.data).toBeDefined()
+    expect(body.data.application_id).toBeDefined()
+  })
+
+  it('NEGATIVE: Org B key (no write scope) cannot create applications', async () => {
+    await requireServer()
+
+    const res = await fetch(`${BASE_URL}/api/v1/applications`, {
+      method: 'POST',
+      headers: authHeaders(orgBKey),
+      body: JSON.stringify({
+        full_name: 'Should Fail',
+        email: 'fail@example.com',
+        monthly_income: 4000,
+        employment_type: 'employed',
+        employer_name: 'Test',
+        months_at_current_job: 12,
+        rent_months_paid: 6,
+        rent_monthly_amount: 1000,
+        savings_amount: 2000,
+        loan_amount: 5000,
+        loan_purpose: 'personal',
+        loan_term_months: 6,
+        consent_data_use: true,
+        consent_ai_decision: true,
+      }),
+    })
+
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('HTTP endpoint isolation: /api/v1/applications/[id]/predict', () => {
+  it('POSITIVE: Org A key can predict on Org A application', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/applications/${ORG_A_APP_IDS[0]}/predict`,
+      { headers: authHeaders(orgAKey) }
+    )
+
+    expect([200, 404]).toContain(res.status)
+  })
+
+  it('NEGATIVE: Org A key cannot predict on Org B application', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/applications/${ORG_B_APP_ID}/predict`,
+      { headers: authHeaders(orgAKey) }
+    )
+
+    expect(res.status).toBe(404)
+    const body = await res.json()
+    expect(JSON.stringify(body)).not.toContain('Dave Beta')
+  })
+})
+
+describe('HTTP endpoint isolation: /api/v1/applications/[id]/audit', () => {
+  it('POSITIVE: Org A key can access Org A application audit trail', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/applications/${ORG_A_APP_IDS[0]}/audit`,
+      { headers: authHeaders(orgAKey) }
+    )
+
+    expect([200, 404]).toContain(res.status)
+    if (res.status === 200) {
+      const body = await res.json()
+      expect(JSON.stringify(body)).not.toContain(ORG_B_ID)
+    }
+  })
+
+  it('NEGATIVE: Org A key cannot access Org B application audit trail', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/applications/${ORG_B_APP_ID}/audit`,
+      { headers: authHeaders(orgAKey) }
+    )
+
+    expect(res.status).toBe(404)
+  })
+
+  it('NEGATIVE: Org B key (no audit_events:read scope) is denied', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/applications/${ORG_B_APP_ID}/audit`,
+      { headers: authHeaders(orgBKey) }
+    )
+
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('HTTP endpoint isolation: /api/v1/cases/[id]/comments', () => {
+  it('NEGATIVE: Org A key cannot comment on Org B case', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/cases/${ORG_B_CASE_ID}/comments`,
+      {
+        method: 'POST',
+        headers: authHeaders(orgAKey),
+        body: JSON.stringify({ body: 'Cross-org test comment' }),
+      }
+    )
+
+    // addComment verifies org ownership — should fail
+    expect(res.status).not.toBe(201)
+    const body = await res.json()
+    expect(JSON.stringify(body)).not.toContain('Beta Entity')
+  })
+
+  it('NEGATIVE: Org B key (no cases:write scope) cannot comment', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/cases/${ORG_B_CASE_ID}/comments`,
+      {
+        method: 'POST',
+        headers: authHeaders(orgBKey),
+        body: JSON.stringify({ body: 'Should be denied' }),
+      }
+    )
+
+    expect(res.status).toBe(403)
+  })
+})
+
+describe('HTTP endpoint isolation: /api/v1/cases/[id]/timeline', () => {
+  it('POSITIVE: Org A key can access Org A case timeline', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/cases/${ORG_A_CASE_ID}/timeline`,
+      { headers: authHeaders(orgAKey) }
+    )
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(JSON.stringify(body)).not.toContain(ORG_B_ID)
+    expect(JSON.stringify(body)).not.toContain('Beta Entity')
+  })
+
+  it('NEGATIVE: Org A key gets 404 for Org B case timeline', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/cases/${ORG_B_CASE_ID}/timeline`,
+      { headers: authHeaders(orgAKey) }
+    )
+
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('HTTP endpoint isolation: /api/v1/events', () => {
+  it('POSITIVE: Org A key sees only Org A events', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/events`,
+      { headers: authHeaders(orgAKey) }
+    )
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    const bodyStr = JSON.stringify(body)
+    expect(bodyStr).not.toContain(ORG_B_ID)
+  })
+
+  it('NEGATIVE: Org B key sees only Org B events, no Org A data', async () => {
+    await requireServer()
+
+    const res = await fetch(
+      `${BASE_URL}/api/v1/events`,
+      { headers: authHeaders(orgBKey) }
+    )
+
+    // Org B key has no audit_events:read scope — should be 403
+    expect(res.status).toBe(403)
+  })
+
+  it('NEGATIVE: no API key returns 401', async () => {
+    await requireServer()
+
+    const res = await fetch(`${BASE_URL}/api/v1/events`)
+    expect(res.status).toBe(401)
+  })
+})
