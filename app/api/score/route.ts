@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { scoreApplication, computeRiskBand } from '../../../lib/scoring-engine'
+import { scoreApplication, computeRiskBand, buildEthoscoreAssessedPayload } from '../../../lib/scoring-engine'
 import { extractRiskSignals } from '../../../lib/risk-factors'
 import { makeDecision } from '../../../lib/decision-engine'
 import { recordAuditEvent } from '../../../lib/audit-engine'
 import { resolveApiContext } from '../../../lib/api-guard'
 import { getDefaultOrgId } from '../../../lib/org-context'
-import { transition } from '../../../lib/workflow-engine'
+import { transition, recordEvent } from '../../../lib/workflow-engine'
 import { computeEthoScoreV2 } from '../../../lib/ethoscore-v2'
 import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../types'
-import { log } from '../../../lib/logger'
+import { log, alertCalibrationColumnsMissing, alertEthoscoreAssessedEventFailed } from '../../../lib/logger'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -63,7 +63,13 @@ function getMockScore() {
       model_version: 'mock-v1'
     },
     rawPrompt: 'Mock scoring (ANTHROPIC_API_KEY not configured)',
-    rawResponse: 'Mock response'
+    rawResponse: 'Mock response',
+    promptVersion: 'v1' as const,
+    modelRequested: 'mock-v1',
+    modelResponded: 'mock-v1',
+    confidenceOverall: null,
+    validationFallback: false,
+    fable5Assessment: null,
   }
 }
 
@@ -143,7 +149,7 @@ export async function POST(req: NextRequest) {
       log.warn('ANTHROPIC_API_KEY not set, using mock score', { route: 'score' })
       scoreData = getMockScore()
     }
-    const { result, rawPrompt, rawResponse } = scoreData
+    const { result, rawPrompt, rawResponse, promptVersion, modelRequested, modelResponded, confidenceOverall, validationFallback } = scoreData
 
     // Step 3: Transform AI output into structured risk signals
     const riskSignals = extractRiskSignals({
@@ -174,7 +180,7 @@ export async function POST(req: NextRequest) {
       applicationId,
       inputSnapshot: form as unknown as Record<string, unknown>,
       modelVersion: result.model_version,
-      promptVersion: 'v1',
+      promptVersion,
       aiProvider,
       rawPrompt,
       rawResponse,
@@ -183,27 +189,63 @@ export async function POST(req: NextRequest) {
     // Step 6: Save final score + decision to Supabase
     let scoreId = 'demo'
     if (supabase) {
-      const { data: score, error: scoreError } = await supabase
+      const baseScoreFields = {
+        organization_id: orgId,
+        application_id: applicationId,
+        etho_score: result.etho_score,
+        risk_band: result.risk_band,
+        recommendation: decision.requiresHumanReview ? 'review' : decision.approved ? 'approve' : 'decline',
+        ai_summary: result.ai_summary,
+        factors: result.factors,
+        model_version: result.model_version,
+        raw_prompt: rawPrompt,
+        raw_response: rawResponse,
+        score_version: v2 ? 'v2' : 'v1',
+        score_pillars: v2?.pillars ?? null,
+      }
+      const calibrationFields = {
+        prompt_version: promptVersion,
+        model_requested: modelRequested,
+        model_responded: modelResponded,
+        confidence_overall: confidenceOverall,
+      }
+
+      let { data: score, error: scoreError } = await supabase
         .from('scores')
-        .insert({
-          organization_id: orgId,
-          application_id: applicationId,
-          etho_score: result.etho_score,
-          risk_band: result.risk_band,
-          recommendation: decision.requiresHumanReview ? 'review' : decision.approved ? 'approve' : 'decline',
-          ai_summary: result.ai_summary,
-          factors: result.factors,
-          model_version: result.model_version,
-          raw_prompt: rawPrompt,
-          raw_response: rawResponse,
-          score_version: v2 ? 'v2' : 'v1',
-          score_pillars: v2?.pillars ?? null,
-        })
+        .insert({ ...baseScoreFields, ...calibrationFields })
         .select()
         .single()
 
+      // 42703 = undefined_column (direct Postgres), PGRST204 = PostgREST
+      // schema-cache miss for an unknown column. Both mean
+      // supabase/migrations/20260702000000_add_ethoscore_v2_calibration_fields.sql
+      // hasn't been applied to this database yet — degrade gracefully and
+      // save the score without the new fields rather than losing it.
+      let calibrationColumnsMissing = false
+      let calibrationErrorCode: string | undefined
+      if (scoreError && (scoreError.code === '42703' || scoreError.code === 'PGRST204')) {
+        calibrationColumnsMissing = true
+        calibrationErrorCode = scoreError.code
+        log.warn('scores insert failed on calibration columns — migration not applied yet, retrying without them', {
+          route: 'score',
+          error: scoreError.message,
+        })
+        ;({ data: score, error: scoreError } = await supabase
+          .from('scores')
+          .insert(baseScoreFields)
+          .select()
+          .single())
+      }
+
       if (scoreError) throw scoreError
       scoreId = score.id
+
+      // This is NOT just a benign log — it's a silent EU AI Act traceability
+      // gap (the saved score has no prompt_version/model_responded), so it
+      // must surface somewhere a human will see it, not just server logs.
+      if (calibrationColumnsMissing) {
+        alertCalibrationColumnsMissing({ scoreId, errorCode: calibrationErrorCode })
+      }
 
       // Workflow transition: pending → scored
       const txResult = await transition({
@@ -217,6 +259,48 @@ export async function POST(req: NextRequest) {
       })
       if (txResult.success === false) {
         log.warn('workflow transition failed (non-fatal)', { route: 'score', error: txResult.error })
+      }
+
+      // Immutable event: which prompt/model actually produced this score
+      // (traceability requirement — see lib/prompts/ethoscore-llm-v2.ts).
+      // Never allowed to lose an already-computed score: recordEvent() itself
+      // doesn't throw, and this call site is additionally wrapped so that if
+      // it somehow does (e.g. the 'ethoscore_assessed' event_type / nullable
+      // to_state haven't been unlocked yet by the calibration-fields
+      // migration on this database), the score we already saved still ships.
+      try {
+        const assessedResult = await recordEvent({
+          entityType: 'application',
+          entityId: applicationId,
+          orgId: orgId,
+          eventType: 'ethoscore_assessed',
+          actorId: authContext?.userId ?? 'system',
+          payload: buildEthoscoreAssessedPayload({
+            scoreId,
+            ethoScore: result.etho_score,
+            riskBand: result.risk_band,
+            promptVersion,
+            modelRequested,
+            modelResponded,
+            confidenceOverall,
+            validationFallback,
+            fable5Assessment: scoreData.fable5Assessment ?? null,
+          }),
+        })
+        if (assessedResult.success === false) {
+          log.warn('ethoscore_assessed event logging failed (non-fatal)', { route: 'score', error: assessedResult.error })
+          // Same traceability gap as the calibration-columns case above —
+          // this score has no ethoscore_assessed audit trail. Alert, don't
+          // just log.
+          alertEthoscoreAssessedEventFailed({ scoreId, error: assessedResult.error })
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err)
+        log.warn('ethoscore_assessed event logging threw (non-fatal, score already saved)', {
+          route: 'score',
+          error: errMsg,
+        })
+        alertEthoscoreAssessedEventFailed({ scoreId, error: errMsg })
       }
     }
 

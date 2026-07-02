@@ -108,6 +108,66 @@ async function ensureHooks() {
   await import('./notification-engine')
 }
 
+export interface RecordEventParams {
+  entityType: EntityType
+  entityId: string
+  orgId: string
+  eventType: string
+  actorId: string
+  payload?: Record<string, unknown>
+}
+
+// For immutable log entries that aren't a state transition (e.g. 'ethoscore_assessed').
+// Does not touch entity status and skips isValidTransition — from_state/to_state stay null.
+//
+// Never throws — callers (e.g. app/api/score/route.ts) must be able to log
+// this best-effort without risking the score/decision they already computed.
+// Relevant if 'ethoscore_assessed' or a null to_state hasn't been unlocked
+// yet by supabase/migrations/20260702000000_add_ethoscore_v2_calibration_fields.sql
+// on the target database — this fails closed (logs, doesn't throw) rather
+// than taking down the caller.
+export async function recordEvent(params: RecordEventParams): Promise<TransitionResult> {
+  const { entityType, entityId, orgId, eventType, actorId, payload } = params
+
+  try {
+    const supabase = getSupabase()
+    if (!supabase) {
+      return { success: false, error: 'Database not configured' }
+    }
+
+    const { data: event, error: eventErr } = await supabase
+      .from('workflow_events')
+      .insert({
+        organization_id: orgId,
+        entity_type: entityType,
+        entity_id: entityId,
+        event_type: eventType,
+        from_state: null,
+        to_state: null,
+        actor_id: actorId,
+        metadata: payload ?? {},
+      })
+      .select()
+      .single()
+
+    if (eventErr || !event) {
+      // warn, not error: this is a known-degraded, non-fatal path (see
+      // recordEvent's doc comment above). Callers that need this escalated
+      // to Sentry (e.g. app/api/score/route.ts for 'ethoscore_assessed')
+      // do so explicitly via lib/logger.ts's alert* helpers — logging it as
+      // an error here too would double-report the same failure.
+      log.warn('workflow_events insert failed', { entityType, entityId, orgId, eventType, error: eventErr?.message })
+      return { success: false, error: `Failed to log workflow event: ${eventErr?.message}` }
+    }
+
+    return { success: true, event: event as WorkflowEvent }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    log.warn('recordEvent threw unexpectedly', { entityType, entityId, orgId, eventType, error: message })
+    return { success: false, error: message }
+  }
+}
+
 export async function transition(params: TransitionParams): Promise<TransitionResult> {
   await ensureHooks()
 

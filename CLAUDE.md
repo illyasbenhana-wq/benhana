@@ -351,6 +351,81 @@ acceptable for EU AI Act explainability.
 Never expose raw factor weights publicly. The score is an output, not a
 formula.
 
+### ⚠️ Two unrelated "v2" modules — don't confuse them
+
+- `lib/ethoscore-v2.ts` — **deterministic**, no LLM call. Computes a 0–1000
+  4-pillar score directly from `ApplicationForm` fields (see line ~48 above).
+  Called from `app/api/score/route.ts` step 4b, stored as `scores.score_pillars`
+  / `scores.score_version`.
+- `lib/prompts/ethoscore-llm-v2.ts` — the **Fable 5 LLM prompt** (0–1000,
+  4-pillar, calibration-only). Consumed by `lib/scoring-engine.ts`, which
+  normalizes its output onto the existing 0–100 `ScoreResult` shape.
+
+They compute independently and their outputs are never merged. **`scores.etho_score`
+always stores the LLM assessment (from `lib/scoring-engine.ts`) — never the
+deterministic `lib/ethoscore-v2.ts` value.** The deterministic score only
+appears via the separate `score_pillars` / `score_version` columns. The
+prompt file is named `ethoscore-llm-v2.ts` (not `ethoscore-v2.ts`)
+specifically to avoid colliding with `lib/ethoscore-v2.ts` in imports, greps,
+and conversation.
+
+### LLM-backed scoring (`lib/scoring-engine.ts`) — prompt versions
+
+`scoreApplication(form, options?)` is parameterized by `promptVersion`
+(`'v1' | '2.0.0-fable5'`, both prompt bodies live in `lib/prompts/`) and by
+model. Model resolution: `options.model` → `ETHOSCORE_MODEL` env var →
+`claude-opus-4-8` default. **`ETHOSCORE_MODEL` is currently unset in
+production, so this defaults to `claude-opus-4-8` — not Fable 5.** The
+`2.0.0-fable5` prompt (`lib/prompts/ethoscore-llm-v2.ts`) is prepared for
+calibration only; switching production traffic to it requires the
+calibration run + advisor sign-off described below, plus checking current
+Fable 5/Mythos-tier access (see Phase 3.5.5 note — access was suspended
+pending an export control directive as of that entry).
+
+Every score request logs an immutable `ethoscore_assessed` event to
+`workflow_events` (via `recordEvent()` in `lib/workflow-engine.ts`) carrying
+`prompt_version`, `model_requested`, and `model_responded` (the actual
+`response.model`, which can differ from what was requested if a retry/
+fallback occurred) — this is the AI Act traceability record for which
+prompt/model produced a given score.
+
+JSON parsing is defensive: parse → retry once with a corrective turn →
+fall back to `claude-opus-4-8` and set `validation_fallback: true` on the
+logged event. Never throws on a single malformed response.
+
+### 🚨 DEPLOY ORDER — migration MUST be applied before this code ships
+
+`supabase/migrations/20260702000000_add_ethoscore_v2_calibration_fields.sql`
+adds the nullable `scores` columns (`prompt_version`, `model_requested`,
+`model_responded`, `confidence_overall`) and widens the
+`workflow_events.event_type` CHECK constraint (+ drops `to_state NOT NULL`)
+to allow `'ethoscore_assessed'`. **It is not yet applied to any database.**
+
+If this code deploys before the migration runs:
+- The `scores` insert in `app/api/score/route.ts` (step 6) is written
+  defensively — on a `42703`/`PGRST204` (unknown column) error it retries
+  the insert with only the pre-existing columns, so **the score itself is
+  never lost**, just missing the new traceability fields until the
+  migration runs.
+- The `ethoscore_assessed` event insert (`recordEvent()` in
+  `lib/workflow-engine.ts`) fails closed the same way: it never throws
+  (internal try/catch), and the call site in `route.ts` is additionally
+  wrapped in try/catch — a logging failure here is a `log.warn`, not a lost
+  score or a 500.
+- Net effect: deploying out of order degrades traceability (no
+  `ethoscore_assessed` event, no prompt/model columns on `scores`) but does
+  **not** break scoring or lose data. Apply the migration first anyway —
+  don't rely on the fallback path in steady state.
+- **Both degraded paths are not silent.** A missing-calibration-columns
+  fallback and an `ethoscore_assessed` logging failure each fire a
+  warning-level Sentry event (`lib/logger.ts`'s `alertCalibrationColumnsMissing`
+  / `alertEthoscoreAssessedEventFailed`) carrying only `scoreId` +
+  error code/message + table/event type — no applicant data, per the same
+  `SAFE_EXTRA_KEYS` allowlist in `sentry.server.config.ts` (extended, not
+  bypassed, to allow `scoreId`/`errorCode`/`eventType`). Plain `log.warn`
+  elsewhere in the codebase intentionally stays console-only — only
+  `log.error` and these two named alerts reach Sentry.
+
 ---
 
 ## Hard-Won Lessons From the Phase 3.5 Audit Process

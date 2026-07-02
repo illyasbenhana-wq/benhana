@@ -27,6 +27,9 @@ const SAFE_EXTRA_KEYS = new Set([
   'scored_count',
   'skipped_count',
   'error_count',
+  'scoreId',
+  'errorCode',
+  'eventType',
 ])
 
 function scrubObject(obj: Record<string, unknown>): Record<string, unknown> {
