@@ -1,10 +1,24 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../lib/user-role'
 import { MerchantIntelligence } from './components/MerchantIntelligence'
 import { fatimaOkoyeComplianceCase, FATIMA_OKOYE_CASE_REF } from '../../lib/fatima-okoye-demo'
+import { PrecisionGauge } from '../components/PrecisionGauge'
+import {
+  color as C,
+  fontFamily as F,
+  fontSize as FS,
+  fontWeight as FW,
+  radius as R,
+  space as SP,
+  borderLine,
+  motion as M,
+  keyframes as KF,
+  googleFontsHref,
+  caseRiskColor,
+} from '../../lib/design-system/tokens'
 
 const _url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const _key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -39,10 +53,10 @@ type TxSignal = { label: string; value: string; trend: 'up' | 'down' | 'flat'; n
 // ─── Color / Label Maps ───────────────────────────────────────────────────────
 
 const SEV_COLOR: Record<string, string> = {
-  critical: '#E24B4A',
-  high: '#BA7517',
-  medium: '#4a9eff',
-  low: '#1D9E75',
+  critical: C.riskHigh,
+  high: C.riskMedium,
+  medium: C.ice,
+  low: C.riskLow,
 }
 
 const SEV_LABEL: Record<string, string> = {
@@ -186,19 +200,16 @@ function fmtSLA(hours: number) {
 }
 
 function slaColor(hours: number, total: number) {
-  if (hours <= 0) return '#E24B4A'
-  if (hours < 1) return '#E24B4A'           // under 1 hour → red
+  if (hours <= 0) return C.riskHigh
+  if (hours < 1) return C.riskHigh           // under 1 hour → red
   const pct = hours / total
-  if (pct < 0.3) return '#E24B4A'
-  if (pct < 0.6) return '#BA7517'
-  return '#1D9E75'
+  if (pct < 0.3) return C.riskHigh
+  if (pct < 0.6) return C.riskMedium
+  return C.riskLow
 }
 
-function riskColor(score: number) {
-  if (score >= 75) return '#E24B4A'
-  if (score >= 50) return '#BA7517'
-  return '#1D9E75'
-}
+// Case-risk color (0–100, higher = more risk). Sourced from design tokens.
+const riskColor = caseRiskColor
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -377,364 +388,286 @@ export default function DashboardPage() {
   const escalCount   = cases.filter(c => c.status === 'escalated').length
   const slaBreaching = cases.filter(c => liveSLA(c.sla_remaining_hours) / c.sla_hours < 0.3 && c.status !== 'cleared').length
 
-  const kpis = [
-    { label: 'Active Cases',  val: activeCount,  color: '#e8e6df' },
-    { label: 'Critical',      val: critCount,    color: critCount > 0 ? '#E24B4A' : '#e8e6df' },
-    { label: 'Escalated',     val: escalCount,   color: escalCount > 0 ? '#BA7517' : '#e8e6df' },
-    { label: 'SLA Breaching', val: slaBreaching, color: slaBreaching > 0 ? '#E24B4A' : '#1D9E75' },
-    { label: 'Cleared',       val: cases.filter(c => c.status === 'cleared').length, color: '#1D9E75' },
-  ]
+  const labelCss: React.CSSProperties = {
+    fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold,
+    letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSecondary,
+  }
+  const monoCss: React.CSSProperties = { fontFamily: F.mono, fontVariantNumeric: 'tabular-nums' }
+  const panelCss: React.CSSProperties = { background: C.graphite, border: borderLine, borderRadius: R.data }
+
+  const activeCases = cases.filter(c => c.status !== 'cleared')
+  const rankedCases = [...activeCases].sort((a, b) => b.risk_score - a.risk_score)
+  const gaugeCases = rankedCases.slice(0, 3)
+  const activeSignals = rankedCases.slice(0, 5).map(c => {
+    const top = [...c.signals].sort((x, y) => y.score - x.score)[0]
+    return { c, name: top?.name ?? c.case_type, score: top?.score ?? c.risk_score }
+  })
+  const now = new Date()
+  const dateStr = now
+    .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    .toUpperCase()
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif', overflow: 'hidden' }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display&display=swap" rel="stylesheet" />
-      <style>{`* { box-sizing: border-box; } ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #0a0a0f; } ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 2px; } .logout-btn { margin-left: 8px; background: none; border: 1px solid #2a2a38; border-radius: 4px; padding: 3px 8px; color: #555; font-size: 11px; cursor: pointer; font-family: inherit; transition: color 0.15s, border-color 0.15s; } .logout-btn:hover { color: #e24b4a; border-color: #3a1a1a; }`}</style>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: C.midnight, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
+      <link href={googleFontsHref} rel="stylesheet" />
+      <style>{`
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: ${C.midnight}; }
+        ::-webkit-scrollbar-thumb { background: ${C.border}; }
+        ${KF}
+        .ethos-logout { background: none; border: ${borderLine}; border-radius: ${R.control}px; padding: 4px 10px; color: ${C.textMuted}; font-size: ${FS.xs}px; cursor: pointer; font-family: ${F.sans}; transition: color .15s, border-color .15s; }
+        .ethos-logout:hover { color: ${C.riskHigh}; border-color: ${C.riskHigh}55; }
+        .ethos-queue-item:hover { background: ${C.slate}; }
+        .ethos-signal:hover { background: ${C.slate}; }
+      `}</style>
 
-      {/* ── Sidebar ── */}
-      <div style={{ width: 320, borderRight: '1px solid #1a1a28', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-
-        {/* Header */}
-        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid #1a1a28' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 6, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                <path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 15 }}>EthosFi</span>
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: '#4a9eff', background: '#0d1f33', border: '1px solid #1a3a5c', borderRadius: 4, padding: '2px 8px' }}>{ROLE_LABEL[userRole]}</span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Sign out"
-              className="logout-btn"
-            >
-              Sign out
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            {[
-              { label: 'Active',    val: activeCount, color: '#e8e6df' },
-              { label: 'Critical',  val: critCount,   color: critCount > 0 ? '#E24B4A' : '#e8e6df' },
-              { label: 'Escalated', val: escalCount,  color: escalCount > 0 ? '#BA7517' : '#e8e6df' },
-            ].map(m => (
-              <div key={m.label} style={{ background: '#13131a', borderRadius: 8, padding: '10px 12px' }}>
-                <div style={{ fontSize: 20, fontWeight: 500, color: m.color }}>{m.val}</div>
-                <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{m.label}</div>
-              </div>
-            ))}
-          </div>
+      {/* ── Top command bar ── */}
+      <header style={{ borderBottom: borderLine, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.md}px ${SP.xl}px ${SP.sm}px` }}>
+          <span style={{ fontFamily: F.serif, fontSize: FS.md, letterSpacing: '0.14em', fontWeight: FW.semibold }}>ETHOSFI</span>
+          <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>· INTELLIGENCE INFRASTRUCTURE</span>
+          <span style={{ marginLeft: 'auto', ...labelCss, color: C.textSecondary }}>Northbridge Credit Union</span>
+          <span style={{ width: 1, height: 14, background: C.border }} />
+          <span style={{ fontSize: FS.sm, color: C.textPrimary }}>{ROLE_LABEL[userRole]}</span>
+          <button type="button" onClick={handleLogout} title="Sign out" className="ethos-logout">Sign out</button>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `0 ${SP.xl}px ${SP.md}px` }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.riskLow, animation: M.dataPulse, flexShrink: 0 }} />
+          <span style={{ ...labelCss, color: C.textPrimary, letterSpacing: '0.16em' }}>Intelligence Layer Active</span>
+          <span style={{ ...monoCss, fontSize: FS.xs, color: C.riskLow, letterSpacing: '0.1em' }}>LIVE</span>
+          <span style={{ marginLeft: 'auto', ...monoCss, fontSize: FS.xs, color: C.textSecondary, letterSpacing: '0.1em' }}>{dateStr}</span>
+        </div>
+      </header>
 
-        {/* Search */}
-        <div style={{ padding: '12px 12px 0' }}>
-          <div style={{ position: 'relative' }}>
-            <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="12" height="12" viewBox="0 0 16 16" fill="none">
-              <circle cx="6.5" cy="6.5" r="4.5" stroke="#555" strokeWidth="1.5"/>
-              <path d="M10 10L13.5 13.5" stroke="#555" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+      {/* ── Body: case queue + working area ── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* ── Case queue rail ── */}
+        <aside style={{ width: 320, borderRight: borderLine, display: 'flex', flexDirection: 'column', flexShrink: 0, background: C.midnight }}>
+          <div style={{ padding: `${SP.lg}px ${SP.lg}px ${SP.sm}px`, display: 'flex', alignItems: 'center', gap: SP.sm }}>
+            <span style={labelCss}>Case Queue</span>
+            <span style={{ ...monoCss, marginLeft: 'auto', fontSize: FS.xs, color: C.textMuted }}>{activeCases.length} ACTIVE</span>
+          </div>
+
+          {/* Search */}
+          <div style={{ padding: `0 ${SP.md}px ${SP.sm}px` }}>
             <input
               type="search"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search entity or case ref…"
-              style={{
-                width: '100%', background: '#13131a', border: '1px solid #1e1e2e',
-                borderRadius: 8, padding: '7px 10px 7px 28px', color: '#e8e6df',
-                fontSize: 12, fontFamily: 'inherit', outline: 'none',
-              }}
+              placeholder="Search entity or case ref"
+              style={{ width: '100%', background: C.graphite, border: borderLine, borderRadius: R.data, padding: '7px 10px', color: C.textPrimary, fontSize: FS.sm, fontFamily: F.sans, outline: 'none' }}
             />
           </div>
-        </div>
 
-        {/* Filter tabs */}
-        <div style={{ display: 'flex', gap: 4, padding: '8px 12px 0' }}>
-          {([
-            { key: 'all',       label: 'All',       count: cases.length },
-            { key: 'critical',  label: 'Critical',  count: cases.filter(c => c.severity === 'critical').length },
-            { key: 'escalated', label: 'Escalated', count: cases.filter(c => c.status === 'escalated').length },
-            { key: 'pending',   label: 'Pending',   count: cases.filter(c => c.status === 'pending_info').length },
-          ] as const).map(({ key, label, count }) => {
-            const active = filter === key
-            return (
-              <button key={key} type="button" onClick={() => setFilter(key)} style={{
-                flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                background: active ? '#1a1a28' : 'transparent',
-                color: active ? '#e8e6df' : '#555', fontFamily: 'inherit', transition: 'all 0.15s',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-              }}>
-                <span style={{ fontSize: 14, fontWeight: 500, color: active ? '#e8e6df' : '#444', lineHeight: 1 }}>{count}</span>
-                <span style={{ fontSize: 10, letterSpacing: '0.03em' }}>{label}</span>
-              </button>
-            )
-          })}
-        </div>
+          {/* Filters */}
+          <div style={{ padding: `0 ${SP.md}px ${SP.sm}px`, display: 'flex', gap: SP.xs }}>
+            {([
+              { key: 'all', label: 'All', count: cases.length },
+              { key: 'critical', label: 'Critical', count: cases.filter(c => c.severity === 'critical').length },
+              { key: 'escalated', label: 'Escalated', count: cases.filter(c => c.status === 'escalated').length },
+              { key: 'pending', label: 'Pending', count: cases.filter(c => c.status === 'pending_info').length },
+            ] as const).map(({ key, label, count }) => {
+              const active = filter === key
+              return (
+                <button key={key} type="button" onClick={() => setFilter(key)} style={{
+                  flex: 1, padding: '6px 4px', borderRadius: R.data, cursor: 'pointer',
+                  border: borderLine, borderColor: active ? C.textSecondary : C.border,
+                  background: active ? C.slate : 'transparent',
+                  color: active ? C.textPrimary : C.textMuted, fontFamily: F.sans,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                }}>
+                  <span style={{ ...monoCss, fontSize: FS.sm, fontWeight: FW.medium, color: active ? C.textPrimary : C.textSecondary, lineHeight: 1 }}>{count}</span>
+                  <span style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{label}</span>
+                </button>
+              )
+            })}
+          </div>
 
-        {/* Case list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-          {filtered.length === 0 && (
-            <p style={{ color: '#444', fontSize: 13, padding: '20px 8px' }}>No cases in this view.</p>
-          )}
-          {filtered.map(c => {
-            const sc = SEV_COLOR[c.severity] || '#555'
-            const isSelected = activeCase?.id === c.id
-            const lsla = liveSLA(c.sla_remaining_hours)
-            const slaCol = slaColor(lsla, c.sla_hours)
-            return (
-              <div key={c.id} onClick={() => setActiveCase(c)} style={{
-                padding: '12px 14px', borderRadius: 10, marginBottom: 4, cursor: 'pointer',
-                border: `1px solid ${isSelected ? '#4a9eff33' : 'transparent'}`,
-                background: isSelected ? '#0d1f33' : 'transparent', transition: 'all 0.15s',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500 }}>{c.entity_name}</div>
-                  <div style={{ fontSize: 20, fontWeight: 500, color: riskColor(c.risk_score), lineHeight: 1 }}>{c.risk_score}</div>
-                </div>
-                <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>{c.case_type}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 11, color: '#555' }}>{c.case_ref} · {fmtCurrency(c.exposure_amount)}</div>
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                    <div style={{ fontSize: 10, color: slaCol, fontVariantNumeric: 'tabular-nums' }}>SLA {fmtSLA(lsla)}</div>
-                    <div style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: `${sc}22`, color: sc }}>{SEV_LABEL[c.severity]}</div>
+          {/* Queue list */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: `${SP.xs}px ${SP.sm}px ${SP.md}px` }}>
+            {filtered.length === 0 && (
+              <p style={{ color: C.textMuted, fontSize: FS.sm, padding: '20px 8px' }}>No cases in this view.</p>
+            )}
+            {filtered.map(c => {
+              const sc = SEV_COLOR[c.severity] || C.textMuted
+              const isSelected = activeCase?.id === c.id
+              const lsla = liveSLA(c.sla_remaining_hours)
+              const slaCol = slaColor(lsla, c.sla_hours)
+              const filled = c.severity === 'critical' || c.severity === 'high'
+              return (
+                <div key={c.id} onClick={() => setActiveCase(c)} className="ethos-queue-item" style={{
+                  padding: `${SP.md}px ${SP.md}px`, borderRadius: R.data, marginBottom: 3, cursor: 'pointer',
+                  borderLeft: `2px solid ${isSelected ? sc : 'transparent'}`,
+                  background: isSelected ? C.slate : 'transparent', transition: 'background .15s',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: filled ? sc : 'transparent', border: `1.5px solid ${sc}` }} />
+                    <span style={{ ...labelCss, color: sc, letterSpacing: '0.1em' }}>{SEV_LABEL[c.severity]}</span>
+                    <span style={{ ...monoCss, marginLeft: 'auto', fontSize: FS.xs, color: C.textMuted }}>{c.case_ref}</span>
+                  </div>
+                  <div style={{ fontSize: FS.base, fontWeight: FW.medium, marginBottom: 4, marginLeft: 16 }}>{c.entity_name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginLeft: 16 }}>
+                    <span style={{ ...monoCss, fontSize: FS.sm, fontWeight: FW.medium, color: riskColor(c.risk_score) }}>{c.risk_score}</span>
+                    <span style={{ color: C.textMuted, fontSize: FS.xs }}>·</span>
+                    <span style={{ ...monoCss, fontSize: FS.xs, color: slaCol }}>SLA {fmtSLA(lsla)}</span>
                   </div>
                 </div>
+              )
+            })}
+          </div>
+        </aside>
+
+        {/* ── Working area ── */}
+        <main style={{ flex: 1, overflowY: 'auto', padding: `${SP.xl}px ${SP.xxl}px` }}>
+          {!activeCase ? (
+            /* ── Risk Intelligence Overview ── */
+            <div>
+              <div style={{ ...labelCss, letterSpacing: '0.16em', marginBottom: SP.xl }}>Risk Intelligence Overview</div>
+
+              {/* Score gauges */}
+              <div style={{ display: 'flex', gap: SP.xxl, flexWrap: 'wrap', paddingBottom: SP.xl, borderBottom: borderLine, marginBottom: SP.xl }}>
+                {gaugeCases.map(c => (
+                  <div key={c.id} onClick={() => setActiveCase(c)} style={{ cursor: 'pointer' }}>
+                    <PrecisionGauge
+                      value={c.risk_score}
+                      label={SEV_LABEL[c.severity]}
+                      caption={c.entity_name}
+                    />
+                    <div style={{ ...monoCss, textAlign: 'center', fontSize: FS.xs, color: C.textMuted, marginTop: 6 }}>{c.case_ref}</div>
+                  </div>
+                ))}
               </div>
-            )
-          })}
-        </div>
-      </div>
 
-      {/* ── Main panel ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px' }}>
-
-        {!activeCase ? (
-          /* ── Operations overview ── */
-          <div>
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>Operations Centre</div>
-              <div style={{ fontSize: 20, fontWeight: 500 }}>Live Risk Overview</div>
-            </div>
-
-            {/* KPI strip */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 28 }}>
-              {kpis.map(k => (
-                <div key={k.label} style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 10, padding: '14px 16px' }}>
-                  <div style={{ fontSize: 26, fontWeight: 500, color: k.color, lineHeight: 1 }}>{k.val}</div>
-                  <div style={{ fontSize: 11, color: '#555', marginTop: 5 }}>{k.label}</div>
+              {/* Active signals — live feed */}
+              <div style={{ marginBottom: SP.xl, paddingBottom: SP.xl, borderBottom: borderLine }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.md }}>
+                  <span style={labelCss}>Active Signals</span>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.riskLow, animation: M.dataPulse }} />
                 </div>
-              ))}
-            </div>
-
-            {/* Row 1: Critical Alerts + Analyst Workload */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 20, marginBottom: 20 }}>
-
-              {/* Critical Alerts */}
-              <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '20px 24px' }}>
-                <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Critical Alerts</div>
-                {cases
-                  .filter(c => c.severity === 'critical' || c.severity === 'high')
-                  .slice(0, 4)
-                  .map((c, i, arr) => (
-                    <div key={c.id} onClick={() => setActiveCase(c)} style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 0', cursor: 'pointer',
-                      borderBottom: i < arr.length - 1 ? '1px solid #1a1a28' : 'none',
+                {activeSignals.map((s, i) => {
+                  const sc = SEV_COLOR[s.c.severity] || C.textMuted
+                  const isHero = i === 0
+                  const symbol = s.c.severity === 'critical' || s.c.severity === 'high' ? '▲' : '●'
+                  return (
+                    <div key={s.c.id} onClick={() => setActiveCase(s.c)} className="ethos-signal" style={{
+                      display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.sm}px ${SP.md}px`,
+                      cursor: 'pointer', borderLeft: `2px solid ${isHero ? C.amber : 'transparent'}`,
+                      background: isHero ? `${C.amberDim}22` : 'transparent', transition: 'background .15s',
                     }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: SEV_COLOR[c.severity], flexShrink: 0 }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{c.entity_name}</div>
-                        <div style={{ fontSize: 11, color: '#555' }}>{c.case_ref} · {c.case_type}</div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: 11, color: slaColor(liveSLA(c.sla_remaining_hours), c.sla_hours), fontVariantNumeric: 'tabular-nums' }}>SLA {fmtSLA(liveSLA(c.sla_remaining_hours))}</div>
-                        <div style={{ fontSize: 11, color: '#555' }}>{fmtCurrency(c.exposure_amount)}</div>
-                      </div>
+                      <span style={{ color: isHero ? C.amber : sc, fontSize: FS.sm, width: 14, flexShrink: 0, textAlign: 'center' }}>{symbol}</span>
+                      <span style={{ fontSize: FS.base, color: C.textPrimary }}>{s.name}</span>
+                      <span style={{ color: C.textMuted, fontSize: FS.sm }}>—</span>
+                      <span style={{ fontSize: FS.base, color: C.textSecondary }}>{s.c.entity_name}</span>
+                      <span style={{ ...monoCss, marginLeft: 'auto', fontSize: FS.sm, color: isHero ? C.amber : sc }}>{s.score}</span>
+                      <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, minWidth: 64, textAlign: 'right' }}>{s.c.case_ref}</span>
                     </div>
-                  ))}
+                  )
+                })}
               </div>
 
-              {/* Analyst Workload */}
-              <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '20px 24px' }}>
-                <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Analyst Workload</div>
-                {analysts.map((a, i) => (
-                  <div key={a.name} style={{ padding: '10px 0', borderBottom: i < analysts.length - 1 ? '1px solid #1a1a28' : 'none' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{a.name}</div>
-                        <div style={{ fontSize: 11, color: '#555' }}>{a.role}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{a.open} open</div>
-                        {a.critical > 0 && <div style={{ fontSize: 10, color: '#E24B4A' }}>{a.critical} critical</div>}
-                        {a.sla_breaching > 0 && <div style={{ fontSize: 10, color: '#BA7517' }}>{a.sla_breaching} SLA breach</div>}
-                      </div>
+              {/* Analyst load */}
+              <div style={{ marginBottom: SP.xl }}>
+                <div style={{ ...labelCss, marginBottom: SP.md }}>Analyst Load</div>
+                {analysts.map(a => (
+                  <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: SP.lg, padding: `${SP.sm}px 0` }}>
+                    <span style={{ fontSize: FS.base, minWidth: 140 }}>{a.name}</span>
+                    <div style={{ flex: 1, maxWidth: 220, height: 8, background: C.graphite, border: borderLine, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min((a.open / 8) * 100, 100)}%`, background: a.critical > 0 ? C.riskHigh : a.open >= 4 ? C.riskMedium : C.riskLow }} />
                     </div>
-                    <div style={{ height: 2, background: '#1a1a28', borderRadius: 1, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min((a.open / 12) * 100, 100)}%`, background: a.open >= 8 ? '#E24B4A' : a.open >= 5 ? '#BA7517' : '#1D9E75', borderRadius: 1 }} />
-                    </div>
+                    <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{a.open} {a.open === 1 ? 'case' : 'cases'}</span>
+                    {a.critical > 0 && <span style={{ ...labelCss, color: C.riskHigh }}>{a.critical} critical</span>}
                   </div>
                 ))}
               </div>
+
+              {/* Merchant intelligence — the human side of credit */}
+              <div style={{ maxWidth: 460 }}>
+                <MerchantIntelligence />
+              </div>
             </div>
 
-            {/* Row 2: Audit Activity + Transaction Intelligence */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+          ) : (
+            /* ── Inline case readout (full investigation view is Screen 2) ── */
+            <div style={{ maxWidth: 720 }}>
+              <button onClick={() => setActiveCase(null)} style={{ background: 'transparent', border: 'none', color: C.textSecondary, fontSize: FS.sm, cursor: 'pointer', fontFamily: F.sans, padding: `0 0 ${SP.xl}px`, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={labelCss}>← Back to Overview</span>
+              </button>
 
-              {/* Audit Activity Stream */}
-              <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '20px 24px' }}>
-                <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Audit Activity Stream</div>
-                {audit.map((e, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: i < audit.length - 1 ? '1px solid #1a1a28' : 'none' }}>
-                    <div style={{ fontSize: 11, color: '#444', flexShrink: 0, minWidth: 38 }}>{e.time}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: SP.xl, marginBottom: SP.xxl }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.sm }}>
+                    <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{activeCase.case_ref}</span>
+                    <span style={{ ...labelCss, color: SEV_COLOR[activeCase.severity], border: `1px solid ${SEV_COLOR[activeCase.severity]}55`, padding: '2px 8px' }}>{SEV_LABEL[activeCase.severity]}</span>
+                    <span style={{ ...labelCss, color: C.textSecondary, border: borderLine, padding: '2px 8px' }}>{STATUS_LABEL[activeCase.status]}</span>
+                  </div>
+                  <div style={{ fontFamily: F.serif, fontSize: FS.xl, marginBottom: 4 }}>{activeCase.entity_name}</div>
+                  <div style={{ fontSize: FS.sm, color: C.textSecondary }}>{activeCase.case_type} · {activeCase.jurisdiction} · Opened {timeAgo(activeCase.opened_at)}</div>
+                </div>
+                <PrecisionGauge value={activeCase.risk_score} label={SEV_LABEL[activeCase.severity]} size={128} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: SP.sm, marginBottom: SP.xl }}>
+                {[
+                  { label: 'Case Type', val: activeCase.case_type },
+                  { label: 'Jurisdiction', val: activeCase.jurisdiction },
+                  { label: 'Exposure', val: fmtCurrency(activeCase.exposure_amount), mono: true },
+                  { label: 'SLA Remaining', val: fmtSLA(liveSLA(activeCase.sla_remaining_hours)), color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours), mono: true },
+                ].map(m => (
+                  <div key={m.label} style={{ ...panelCss, padding: `${SP.md}px ${SP.lg}px` }}>
+                    <div style={{ ...labelCss, marginBottom: 6 }}>{m.label}</div>
+                    <div style={{ fontSize: FS.base, fontWeight: FW.medium, color: (m as { color?: string }).color || C.textPrimary, fontFamily: (m as { mono?: boolean }).mono ? F.mono : F.sans }}>{m.val}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ ...panelCss, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
+                <div style={{ ...labelCss, marginBottom: SP.md }}>Risk Intelligence</div>
+                <p style={{ margin: 0, fontSize: FS.base, lineHeight: 1.65, color: C.textSecondary }}>{activeCase.ai_summary}</p>
+              </div>
+
+              <div style={{ marginBottom: SP.xxl }}>
+                <div style={{ ...labelCss, marginBottom: SP.lg }}>Signal Breakdown</div>
+                {activeCase.signals.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', gap: SP.lg, alignItems: 'flex-start', marginBottom: SP.lg }}>
+                    <div style={{ ...monoCss, minWidth: 40, height: 40, border: `1px solid ${riskColor(s.score)}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: FS.base, fontWeight: FW.medium, color: riskColor(s.score) }}>{s.score}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, color: e.severity ? SEV_COLOR[e.severity] : '#e8e6df', lineHeight: 1.4 }}>{e.action}</div>
-                      <div style={{ fontSize: 11, color: '#555' }}>{e.analyst} · {e.case_ref}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Transaction Intelligence Signals */}
-              <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '20px 24px' }}>
-                <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Transaction Intelligence</div>
-                {txSignals.map((s, i) => (
-                  <div key={i} style={{ padding: '11px 0', borderBottom: i < txSignals.length - 1 ? '1px solid #1a1a28' : 'none' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                      <div style={{ fontSize: 12, color: '#888' }}>{s.label}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: s.trend === 'up' ? '#E24B4A' : s.trend === 'down' ? '#1D9E75' : '#888' }}>{s.value}</div>
-                        <div style={{ fontSize: 12, color: s.trend === 'up' ? '#E24B4A' : s.trend === 'down' ? '#1D9E75' : '#555' }}>
-                          {s.trend === 'up' ? '↑' : s.trend === 'down' ? '↓' : '→'}
-                        </div>
+                      <div style={{ fontSize: FS.base, fontWeight: FW.medium, marginBottom: 5 }}>{s.name}</div>
+                      <div style={{ height: 3, background: C.graphite, overflow: 'hidden', marginBottom: 5 }}>
+                        <div style={{ height: '100%', width: `${s.score}%`, background: riskColor(s.score) }} />
                       </div>
+                      <p style={{ margin: 0, fontSize: FS.sm, color: C.textMuted, lineHeight: 1.55 }}>{s.rationale}</p>
                     </div>
-                    <div style={{ fontSize: 11, color: '#444' }}>{s.note}</div>
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* Row 3: Merchant Intelligence */}
-            <div style={{ maxWidth: 500 }}>
-              <MerchantIntelligence />
-            </div>
-          </div>
-
-        ) : (
-          /* ── Case detail view ── */
-          <div style={{ maxWidth: 680 }}>
-
-            <button onClick={() => setActiveCase(null)} style={{ background: 'transparent', border: 'none', color: '#555', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', padding: '0 0 24px', display: 'flex', alignItems: 'center', gap: 6 }}>
-              ← Operations Overview
-            </button>
-
-            {/* Case header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <div style={{ fontSize: 12, color: '#555', letterSpacing: '0.06em' }}>{activeCase.case_ref}</div>
-                  <div style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: `${SEV_COLOR[activeCase.severity]}22`, color: SEV_COLOR[activeCase.severity], border: `1px solid ${SEV_COLOR[activeCase.severity]}44` }}>
-                    {SEV_LABEL[activeCase.severity]}
+              {(activeCase.status === 'open' || activeCase.status === 'pending_info') && (
+                <div>
+                  <div style={{ ...labelCss, marginBottom: SP.md }}>Analyst Actions</div>
+                  <div style={{ display: 'flex', gap: SP.md }}>
+                    <button disabled={acting} onClick={() => action(activeCase.id, 'escalate')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: `1px solid ${C.riskHigh}55`, background: 'transparent', color: C.riskHigh, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base, fontWeight: FW.medium }}>Escalate</button>
+                    <button disabled={acting} onClick={() => action(activeCase.id, 'request_info')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: borderLine, background: 'transparent', color: C.textSecondary, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base }}>Request Info</button>
+                    <button disabled={acting} onClick={() => action(activeCase.id, 'clear')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: `1px solid ${C.riskLow}55`, background: 'transparent', color: C.riskLow, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base }}>Clear</button>
                   </div>
-                  <div style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#1a1a28', color: '#888' }}>
-                    {STATUS_LABEL[activeCase.status]}
-                  </div>
+                  <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>ACTION LOGGED · FULL AUDIT TRAIL MAINTAINED · FCA COMPLIANT</p>
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 500, marginBottom: 3 }}>{activeCase.entity_name}</div>
-                <div style={{ fontSize: 13, color: '#555' }}>{activeCase.case_type} · {activeCase.jurisdiction} · Opened {timeAgo(activeCase.opened_at)}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 56, fontFamily: '"DM Serif Display", serif', color: riskColor(activeCase.risk_score), lineHeight: 1 }}>{activeCase.risk_score}</div>
-                <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>Risk Score</div>
-              </div>
+              )}
+
+              {activeCase.status === 'escalated' && (
+                <div style={{ ...panelCss, padding: `${SP.md}px ${SP.lg}px`, borderColor: `${C.riskHigh}55`, fontSize: FS.sm, color: C.textSecondary }}>
+                  Status: <strong style={{ color: C.riskHigh }}>Escalated to Senior Compliance</strong>
+                </div>
+              )}
+              {activeCase.status === 'cleared' && (
+                <div style={{ ...panelCss, padding: `${SP.md}px ${SP.lg}px`, borderColor: `${C.riskLow}55`, fontSize: FS.sm, color: C.textSecondary }}>
+                  Status: <strong style={{ color: C.riskLow }}>Cleared — No further action required</strong>
+                </div>
+              )}
             </div>
-
-            {/* Case detail tiles */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 24 }}>
-              {[
-                { label: 'Case Type',     val: activeCase.case_type },
-                { label: 'Jurisdiction',  val: activeCase.jurisdiction },
-                { label: 'Exposure',      val: fmtCurrency(activeCase.exposure_amount) },
-                { label: 'SLA Remaining', val: fmtSLA(liveSLA(activeCase.sla_remaining_hours)), color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours) },
-              ].map(m => (
-                <div key={m.label} style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 10, padding: '12px 14px' }}>
-                  <div style={{ fontSize: 11, color: '#555', marginBottom: 4 }}>{m.label}</div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: (m as any).color || '#e8e6df' }}>{m.val}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Risk Intelligence */}
-            <div style={{ background: '#13131a', border: '1px solid #2a2a38', borderRadius: 14, padding: '20px 24px', marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>Risk Intelligence</p>
-                <div style={{ fontSize: 10, padding: '3px 10px', borderRadius: 20, background: `${SEV_COLOR[activeCase.severity]}22`, color: SEV_COLOR[activeCase.severity], border: `1px solid ${SEV_COLOR[activeCase.severity]}44` }}>
-                  {SEV_LABEL[activeCase.severity]} Risk
-                </div>
-              </div>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#bbb' }}>{activeCase.ai_summary}</p>
-            </div>
-
-            {/* Signal Breakdown */}
-            <div style={{ marginBottom: 28 }}>
-              <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 14 }}>Signal Breakdown</p>
-              {activeCase.signals.map((s, i) => (
-                <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'flex-start', marginBottom: 14 }}>
-                  <div style={{
-                    minWidth: 36, height: 36, borderRadius: 8,
-                    background: s.score >= 70 ? '#2a0d0d' : s.score >= 40 ? '#2a1e0a' : '#0d2a20',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 500,
-                    color: s.score >= 70 ? '#E24B4A' : s.score >= 40 ? '#BA7517' : '#1D9E75',
-                  }}>
-                    {s.score}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{s.name}</div>
-                    <div style={{ height: 3, background: '#1a1a28', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
-                      <div style={{ height: '100%', width: `${s.score}%`, background: s.score >= 70 ? '#E24B4A' : s.score >= 40 ? '#BA7517' : '#1D9E75', borderRadius: 2 }} />
-                    </div>
-                    <p style={{ margin: 0, fontSize: 12, color: '#555', lineHeight: 1.5 }}>{s.rationale}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Analyst Actions */}
-            {(activeCase.status === 'open' || activeCase.status === 'pending_info') && (
-              <div>
-                <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>Analyst Actions</p>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button disabled={acting} onClick={() => action(activeCase.id, 'escalate')} style={{ flex: 1, padding: '14px', borderRadius: 10, border: '1px solid #E24B4A44', background: '#2a0d0d', color: '#E24B4A', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>
-                    Escalate
-                  </button>
-                  <button disabled={acting} onClick={() => action(activeCase.id, 'request_info')} style={{ flex: 1, padding: '14px', borderRadius: 10, border: '1px solid #2a2a38', background: 'transparent', color: '#888', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>
-                    Request Info
-                  </button>
-                  <button disabled={acting} onClick={() => action(activeCase.id, 'clear')} style={{ flex: 1, padding: '14px', borderRadius: 10, border: '1px solid #1D9E7544', background: '#0d2a20', color: '#1D9E75', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14 }}>
-                    Clear
-                  </button>
-                </div>
-                <p style={{ fontSize: 11, color: '#333', marginTop: 12 }}>
-                  ✓ Action logged · Full audit trail maintained · FCA compliant
-                </p>
-              </div>
-            )}
-
-            {activeCase.status === 'escalated' && (
-              <div style={{ padding: '14px 18px', borderRadius: 10, background: '#13131a', border: '1px solid #E24B4A44', fontSize: 13, color: '#555' }}>
-                Status: <strong style={{ color: '#E24B4A' }}>Escalated to Senior Compliance</strong>
-              </div>
-            )}
-
-            {activeCase.status === 'cleared' && (
-              <div style={{ padding: '14px 18px', borderRadius: 10, background: '#13131a', border: '1px solid #1D9E7544', fontSize: 13, color: '#555' }}>
-                Status: <strong style={{ color: '#1D9E75' }}>Cleared — No further action required</strong>
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </main>
       </div>
     </div>
   )
