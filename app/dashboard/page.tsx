@@ -273,9 +273,18 @@ export default function DashboardPage() {
       return
     }
 
-    // Auth guard — redirect to /login if no active session
+    // Auth guard — redirect to /login if no active session.
+    // Preview-only auth bypass for design review: on Vercel preview deployments
+    // (NEXT_PUBLIC_VERCEL_ENV === 'preview'), an anonymous visitor sees the
+    // dashboard with demo data instead of being redirected to the (still dark,
+    // unrestyled) /login screen. Production behavior is untouched — this
+    // branch of the condition never runs outside `vercel env=preview`.
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.push('/login'); return }
+      if (!session) {
+        if (process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview') return
+        router.push('/login')
+        return
+      }
       setUserRole(getRoleFromSession(session))
     })
     console.log('[EthosFi] Supabase client initialised. Fetching cases...')
