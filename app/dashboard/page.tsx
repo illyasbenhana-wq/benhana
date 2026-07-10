@@ -18,7 +18,7 @@ import {
   keyframes as KF,
   googleFontsHref,
   caseRiskColor,
-} from '../../lib/design-system/tokens'
+} from '../../lib/design-system/tokens-light'
 
 const _url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const _key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -55,7 +55,7 @@ type TxSignal = { label: string; value: string; trend: 'up' | 'down' | 'flat'; n
 const SEV_COLOR: Record<string, string> = {
   critical: C.riskHigh,
   high: C.riskMedium,
-  medium: C.ice,
+  medium: C.accent,
   low: C.riskLow,
 }
 
@@ -393,7 +393,7 @@ export default function DashboardPage() {
     letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSecondary,
   }
   const monoCss: React.CSSProperties = { fontFamily: F.mono, fontVariantNumeric: 'tabular-nums' }
-  const panelCss: React.CSSProperties = { background: C.graphite, border: borderLine, borderRadius: R.data }
+  const panelCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.data }
 
   const activeCases = cases.filter(c => c.status !== 'cleared')
   const rankedCases = [...activeCases].sort((a, b) => b.risk_score - a.risk_score)
@@ -408,24 +408,24 @@ export default function DashboardPage() {
     .toUpperCase()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: C.midnight, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
       <link href={googleFontsHref} rel="stylesheet" />
       <style>{`
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: ${C.midnight}; }
+        ::-webkit-scrollbar-track { background: ${C.background}; }
         ::-webkit-scrollbar-thumb { background: ${C.border}; }
         ${KF}
         .ethos-logout { background: none; border: ${borderLine}; border-radius: ${R.control}px; padding: 4px 10px; color: ${C.textMuted}; font-size: ${FS.xs}px; cursor: pointer; font-family: ${F.sans}; transition: color .15s, border-color .15s; }
         .ethos-logout:hover { color: ${C.riskHigh}; border-color: ${C.riskHigh}55; }
-        .ethos-queue-item:hover { background: ${C.slate}; }
-        .ethos-signal:hover { background: ${C.slate}; }
+        .ethos-queue-item:hover { background: ${C.accentSubtle}; }
+        .ethos-signal:hover { background: ${C.accentSubtle}; }
       `}</style>
 
       {/* ── Top command bar ── */}
       <header style={{ borderBottom: borderLine, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.md}px ${SP.xl}px ${SP.sm}px` }}>
-          <span style={{ fontFamily: F.serif, fontSize: FS.md, letterSpacing: '0.14em', fontWeight: FW.semibold }}>ETHOSFI</span>
+          <span style={{ fontFamily: F.sans, fontSize: FS.md, letterSpacing: '0.14em', fontWeight: FW.semibold }}>ETHOSFI</span>
           <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>· INTELLIGENCE INFRASTRUCTURE</span>
           <span style={{ marginLeft: 'auto', ...labelCss, color: C.textSecondary }}>Northbridge Credit Union</span>
           <span style={{ width: 1, height: 14, background: C.border }} />
@@ -433,7 +433,7 @@ export default function DashboardPage() {
           <button type="button" onClick={handleLogout} title="Sign out" className="ethos-logout">Sign out</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `0 ${SP.xl}px ${SP.md}px` }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.riskLow, animation: M.dataPulse, flexShrink: 0 }} />
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.riskLow, flexShrink: 0 }} />
           <span style={{ ...labelCss, color: C.textPrimary, letterSpacing: '0.16em' }}>Intelligence Layer Active</span>
           <span style={{ ...monoCss, fontSize: FS.xs, color: C.riskLow, letterSpacing: '0.1em' }}>LIVE</span>
           <span style={{ marginLeft: 'auto', ...monoCss, fontSize: FS.xs, color: C.textSecondary, letterSpacing: '0.1em' }}>{dateStr}</span>
@@ -444,7 +444,7 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* ── Case queue rail ── */}
-        <aside style={{ width: 320, borderRight: borderLine, display: 'flex', flexDirection: 'column', flexShrink: 0, background: C.midnight }}>
+        <aside style={{ width: 320, borderRight: borderLine, display: 'flex', flexDirection: 'column', flexShrink: 0, background: C.background }}>
           <div style={{ padding: `${SP.lg}px ${SP.lg}px ${SP.sm}px`, display: 'flex', alignItems: 'center', gap: SP.sm }}>
             <span style={labelCss}>Case Queue</span>
             <span style={{ ...monoCss, marginLeft: 'auto', fontSize: FS.xs, color: C.textMuted }}>{activeCases.length} ACTIVE</span>
@@ -457,7 +457,7 @@ export default function DashboardPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search entity or case ref"
-              style={{ width: '100%', background: C.graphite, border: borderLine, borderRadius: R.data, padding: '7px 10px', color: C.textPrimary, fontSize: FS.sm, fontFamily: F.sans, outline: 'none' }}
+              style={{ width: '100%', background: C.surface, border: borderLine, borderRadius: R.data, padding: '7px 10px', color: C.textPrimary, fontSize: FS.sm, fontFamily: F.sans, outline: 'none' }}
             />
           </div>
 
@@ -474,7 +474,7 @@ export default function DashboardPage() {
                 <button key={key} type="button" onClick={() => setFilter(key)} style={{
                   flex: 1, padding: '6px 4px', borderRadius: R.data, cursor: 'pointer',
                   border: borderLine, borderColor: active ? C.textSecondary : C.border,
-                  background: active ? C.slate : 'transparent',
+                  background: active ? C.accentSubtle : 'transparent',
                   color: active ? C.textPrimary : C.textMuted, fontFamily: F.sans,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                 }}>
@@ -500,7 +500,7 @@ export default function DashboardPage() {
                 <div key={c.id} onClick={() => setActiveCase(c)} className="ethos-queue-item" style={{
                   padding: `${SP.md}px ${SP.md}px`, borderRadius: R.data, marginBottom: 3, cursor: 'pointer',
                   borderLeft: `2px solid ${isSelected ? sc : 'transparent'}`,
-                  background: isSelected ? C.slate : 'transparent', transition: 'background .15s',
+                  background: isSelected ? C.accentSubtle : 'transparent', transition: 'background .15s',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: 4 }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: filled ? sc : 'transparent', border: `1.5px solid ${sc}` }} />
@@ -534,6 +534,10 @@ export default function DashboardPage() {
                       value={c.risk_score}
                       label={SEV_LABEL[c.severity]}
                       caption={c.entity_name}
+                      trackColor={C.border}
+                      captionColor={C.textSecondary}
+                      fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
+                      ringAnimation={M.ringDraw}
                     />
                     <div style={{ ...monoCss, textAlign: 'center', fontSize: FS.xs, color: C.textMuted, marginTop: 6 }}>{c.case_ref}</div>
                   </div>
@@ -544,7 +548,7 @@ export default function DashboardPage() {
               <div style={{ marginBottom: SP.xl, paddingBottom: SP.xl, borderBottom: borderLine }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.md }}>
                   <span style={labelCss}>Active Signals</span>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.riskLow, animation: M.dataPulse }} />
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.riskLow }} />
                 </div>
                 {activeSignals.map((s, i) => {
                   const sc = SEV_COLOR[s.c.severity] || C.textMuted
@@ -553,14 +557,14 @@ export default function DashboardPage() {
                   return (
                     <div key={s.c.id} onClick={() => setActiveCase(s.c)} className="ethos-signal" style={{
                       display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.sm}px ${SP.md}px`,
-                      cursor: 'pointer', borderLeft: `2px solid ${isHero ? C.amber : 'transparent'}`,
-                      background: isHero ? `${C.amberDim}22` : 'transparent', transition: 'background .15s',
+                      cursor: 'pointer', borderLeft: `2px solid ${isHero ? C.accent : 'transparent'}`,
+                      background: isHero ? `${C.accentSubtle}22` : 'transparent', transition: 'background .15s',
                     }}>
-                      <span style={{ color: isHero ? C.amber : sc, fontSize: FS.sm, width: 14, flexShrink: 0, textAlign: 'center' }}>{symbol}</span>
+                      <span style={{ color: isHero ? C.accent : sc, fontSize: FS.sm, width: 14, flexShrink: 0, textAlign: 'center' }}>{symbol}</span>
                       <span style={{ fontSize: FS.base, color: C.textPrimary }}>{s.name}</span>
                       <span style={{ color: C.textMuted, fontSize: FS.sm }}>—</span>
                       <span style={{ fontSize: FS.base, color: C.textSecondary }}>{s.c.entity_name}</span>
-                      <span style={{ ...monoCss, marginLeft: 'auto', fontSize: FS.sm, color: isHero ? C.amber : sc }}>{s.score}</span>
+                      <span style={{ ...monoCss, marginLeft: 'auto', fontSize: FS.sm, color: isHero ? C.accent : sc }}>{s.score}</span>
                       <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, minWidth: 64, textAlign: 'right' }}>{s.c.case_ref}</span>
                     </div>
                   )
@@ -573,7 +577,7 @@ export default function DashboardPage() {
                 {analysts.map(a => (
                   <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: SP.lg, padding: `${SP.sm}px 0` }}>
                     <span style={{ fontSize: FS.base, minWidth: 140 }}>{a.name}</span>
-                    <div style={{ flex: 1, maxWidth: 220, height: 8, background: C.graphite, border: borderLine, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, maxWidth: 220, height: 8, background: C.surface, border: borderLine, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${Math.min((a.open / 8) * 100, 100)}%`, background: a.critical > 0 ? C.riskHigh : a.open >= 4 ? C.riskMedium : C.riskLow }} />
                     </div>
                     <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{a.open} {a.open === 1 ? 'case' : 'cases'}</span>
@@ -602,10 +606,18 @@ export default function DashboardPage() {
                     <span style={{ ...labelCss, color: SEV_COLOR[activeCase.severity], border: `1px solid ${SEV_COLOR[activeCase.severity]}55`, padding: '2px 8px' }}>{SEV_LABEL[activeCase.severity]}</span>
                     <span style={{ ...labelCss, color: C.textSecondary, border: borderLine, padding: '2px 8px' }}>{STATUS_LABEL[activeCase.status]}</span>
                   </div>
-                  <div style={{ fontFamily: F.serif, fontSize: FS.xl, marginBottom: 4 }}>{activeCase.entity_name}</div>
+                  <div style={{ fontFamily: F.sans, fontSize: FS.xl, marginBottom: 4 }}>{activeCase.entity_name}</div>
                   <div style={{ fontSize: FS.sm, color: C.textSecondary }}>{activeCase.case_type} · {activeCase.jurisdiction} · Opened {timeAgo(activeCase.opened_at)}</div>
                 </div>
-                <PrecisionGauge value={activeCase.risk_score} label={SEV_LABEL[activeCase.severity]} size={128} />
+                <PrecisionGauge
+                  value={activeCase.risk_score}
+                  label={SEV_LABEL[activeCase.severity]}
+                  size={128}
+                  trackColor={C.border}
+                  captionColor={C.textSecondary}
+                  fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
+                  ringAnimation={M.ringDraw}
+                />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: SP.sm, marginBottom: SP.xl }}>
@@ -634,7 +646,7 @@ export default function DashboardPage() {
                     <div style={{ ...monoCss, minWidth: 40, height: 40, border: `1px solid ${riskColor(s.score)}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: FS.base, fontWeight: FW.medium, color: riskColor(s.score) }}>{s.score}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: FS.base, fontWeight: FW.medium, marginBottom: 5 }}>{s.name}</div>
-                      <div style={{ height: 3, background: C.graphite, overflow: 'hidden', marginBottom: 5 }}>
+                      <div style={{ height: 3, background: C.surface, overflow: 'hidden', marginBottom: 5 }}>
                         <div style={{ height: '100%', width: `${s.score}%`, background: riskColor(s.score) }} />
                       </div>
                       <p style={{ margin: 0, fontSize: FS.sm, color: C.textMuted, lineHeight: 1.55 }}>{s.rationale}</p>

@@ -32,6 +32,14 @@ export type PrecisionGaugeProps = {
   animate?: boolean
   /** Optional caption above the value (e.g. entity name). */
   caption?: string
+  /** Track (unfilled ring) color. Defaults to the dark theme's border color. */
+  trackColor?: string
+  /** Caption text color. Defaults to the dark theme's secondary text color. */
+  captionColor?: string
+  /** Font family for value/label/caption. Defaults to the dark theme's IBM Plex fonts. */
+  fontFamilyOverride?: { mono: string; sans: string }
+  /** Ring draw animation string. Defaults to the dark theme's ringDraw keyframe. */
+  ringAnimation?: string
 }
 
 export function PrecisionGauge({
@@ -43,8 +51,16 @@ export function PrecisionGauge({
   strokeWidth = 5,
   animate = true,
   caption,
+  trackColor,
+  captionColor,
+  fontFamilyOverride,
+  ringAnimation,
 }: PrecisionGaugeProps) {
   const ringColor = color ?? caseRiskColor(value)
+  const track = trackColor ?? tokenColor.border
+  const captionCol = captionColor ?? tokenColor.textSecondary
+  const fonts = fontFamilyOverride ?? fontFamily
+  const ringDraw = ringAnimation ?? motion.ringDraw
   const r = (size - strokeWidth) / 2
   const cx = size / 2
   const cy = size / 2
@@ -64,9 +80,9 @@ export function PrecisionGauge({
       {caption && (
         <div
           style={{
-            fontFamily: fontFamily.sans,
+            fontFamily: fonts.sans,
             fontSize: 12,
-            color: tokenColor.textSecondary,
+            color: captionCol,
             textAlign: 'center',
           }}
         >
@@ -86,7 +102,7 @@ export function PrecisionGauge({
             cy={cy}
             r={r}
             fill="none"
-            stroke={tokenColor.border}
+            stroke={track}
             strokeWidth={strokeWidth}
           />
           {/* Value arc — draws clockwise from top */}
@@ -106,7 +122,7 @@ export function PrecisionGauge({
                     // consumed by the ringDraw keyframe
                     ['--ethos-ring-circumference' as string]: `${circumference}`,
                     ['--ethos-ring-offset' as string]: `${targetOffset}`,
-                    animation: motion.ringDraw,
+                    animation: ringDraw,
                   } as React.CSSProperties)
                 : undefined
             }
@@ -126,7 +142,7 @@ export function PrecisionGauge({
         >
           <span
             style={{
-              fontFamily: fontFamily.mono,
+              fontFamily: fonts.mono,
               fontSize: Math.round(size * 0.29),
               fontWeight: 500,
               color: ringColor,
@@ -139,7 +155,7 @@ export function PrecisionGauge({
           {label && (
             <span
               style={{
-                fontFamily: fontFamily.sans,
+                fontFamily: fonts.sans,
                 fontSize: 9,
                 fontWeight: 600,
                 letterSpacing: '0.12em',
