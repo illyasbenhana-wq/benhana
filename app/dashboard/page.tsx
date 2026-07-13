@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../lib/user-role'
+import { isPreviewDeployment } from '../../lib/preview-bypass'
 import { MerchantIntelligence } from './components/MerchantIntelligence'
 import { fatimaOkoyeComplianceCase } from '../../lib/fatima-okoye-demo'
 import { PrecisionGauge } from '../components/PrecisionGauge'
@@ -249,16 +250,13 @@ export default function DashboardPage() {
       return
     }
 
-    // Auth guard — redirect to /login if no active session.
-    // Preview-only auth bypass for design review: on Vercel preview deployments
-    // (NEXT_PUBLIC_VERCEL_ENV === 'preview'), an anonymous visitor sees the
-    // dashboard with demo data instead of being redirected to the (still dark,
-    // unrestyled) /login screen. Production behavior is untouched — this
-    // branch of the condition never runs outside `vercel env=preview`.
+    // Auth guard — redirect to /login if no active session, except on a
+    // Vercel preview deployment (isPreviewDeployment(), the single shared
+    // check in lib/preview-bypass.ts — see there for why every auth-guarded
+    // route uses this instead of its own copy of the VERCEL_ENV check).
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        if (process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview') return
-        router.push('/login')
+        if (!isPreviewDeployment()) router.push('/login')
         return
       }
       setUserRole(getRoleFromSession(session))

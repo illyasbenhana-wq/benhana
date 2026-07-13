@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../../lib/user-role'
+import { isPreviewDeployment } from '../../../lib/preview-bypass'
 
 const supabase = (() => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -91,17 +92,14 @@ export default function LenderDashboard() {
       return
     }
 
+    // Auth guard — redirect to /login if no active session, except on a
+    // Vercel preview deployment (isPreviewDeployment(), lib/preview-bypass.ts
+    // — the single shared check every auth-guarded route uses). Falls
+    // through to the applications query below either way; that query
+    // already falls back to MOCK_APPS on an empty/RLS-denied result.
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        // Preview-only auth bypass for design review (mirrors app/dashboard/page.tsx):
-        // on Vercel preview deployments, skip the redirect to the unrestyled
-        // /login screen and fall through to the applications query below,
-        // which already falls back to MOCK_APPS on an empty/RLS-denied
-        // result. Production/dev behavior (both non-preview) is unchanged.
-        if (process.env.NEXT_PUBLIC_VERCEL_ENV !== 'preview') {
-          router.push('/login')
-          return
-        }
+        if (!isPreviewDeployment()) { router.push('/login'); return }
       } else {
         setUserRole(getRoleFromSession(session))
       }
