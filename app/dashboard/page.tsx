@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../lib/user-role'
 import { MerchantIntelligence } from './components/MerchantIntelligence'
-import { fatimaOkoyeComplianceCase, FATIMA_OKOYE_CASE_REF } from '../../lib/fatima-okoye-demo'
+import { fatimaOkoyeComplianceCase } from '../../lib/fatima-okoye-demo'
 import { PrecisionGauge } from '../components/PrecisionGauge'
 import {
   color as C,
@@ -47,8 +47,6 @@ type ComplianceCase = {
 }
 
 type Analyst = { name: string; role: string; open: number; critical: number; sla_breaching: number }
-type AuditEvent = { time: string; analyst: string; action: string; case_ref: string; severity?: string }
-type TxSignal = { label: string; value: string; trend: 'up' | 'down' | 'flat'; note: string }
 
 // ─── Color / Label Maps ───────────────────────────────────────────────────────
 
@@ -161,26 +159,6 @@ const ANALYST_ROLES: Record<string, string> = {
   'L. Hartmann': 'Junior Analyst',
 }
 
-const MOCK_AUDIT: AuditEvent[] = [
-  { time: '10:02', analyst: 'R. Okonkwo',  action: 'Merchant corridor flag — Fatima Okoye', case_ref: FATIMA_OKOYE_CASE_REF, severity: 'medium' },
-  { time: '09:41', analyst: 'S. Chen',     action: 'Escalated to Senior Compliance',   case_ref: 'INV-1047', severity: 'critical' },
-  { time: '09:28', analyst: 'R. Okonkwo',  action: 'Evidence package uploaded',        case_ref: 'INV-1038' },
-  { time: '09:15', analyst: 'M. Vasquez',  action: 'Information request sent',         case_ref: 'INV-1015' },
-  { time: '08:54', analyst: 'L. Hartmann', action: 'Case notes updated',               case_ref: 'INV-1009' },
-  { time: '08:37', analyst: 'S. Chen',     action: 'PEP match confirmed — Tier 1',     case_ref: 'INV-1021', severity: 'high' },
-  { time: '08:12', analyst: 'R. Okonkwo',  action: 'Velocity threshold breach logged', case_ref: 'INV-1038' },
-  { time: '07:58', analyst: 'M. Vasquez',  action: 'Case assigned from queue',         case_ref: 'INV-1015' },
-  { time: '07:33', analyst: 'S. Chen',     action: 'Sanctions hit confirmed — OFAC',   case_ref: 'INV-1047', severity: 'critical' },
-]
-
-const MOCK_TX_SIGNALS: TxSignal[] = [
-  { label: 'Transactions flagged (24h)', value: '143',   trend: 'up',   note: '+18% vs prior 24h' },
-  { label: 'Avg. signal confidence',     value: '81.4%', trend: 'up',   note: '+2.1pp this week' },
-  { label: 'High-risk jurisdictions',    value: '9',     trend: 'flat', note: 'Iran, Myanmar, Russia + 6 others' },
-  { label: 'Threshold avoidance hits',   value: '27',    trend: 'up',   note: 'Up from 19 yesterday' },
-  { label: 'Network clusters detected',  value: '4',     trend: 'down', note: '1 resolved since 08:00' },
-]
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtCurrency(n: number) {
@@ -227,8 +205,6 @@ export default function DashboardPage() {
   const [activeCase, setActiveCase] = useState<ComplianceCase | null>(null)
   const [filter, setFilter] = useState('all')
   const [acting, setActing] = useState(false)
-  const [audit, setAudit] = useState<AuditEvent[]>([])
-  const [txSignals, setTxSignals] = useState<TxSignal[]>(MOCK_TX_SIGNALS)
   const [userRole, setUserRole] = useState<UserRole>('analyst')
   const [search, setSearch] = useState('')
   const [elapsed, setElapsed] = useState(0) // seconds since cases loaded
@@ -301,25 +277,6 @@ export default function DashboardPage() {
         console.log('[EthosFi] cases loaded:', data?.length ?? 0)
         setCases(data || [])
       })
-    supabase
-      .from('audit_events')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20)
-      .then(({ data, error }) => {
-        if (error || !data?.length) {
-          console.error('[EthosFi] audit_events query failed:', error)
-          setAudit(MOCK_AUDIT)
-          return
-        }
-        setAudit(data.map(e => ({
-          time: new Date(e.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-          analyst: e.analyst,
-          action: e.action,
-          case_ref: e.case_ref,
-          severity: e.severity ?? undefined,
-        })))
-      })
   }, [])
 
   const action = async (caseId: string, act: string) => {
@@ -375,8 +332,6 @@ export default function DashboardPage() {
     }
 
     // Fallback: optimistic update if Supabase read unavailable
-    const timeStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-    setAudit(prev => [{ time: timeStr, analyst: 'analyst', action: actionLabel, case_ref: c?.case_ref ?? '', severity: act === 'escalate' ? c?.severity : undefined }, ...prev])
     setCases(prev => prev.map(c => c.id === caseId ? { ...c, status: newStatus } : c))
     if (activeCase?.id === caseId) setActiveCase(prev => prev ? { ...prev, status: newStatus } : null)
     setActing(false)
@@ -391,11 +346,6 @@ export default function DashboardPage() {
       return true
     })
     .filter(c => !q || c.entity_name.toLowerCase().includes(q) || c.case_ref.toLowerCase().includes(q))
-
-  const activeCount  = cases.filter(c => c.status === 'open' || c.status === 'escalated').length
-  const critCount    = cases.filter(c => c.severity === 'critical').length
-  const escalCount   = cases.filter(c => c.status === 'escalated').length
-  const slaBreaching = cases.filter(c => liveSLA(c.sla_remaining_hours) / c.sla_hours < 0.3 && c.status !== 'cleared').length
 
   const labelCss: React.CSSProperties = {
     fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold,

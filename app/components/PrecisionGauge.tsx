@@ -11,9 +11,17 @@
  * derived from `caseRiskColor` (0–100 case-risk scale, higher = more
  * risk). Pass an explicit `color` to override for other scales (e.g. a
  * future `ethoScoreColor` for EthoScore 0–1000).
+ *
+ * Animation self-containment: the default arc-draw uses the `ringDraw`
+ * keyframe, which this component injects itself via a <style> tag, so
+ * the gauge animates correctly on ANY page with no setup. If you pass a
+ * custom `ringAnimation` string (e.g. the light theme's), you are
+ * responsible for defining that keyframe on the page (the dashboard and
+ * the investigation view both do). Either way the ring degrades
+ * gracefully to its final state if a keyframe is missing.
  */
 import React from 'react'
-import { color as tokenColor, fontFamily, motion, caseRiskColor } from '../../lib/design-system/tokens'
+import { color as tokenColor, fontFamily, motion, keyframes as gaugeKeyframes, caseRiskColor } from '../../lib/design-system/tokens'
 
 export type PrecisionGaugeProps = {
   /** Displayed value (also drives the arc fill unless `fraction` given). */
@@ -77,6 +85,7 @@ export function PrecisionGauge({
         gap: 6,
       }}
     >
+      {animate && ringAnimation === undefined && <style>{gaugeKeyframes}</style>}
       {caption && (
         <div
           style={{
