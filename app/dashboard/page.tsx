@@ -554,9 +554,12 @@ export default function DashboardPage() {
           ) : (
             /* ── Inline case readout (full investigation view is Screen 2) ── */
             <div style={{ maxWidth: 720 }}>
-              <button onClick={() => setActiveCase(null)} style={{ background: 'transparent', border: 'none', color: C.textSecondary, fontSize: FS.sm, cursor: 'pointer', fontFamily: F.sans, padding: `0 0 ${SP.xl}px`, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={labelCss}>← Back to Overview</span>
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `0 0 ${SP.xl}px` }}>
+                <button onClick={() => setActiveCase(null)} style={{ background: 'transparent', border: 'none', color: C.textSecondary, fontSize: FS.sm, cursor: 'pointer', fontFamily: F.sans, padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={labelCss}>← Back to Overview</span>
+                </button>
+                <button onClick={() => router.push(`/case/${activeCase.case_ref}`)} style={{ marginLeft: 'auto', background: 'transparent', border: borderLine, borderRadius: R.control, color: C.accent, fontSize: FS.sm, fontWeight: FW.medium, cursor: 'pointer', fontFamily: F.sans, padding: '6px 12px' }}>Open Full Investigation ↗</button>
+              </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: SP.xl, marginBottom: SP.xxl }}>
                 <div>
