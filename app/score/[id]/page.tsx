@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { ScoreResult } from '@/types'
 import { readScoreSession, ScoreSessionPayload } from '@/lib/score-session'
+import { Logo } from '@/app/components/Logo'
 
 type PillarFactor = { name: string; score: number; max: number; rationale: string }
 type Pillar = { score: number; max: number; factors: PillarFactor[] }
@@ -167,9 +168,7 @@ export default function ScorePage() {
 
         /* PDF internal styles */
         .pdf-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 2px solid #111; margin-bottom: 24px; }
-        .pdf-logo { display: flex; align-items: center; gap: 8px; }
-        .pdf-logo-icon { width: 28px; height: 28px; border-radius: 6px; background: #1a56db; display: flex; align-items: center; justify-content: center; }
-        .pdf-brand { font-family: Georgia, serif; font-size: 17px; font-weight: 700; color: #111; }
+        .pdf-logo { display: flex; align-items: center; }
         .pdf-meta { font-size: 11px; color: #888; text-align: right; line-height: 1.6; }
         .pdf-section { margin-bottom: 22px; }
         .pdf-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
@@ -192,11 +191,8 @@ export default function ScorePage() {
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 24px' }}>
 
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-          </div>
-          <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 16 }}>EthosFi</span>
+        <div style={{ marginBottom: 48 }}>
+          <Logo size="sm" textColor="#e8e6df" notchColor="#0a0a0f" />
         </div>
 
         <p style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>Hello {fullName.split(' ')[0]},</p>
@@ -324,10 +320,7 @@ export default function ScorePage() {
         {/* Header */}
         <div className="pdf-header">
           <div className="pdf-logo">
-            <div className="pdf-logo-icon">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-            </div>
-            <span className="pdf-brand">EthosFi AI</span>
+            <Logo size="sm" />
           </div>
           <div className="pdf-meta">
             <div>Credit Score Report</div>

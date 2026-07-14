@@ -6,6 +6,7 @@ import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../lib/user-role'
 import { MerchantIntelligence } from './components/MerchantIntelligence'
 import { fatimaOkoyeComplianceCase } from '../../lib/fatima-okoye-demo'
 import { PrecisionGauge } from '../components/PrecisionGauge'
+import { Logo } from '../components/Logo'
 import {
   color as C,
   fontFamily as F,
@@ -384,7 +385,7 @@ export default function DashboardPage() {
       {/* ── Top command bar ── */}
       <header style={{ borderBottom: borderLine, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.md}px ${SP.xl}px ${SP.sm}px` }}>
-          <span style={{ fontFamily: F.sans, fontSize: FS.md, letterSpacing: '0.14em', fontWeight: FW.semibold }}>ETHOSFI</span>
+          <Logo size="sm" />
           <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>· INTELLIGENCE INFRASTRUCTURE</span>
           <span style={{ marginLeft: 'auto', ...labelCss, color: C.textSecondary }}>Northbridge Credit Union</span>
           <span style={{ width: 1, height: 14, background: C.border }} />

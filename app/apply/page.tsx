@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Logo } from '../components/Logo'
 
 const GIG_PLATFORMS = ['Deliveroo', 'Uber', 'Fiverr', 'Upwork', 'TaskRabbit', 'Etsy', 'Airbnb', 'Other']
 
@@ -84,11 +85,8 @@ export default function ApplyPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-            </div>
-            <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 18, letterSpacing: '-0.01em' }}>EthosFi</span>
+          <div style={{ marginBottom: 32 }}>
+            <Logo size="md" textColor="#e8e6df" notchColor="#0a0a0f" />
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>

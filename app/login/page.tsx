@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { getRoleFromSession, ROLE_HOME } from '../../lib/user-role'
+import { Logo } from '../components/Logo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,13 +49,8 @@ export default function LoginPage() {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display&display=swap" rel="stylesheet" />
 
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 20 }}>EthosFi</span>
+      <div style={{ marginBottom: 48 }}>
+        <Logo size="lg" textColor="#e8e6df" notchColor="#0a0a0f" />
       </div>
 
       {/* Card */}

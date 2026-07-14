@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../../lib/user-role'
+import { Logo } from '../../components/Logo'
 
 const supabase = (() => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -166,12 +167,7 @@ export default function LenderDashboard() {
       {/* ── Nav ── */}
       <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 32px', borderBottom: '1px solid #1a1a28' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-              <path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 16 }}>EthosFi</span>
+          <Logo size="sm" textColor="#e8e6df" notchColor="#0a0a0f" />
           <span style={{ fontSize: 11, color: '#4a9eff', background: '#0d1f33', border: '1px solid #1a3a5c', borderRadius: 4, padding: '2px 8px', marginLeft: 4 }}>{ROLE_LABEL[userRole]}</span>
         </div>
         <button

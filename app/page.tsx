@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Logo } from './components/Logo'
 
 export default function HomePage() {
   return (
@@ -13,12 +14,7 @@ export default function HomePage() {
 
       {/* Nav */}
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 48px', borderBottom: '1px solid #1a1a28' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-          </div>
-          <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 18 }}>EthosFi</span>
-        </div>
+        <Logo size="md" textColor="#e8e6df" notchColor="#0a0a0f" />
         <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
           <Link href="/dashboard" style={{ fontSize: 13, color: '#666', textDecoration: 'none' }}>Lender login</Link>
           <Link href="/apply" style={{ fontSize: 13, padding: '8px 20px', borderRadius: 8, background: '#4a9eff', color: '#000', textDecoration: 'none', fontWeight: 500 }}>Apply now</Link>
