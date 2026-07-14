@@ -250,15 +250,22 @@ export default function DashboardPage() {
       return
     }
 
-    // Auth guard — redirect to /login if no active session, except on a
-    // Vercel preview deployment (isPreviewDeployment(), the single shared
-    // check in lib/preview-bypass.ts — see there for why every auth-guarded
-    // route uses this instead of its own copy of the VERCEL_ENV check).
+    // On a Vercel preview deployment, always render the demo dataset — an
+    // anonymous preview visitor has no session, so a real Supabase query
+    // below would be RLS-filtered to an empty (not errored) result, and
+    // the existing `!supabase` mock-data fallback never triggers because
+    // Supabase env vars ARE present in Preview. Force mock mode here
+    // instead of relying on the query's own empty-result handling, so the
+    // preview always looks like Devin's local testing (Meridian, Vega,
+    // the INV-... cases), never an empty queue.
+    if (isPreviewDeployment()) {
+      setCases(MOCK_CASES)
+      return
+    }
+
+    // Auth guard — redirect to /login if no active session.
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        if (!isPreviewDeployment()) router.push('/login')
-        return
-      }
+      if (!session) { router.push('/login'); return }
       setUserRole(getRoleFromSession(session))
     })
     console.log('[EthosFi] Supabase client initialised. Fetching cases...')
