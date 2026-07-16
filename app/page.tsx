@@ -51,6 +51,12 @@ export default function HomePage() {
           Request a demo
         </a>
       </p>
+
+      <p style={{ fontSize: FS.sm, color: C.textSecondary, textAlign: 'center', margin: `${SP.sm}px 0 0` }}>
+        <Link href="/apply" style={{ color: C.accent, textDecoration: 'none' }}>
+          See the borrower experience
+        </Link>
+      </p>
     </div>
   )
 }
