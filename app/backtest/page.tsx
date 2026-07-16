@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Logo } from '../components/Logo'
 
 type MappingField = string | null
 type Mapping = Record<string, MappingField>
@@ -97,12 +98,7 @@ export default function BacktestPage() {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
 
       <div style={{ borderBottom: '1px solid #1a1a28', padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-          </div>
-          <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 18 }}>EthosFi</span>
-        </div>
+        <Logo size="md" textColor="#e8e6df" notchColor="#0a0a0f" />
         <div style={{ fontSize: 12, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Backtest Tool · Internal Only</div>
       </div>
 

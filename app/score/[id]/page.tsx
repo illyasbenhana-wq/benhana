@@ -3,48 +3,87 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { ScoreResult } from '@/types'
 import { readScoreSession, ScoreSessionPayload } from '@/lib/score-session'
+import { computeRiskBand } from '@/lib/risk-band'
+import { isPreviewDeployment } from '@/lib/preview-bypass'
+import { Logo } from '@/app/components/Logo'
+import {
+  color as C,
+  fontFamily as F,
+  fontSize as FS,
+  fontWeight as FW,
+  radius as R,
+  space as SP,
+  borderLine,
+  shadowSm,
+  googleFontsHref,
+  ethoScoreColor,
+} from '@/lib/design-system/tokens-light'
 
 type PillarFactor = { name: string; score: number; max: number; rationale: string }
 type Pillar = { score: number; max: number; factors: PillarFactor[] }
 type ScorePillars = { trust: Pillar; track_record: Pillar; financial_health: Pillar; esg: Pillar }
+type RiskBand = 'low' | 'medium' | 'high'
 
+// Categorical legend colors for the 4 EthoScore pillars — these identify
+// WHICH pillar a bar belongs to, not a risk/quality judgement, so they
+// intentionally do NOT come from ethoScoreColor() or caseRiskColor().
 const PILLAR_LABELS: Record<string, { label: string; color: string }> = {
-  trust:            { label: 'Trust',            color: '#4a9eff' },
-  track_record:     { label: 'Track Record',     color: '#1D9E75' },
-  financial_health: { label: 'Financial Health',  color: '#BA7517' },
-  esg:              { label: 'ESG Alignment',    color: '#9b59b6' },
+  trust:            { label: 'Trust',            color: C.accent },
+  track_record:     { label: 'Track Record',     color: C.riskLow },
+  financial_health: { label: 'Financial Health',  color: C.riskMedium },
+  esg:              { label: 'ESG Alignment',    color: '#7C3AED' },
+}
+
+// v1 legacy EthoScore (0–100, higher = better) risk-band display colors.
+// The band itself is computed server-side via computeRiskBand() — this
+// only maps that already-decided band to a color, so it neither
+// reimplements computeRiskBand's thresholds nor conflates this 0–100
+// legacy scale with the 0–1000 scale ethoScoreColor() covers.
+const RISK_BAND_COLOR: Record<RiskBand, string> = {
+  low: C.riskLow,
+  medium: C.riskMedium,
+  high: C.riskHigh,
+}
+
+const BAND_CONFIG: Record<RiskBand, { label: string; headline: string }> = {
+  low:    { label: 'Low risk',    headline: 'Great news.' },
+  medium: { label: 'Medium risk', headline: 'Good standing.' },
+  high:   { label: 'Higher risk', headline: 'We\'ve found a path.' },
+}
+
+const REC_COLOR: Record<ScoreResult['recommendation'], string> = {
+  approve: C.riskLow,
+  review: C.riskMedium,
+  decline: C.riskHigh,
 }
 
 function PillarBar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0
   return (
-    <div style={{ height: 6, background: '#1a1a28', borderRadius: 3, overflow: 'hidden' }}>
+    <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: 'hidden' }}>
       <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3, transition: 'width 0.8s ease' }} />
     </div>
   )
 }
 
+// Structured (v2) EthoScore ring — the raw total is 0–1000, higher =
+// better, so its color comes from ethoScoreColor(), NOT a re-derived
+// percentage threshold (as this component previously computed inline).
 function ScoreRing({ total, max }: { total: number; max: number }) {
   const pct = Math.round((total / max) * 100)
-  const color = pct >= 70 ? '#1D9E75' : pct >= 45 ? '#BA7517' : '#E24B4A'
+  const color = ethoScoreColor(total)
   return (
     <div style={{ position: 'relative', width: 120, height: 120, margin: '0 auto' }}>
       <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="50" cy="50" r="42" fill="none" stroke="#1a1a28" strokeWidth="8" />
+        <circle cx="50" cy="50" r="42" fill="none" stroke={C.border} strokeWidth="8" />
         <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="8" strokeDasharray={`${pct * 2.64} 264`} strokeLinecap="round" />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 28, fontWeight: 700, color, fontFamily: '"DM Serif Display", serif' }}>{total}</div>
-        <div style={{ fontSize: 10, color: '#555' }}>/ {max}</div>
+        <div style={{ fontSize: 28, fontWeight: FW.bold, color, fontFamily: F.sans, fontVariantNumeric: 'tabular-nums' }}>{total}</div>
+        <div style={{ fontSize: 10, color: C.textSecondary }}>/ {max}</div>
       </div>
     </div>
   )
-}
-
-const BAND_CONFIG = {
-  low:    { color: '#1D9E75', bg: '#0d2a20', label: 'Low risk',    headline: 'Great news.' },
-  medium: { color: '#BA7517', bg: '#2a1e0a', label: 'Medium risk', headline: 'Good standing.' },
-  high:   { color: '#E24B4A', bg: '#2a0d0d', label: 'Higher risk', headline: 'We\'ve found a path.' }
 }
 
 type ScoreView = {
@@ -77,6 +116,33 @@ function fromApi(application: { full_name: string }, score: any): ScoreView {
     score,
     pillars: score.score_pillars ?? null,
   }
+}
+
+// Preview-only demo fallback — lets a reviewer reach a fully populated
+// /score/[id] via a direct link (any id) without going through /apply
+// first or needing a real Supabase record. Exercises both the v1 legacy
+// 5-factor view AND the v2 pillar breakdown ("Why this score") so both
+// render for visual review. Never used outside isPreviewDeployment().
+const DEMO_VIEW: ScoreView = {
+  fullName: 'Amara Diallo',
+  score: {
+    id: 'demo-score', application_id: 'demo-app', etho_score: 78, risk_band: 'low',
+    recommendation: 'approve', model_version: 'ethoscore-v1-demo', created_at: new Date().toISOString(),
+    ai_summary: 'Amara shows 22 months of consistent on-time rent payments and a stable gig-income trend across three platforms. Loan-to-income ratio is well within range, and savings buffer covers 4+ months of expenses. Strong candidate for approval.',
+    factors: [
+      { name: 'Rent Payment Consistency', weight: 30, score: 92, rationale: '22 consecutive on-time payments, no missed months in the last 2 years.' },
+      { name: 'Income Stability', weight: 25, score: 81, rationale: 'Gig income across 3 platforms, trending upward over the last 6 months.' },
+      { name: 'Savings Buffer', weight: 20, score: 74, rationale: 'Average balance covers 4.2 months of stated expenses.' },
+      { name: 'Loan-to-Income Ratio', weight: 15, score: 69, rationale: 'Requested amount is 1.8x monthly income — within accepted range.' },
+      { name: 'Identity Verification', weight: 10, score: 88, rationale: 'Government ID and address verified via two independent sources.' },
+    ],
+  },
+  pillars: {
+    trust:            { score: 245, max: 300, factors: [{ name: 'Identity Verification', score: 132, max: 150, rationale: 'ID + address cross-verified.' }, { name: 'Network Signals', score: 113, max: 150, rationale: 'No adverse network associations found.' }] },
+    track_record:     { score: 260, max: 300, factors: [{ name: 'Payment History', score: 140, max: 150, rationale: '22 months on-time, zero defaults.' }, { name: 'Dispute Rate', score: 120, max: 150, rationale: 'No disputes on file.' }] },
+    financial_health:  { score: 138, max: 200, factors: [{ name: 'Income Trend', score: 78, max: 100, rationale: 'Gig income up 12% over 6 months.' }, { name: 'Savings Ratio', score: 60, max: 100, rationale: '4.2 months of expenses in reserve.' }] },
+    esg:              { score: 137, max: 200, factors: [{ name: 'Financial Inclusion', score: 90, max: 100, rationale: 'First-time credit access via alternative data.' }, { name: 'Data Consent', score: 47, max: 100, rationale: 'Full consent granted, no restricted data used.' }] },
+  },
 }
 
 export default function ScorePage() {
@@ -114,6 +180,15 @@ export default function ScorePage() {
         console.error('Score fetch failed:', e)
       }
 
+      // 3. Preview-only demo fallback — see DEMO_VIEW above. Lets a
+      // reviewer reach a populated screen via any direct /score/[id]
+      // link without a real record or the /apply flow.
+      if (isPreviewDeployment()) {
+        setView(DEMO_VIEW)
+        setLoading(false)
+        return
+      }
+
       setNotFound(true)
       setLoading(false)
     }
@@ -122,11 +197,12 @@ export default function ScorePage() {
   }, [id])
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center', color: '#4a9eff', fontFamily: '"DM Sans", sans-serif' }}>
-        <div style={{ fontSize: 13, letterSpacing: '0.1em', marginBottom: 16 }}>CALCULATING YOUR ETHOSCORE™</div>
-        <div style={{ width: 240, height: 2, background: '#1a1a28', borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ height: '100%', background: '#4a9eff', animation: 'load 1.5s ease-in-out infinite', width: '40%' }} />
+    <div style={{ minHeight: '100vh', background: C.background, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <link href={googleFontsHref} rel="stylesheet" />
+      <div style={{ textAlign: 'center', color: C.accent, fontFamily: F.sans }}>
+        <div style={{ fontSize: FS.sm, letterSpacing: '0.1em', marginBottom: SP.lg, textTransform: 'uppercase' }}>Calculating your EthoScore™</div>
+        <div style={{ width: 240, height: 2, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', background: C.accent, animation: 'load 1.5s ease-in-out infinite', width: '40%' }} />
         </div>
         <style>{`@keyframes load { 0%{transform:translateX(-100%)} 100%{transform:translateX(700%)} }`}</style>
       </div>
@@ -135,24 +211,30 @@ export default function ScorePage() {
 
   if (notFound || !view) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif', padding: 40 }}>
-        <p style={{ marginBottom: 16 }}>Score not found.</p>
-        <p style={{ fontSize: 14, color: '#666', maxWidth: 420, lineHeight: 1.6 }}>
+      <div style={{ minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, padding: SP.xxl }}>
+        <link href={googleFontsHref} rel="stylesheet" />
+        <p style={{ marginBottom: SP.lg }}>Score not found.</p>
+        <p style={{ fontSize: FS.sm, color: C.textSecondary, maxWidth: 420, lineHeight: 1.6 }}>
           Results are available right after you submit an application. If you opened this link in a new tab, submit again from the apply flow.
         </p>
-        <a href="/apply" style={{ display: 'inline-block', marginTop: 20, color: '#4a9eff', fontSize: 14 }}>Go to apply →</a>
+        <a href="/apply" style={{ display: 'inline-block', marginTop: SP.lg, color: C.accent, fontSize: FS.sm }}>Go to apply →</a>
       </div>
     )
   }
 
   const { fullName, score, pillars } = view
+  const bandColor = RISK_BAND_COLOR[score.risk_band]
   const band = BAND_CONFIG[score.risk_band]
   const rec = score.recommendation
+  const recColor = REC_COLOR[rec]
+
+  const cardCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm }
+  const labelCss: React.CSSProperties = { fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSecondary }
 
   return (
     <>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
-    <div id="ethofi-screen" style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif' }}>
+      <link href={googleFontsHref} rel="stylesheet" />
+    <div id="ethofi-screen" style={{ minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans }}>
       <style>{`
         * { box-sizing: border-box; }
         @keyframes countUp { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
@@ -167,9 +249,7 @@ export default function ScorePage() {
 
         /* PDF internal styles */
         .pdf-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 2px solid #111; margin-bottom: 24px; }
-        .pdf-logo { display: flex; align-items: center; gap: 8px; }
-        .pdf-logo-icon { width: 28px; height: 28px; border-radius: 6px; background: #1a56db; display: flex; align-items: center; justify-content: center; }
-        .pdf-brand { font-family: Georgia, serif; font-size: 17px; font-weight: 700; color: #111; }
+        .pdf-logo { display: flex; align-items: center; }
         .pdf-meta { font-size: 11px; color: #888; text-align: right; line-height: 1.6; }
         .pdf-section { margin-bottom: 22px; }
         .pdf-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
@@ -189,50 +269,43 @@ export default function ScorePage() {
         .pdf-footer { margin-top: 24px; padding-top: 14px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #aaa; }
       `}</style>
 
-      <div style={{ maxWidth: 600, margin: '0 auto', padding: '40px 24px' }}>
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: `${SP.xxl}px ${SP.xl}px` }}>
 
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 7, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-          </div>
-          <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 16 }}>EthosFi</span>
+        <div style={{ marginBottom: SP.xxxl }}>
+          <Logo size="sm" />
         </div>
 
-        <p style={{ color: '#666', fontSize: 14, marginBottom: 8 }}>Hello {fullName.split(' ')[0]},</p>
-        <h1 style={{ fontFamily: '"DM Serif Display", serif', fontSize: 36, fontWeight: 400, margin: '0 0 32px', lineHeight: 1.1 }}>
+        <p style={{ color: C.textSecondary, fontSize: FS.base, marginBottom: SP.sm }}>Hello {fullName.split(' ')[0]},</p>
+        <h1 style={{ fontFamily: F.sans, fontSize: FS.display, fontWeight: FW.semibold, letterSpacing: '-0.01em', margin: `0 0 ${SP.xxl}px`, lineHeight: 1.1 }}>
           {band.headline}
         </h1>
 
         {/* Score card */}
-        <div style={{ background: band.bg, border: `1px solid ${band.color}33`, borderRadius: 20, padding: '32px', marginBottom: 24, textAlign: 'center' }}>
-          <p style={{ fontSize: 11, letterSpacing: '0.12em', color: band.color, margin: '0 0 12px', textTransform: 'uppercase' }}>Your EthoScore™</p>
-          <div style={{ fontSize: 96, fontFamily: '"DM Serif Display", serif', color: band.color, lineHeight: 1, animation: 'countUp 0.6s ease forwards' }}>
+        <div style={{ ...cardCss, padding: SP.xxl, marginBottom: SP.xl, textAlign: 'center' }}>
+          <p style={{ ...labelCss, color: bandColor, margin: `0 0 ${SP.md}px` }}>Your EthoScore™</p>
+          <div style={{ fontSize: 96, fontFamily: F.sans, fontWeight: FW.bold, color: bandColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', animation: 'countUp 0.6s ease forwards' }}>
             {score.etho_score}
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: `${band.color}22`, border: `1px solid ${band.color}44`, borderRadius: 20, padding: '6px 16px', marginTop: 12 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: band.color }} />
-            <span style={{ fontSize: 13, color: band.color }}>{band.label}</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: C.accentSubtle, border: `1px solid ${bandColor}44`, borderRadius: 20, padding: '6px 16px', marginTop: SP.md }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: bandColor }} />
+            <span style={{ fontSize: FS.sm, color: bandColor }}>{band.label}</span>
           </div>
 
           {/* Score bar */}
-          <div style={{ marginTop: 24, position: 'relative' }}>
-            <div style={{ height: 6, background: '#1a1a28', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${score.etho_score}%`, background: band.color, borderRadius: 3, transition: 'width 1s ease' }} />
+          <div style={{ marginTop: SP.xl, position: 'relative' }}>
+            <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${score.etho_score}%`, background: bandColor, borderRadius: 3, transition: 'width 1s ease' }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: '#444' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: FS.xs, color: C.textMuted }}>
               <span>0</span><span>50</span><span>100</span>
             </div>
           </div>
         </div>
 
         {/* Recommendation banner */}
-        <div style={{
-          background: rec === 'approve' ? '#0d2a20' : rec === 'review' ? '#2a1e0a' : '#2a0d0d',
-          border: `1px solid ${rec === 'approve' ? '#1D9E7533' : rec === 'review' ? '#BA751733' : '#E24B4A33'}`,
-          borderRadius: 12, padding: '16px 20px', marginBottom: 24
-        }}>
-          <p style={{ margin: 0, fontSize: 14, color: rec === 'approve' ? '#1D9E75' : rec === 'review' ? '#BA7517' : '#E24B4A' }}>
+        <div style={{ background: C.accentSubtle, border: `1px solid ${recColor}44`, borderRadius: R.card, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
+          <p style={{ margin: 0, fontSize: FS.base, color: recColor }}>
             {rec === 'approve' && '✓ AI recommendation: Approve — your profile meets lending criteria.'}
             {rec === 'review' && '◎ AI recommendation: Manual review — a lender will assess your application.'}
             {rec === 'decline' && '○ AI recommendation: Not approved at this time — see improvement tips below.'}
@@ -240,58 +313,61 @@ export default function ScorePage() {
         </div>
 
         {/* AI Summary */}
-        <div style={{ background: '#13131a', border: '1px solid #2a2a38', borderRadius: 14, padding: '20px 24px', marginBottom: 24 }}>
-          <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>AI assessment</p>
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.6, color: '#ccc' }}>{score.ai_summary}</p>
+        <div style={{ ...cardCss, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
+          <p style={{ ...labelCss, marginBottom: SP.md }}>AI assessment</p>
+          <p style={{ margin: 0, fontSize: FS.base, lineHeight: 1.6, color: C.textSecondary }}>{score.ai_summary}</p>
         </div>
 
         {/* Factors */}
-        <div style={{ marginBottom: 32 }}>
-          <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>Score breakdown — 5 factors</p>
-          {score.factors.map((f, i) => (
-            <div key={i} style={{ marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: 14, fontWeight: 500 }}>{f.name}</span>
-                <span style={{ fontSize: 14, color: f.score >= 70 ? '#1D9E75' : f.score >= 40 ? '#BA7517' : '#E24B4A', fontWeight: 500 }}>{f.score}/100</span>
+        <div style={{ marginBottom: SP.xxl }}>
+          <p style={{ ...labelCss, marginBottom: SP.lg }}>Score breakdown — 5 factors</p>
+          {score.factors.map((f, i) => {
+            const fColor = RISK_BAND_COLOR[computeRiskBand(f.score)]
+            return (
+              <div key={i} style={{ marginBottom: SP.lg }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontSize: FS.base, fontWeight: FW.medium }}>{f.name}</span>
+                  <span style={{ fontSize: FS.base, color: fColor, fontWeight: FW.medium, fontVariantNumeric: 'tabular-nums' }}>{f.score}/100</span>
+                </div>
+                <div style={{ height: 4, background: C.border, borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
+                  <div style={{ height: '100%', width: `${f.score}%`, background: fColor, borderRadius: 2 }} />
+                </div>
+                <p style={{ margin: 0, fontSize: FS.sm, color: C.textSecondary, lineHeight: 1.5 }}>{f.rationale}</p>
               </div>
-              <div style={{ height: 4, background: '#1a1a28', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
-                <div style={{ height: '100%', width: `${f.score}%`, background: f.score >= 70 ? '#1D9E75' : f.score >= 40 ? '#BA7517' : '#E24B4A', borderRadius: 2 }} />
-              </div>
-              <p style={{ margin: 0, fontSize: 13, color: '#666', lineHeight: 1.5 }}>{f.rationale}</p>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* Why This Score — v2 pillar breakdown */}
         {pillars && (
-          <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '24px', marginBottom: 24 }}>
-            <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 20 }}>Why this score</p>
+          <div style={{ ...cardCss, padding: SP.xl, marginBottom: SP.xl }}>
+            <p style={{ ...labelCss, marginBottom: SP.xl }}>Why this score</p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 20, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: SP.xl, alignItems: 'start' }}>
               <div style={{ textAlign: 'center' }}>
                 <ScoreRing total={Object.values(pillars).reduce((s: number, p: Pillar) => s + p.score, 0)} max={1000} />
-                <div style={{ marginTop: 8, fontSize: 11, color: '#555' }}>Structured Score</div>
+                <div style={{ marginTop: SP.sm, fontSize: FS.xs, color: C.textSecondary }}>Structured Score</div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.md }}>
                 {(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => {
-                  const meta = PILLAR_LABELS[key] ?? { label: key, color: '#888' }
+                  const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
                   return (
-                    <div key={key} style={{ background: '#0a0a0f', border: '1px solid #1a1a28', borderRadius: 10, padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 500, color: meta.color }}>{meta.label}</span>
-                        <span style={{ fontSize: 11, color: '#555' }}>{pillar.score}/{pillar.max}</span>
+                    <div key={key} style={{ background: C.background, border: borderLine, borderRadius: R.data, padding: `${SP.md}px ${SP.lg}px` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SP.sm }}>
+                        <span style={{ fontSize: FS.sm, fontWeight: FW.medium, color: meta.color }}>{meta.label}</span>
+                        <span style={{ fontSize: FS.xs, color: C.textSecondary, fontVariantNumeric: 'tabular-nums' }}>{pillar.score}/{pillar.max}</span>
                       </div>
                       <PillarBar value={pillar.score} max={pillar.max} color={meta.color} />
-                      <div style={{ marginTop: 8 }}>
+                      <div style={{ marginTop: SP.sm }}>
                         {pillar.factors.map((f: PillarFactor) => (
                           <div key={f.name} style={{ marginBottom: 6 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#666', marginBottom: 2 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: FS.xs, color: C.textSecondary, marginBottom: 2 }}>
                               <span>{f.name}</span>
-                              <span>{f.score}/{f.max}</span>
+                              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{f.score}/{f.max}</span>
                             </div>
                             <PillarBar value={f.score} max={f.max} color={meta.color} />
-                            <div style={{ fontSize: 9, color: '#444', marginTop: 1 }}>{f.rationale}</div>
+                            <div style={{ fontSize: 9, color: C.textMuted, marginTop: 1 }}>{f.rationale}</div>
                           </div>
                         ))}
                       </div>
@@ -304,15 +380,15 @@ export default function ScorePage() {
         )}
 
         {/* EU AI Act notice */}
-        <div style={{ borderTop: '1px solid #1a1a28', paddingTop: 24, marginBottom: 24 }}>
-          <p style={{ fontSize: 12, color: '#444', lineHeight: 1.6 }}>
-            <strong style={{ color: '#555' }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: '#4a9eff' }}>review@ethosfai.com</span> within 30 days.
+        <div style={{ borderTop: borderLine, paddingTop: SP.xl, marginBottom: SP.xl }}>
+          <p style={{ fontSize: FS.sm, color: C.textMuted, lineHeight: 1.6 }}>
+            <strong style={{ color: C.textSecondary }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: C.accent }}>review@ethosfai.com</span> within 30 days.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
-          <a href="/apply" style={{ flex: 1, padding: '14px 20px', borderRadius: 10, border: '1px solid #2a2a38', color: '#888', textAlign: 'center', textDecoration: 'none', fontSize: 14 }}>Apply again</a>
-          <button type="button" onClick={() => window.print()} style={{ flex: 1, padding: '14px 20px', borderRadius: 10, background: '#4a9eff', color: '#000', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500, fontFamily: 'inherit' }}>Export PDF</button>
+        <div style={{ display: 'flex', gap: SP.md }}>
+          <a href="/apply" style={{ flex: 1, padding: '14px 20px', borderRadius: R.control, border: borderLine, color: C.textSecondary, textAlign: 'center', textDecoration: 'none', fontSize: FS.sm }}>Apply again</a>
+          <button type="button" onClick={() => window.print()} style={{ flex: 1, padding: '14px 20px', borderRadius: R.control, background: C.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: FS.sm, fontWeight: FW.medium, fontFamily: 'inherit' }}>Export PDF</button>
         </div>
       </div>
 
@@ -324,10 +400,7 @@ export default function ScorePage() {
         {/* Header */}
         <div className="pdf-header">
           <div className="pdf-logo">
-            <div className="pdf-logo-icon">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-            </div>
-            <span className="pdf-brand">EthosFi AI</span>
+            <Logo size="sm" />
           </div>
           <div className="pdf-meta">
             <div>Credit Score Report</div>
@@ -346,16 +419,16 @@ export default function ScorePage() {
         <div className="pdf-section">
           <div className="pdf-label">EthoScore™</div>
           <div className="pdf-score-row">
-            <div className="pdf-score-num" style={{ color: band.color }}>{score.etho_score}</div>
+            <div className="pdf-score-num" style={{ color: bandColor }}>{score.etho_score}</div>
             <div>
-              <div className="pdf-band-badge" style={{ color: band.color, borderColor: band.color }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: band.color }} />
+              <div className="pdf-band-badge" style={{ color: bandColor, borderColor: bandColor }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: bandColor }} />
                 {band.label}
               </div>
             </div>
           </div>
           <div className="pdf-bar-track">
-            <div className="pdf-bar-fill" style={{ width: `${score.etho_score}%`, background: band.color }} />
+            <div className="pdf-bar-fill" style={{ width: `${score.etho_score}%`, background: bandColor }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#aaa', marginTop: 4 }}>
             <span>0</span><span>50</span><span>100</span>

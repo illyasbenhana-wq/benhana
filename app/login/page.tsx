@@ -1,8 +1,10 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { useRouter } from 'next/navigation'
+import { redirect, useRouter } from 'next/navigation'
 import { getRoleFromSession, ROLE_HOME } from '../../lib/user-role'
+import { isPreviewDeployment } from '../../lib/preview-bypass'
+import { Logo } from '../components/Logo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,6 +12,18 @@ const supabase = createClient(
 )
 
 export default function LoginPage() {
+  // Preview-only auth bypass — safety net, not the primary mechanism.
+  // app/dashboard and app/lender/dashboard already check
+  // isPreviewDeployment() themselves before ever pushing here. This
+  // exists for any route that forgets to: if it still lands here on a
+  // preview deployment, bounce to /dashboard (which itself won't redirect
+  // back) instead of rendering the real, still-dark login form. Do NOT
+  // change the bounce target to a route that itself redirects back to
+  // /login on preview — that would create a redirect loop.
+  if (isPreviewDeployment()) {
+    redirect('/dashboard')
+  }
+
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -48,13 +62,8 @@ export default function LoginPage() {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display&display=swap" rel="stylesheet" />
 
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 48 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-          </svg>
-        </div>
-        <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 20 }}>EthosFi</span>
+      <div style={{ marginBottom: 48 }}>
+        <Logo size="lg" textColor="#e8e6df" notchColor="#0a0a0f" />
       </div>
 
       {/* Card */}

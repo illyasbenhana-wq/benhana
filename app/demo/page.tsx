@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { Logo } from '../components/Logo'
 
 type PillarFactor = { name: string; score: number; max: number; rationale: string }
 type Pillar = { score: number; max: number; factors: PillarFactor[] }
@@ -68,10 +69,10 @@ export default function DemoPage() {
   if (authError) {
     return (
       <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"DM Sans", sans-serif', flexDirection: 'column', gap: 12 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+        <div style={{ marginBottom: 8 }}>
+          <Logo size="md" textColor="#e8e6df" notchColor="#0a0a0f" />
         </div>
-        <p style={{ fontSize: 16, fontWeight: 500 }}>EthosFi Demo</p>
+        <p style={{ fontSize: 16, fontWeight: 500 }}>Demo Access</p>
         <p style={{ color: '#555', fontSize: 13 }}>This demo requires an access link. Please contact us for access.</p>
       </div>
     )
@@ -103,12 +104,7 @@ export default function DemoPage() {
 
       {/* Header */}
       <div style={{ borderBottom: '1px solid #1a1a28', padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: '#4a9eff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 5V8C14 11.31 11.46 14.42 8 15C4.54 14.42 2 11.31 2 8V5L8 2Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-          </div>
-          <span style={{ fontFamily: '"DM Serif Display", serif', fontSize: 18 }}>EthosFi</span>
-        </div>
+        <Logo size="md" textColor="#e8e6df" notchColor="#0a0a0f" />
         <div style={{ fontSize: 12, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Decision Intelligence Platform</div>
       </div>
 

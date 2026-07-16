@@ -215,6 +215,39 @@ proceed.
 
 ---
 
+## UX-1 — Product Identity Redesign — Screen 1 DONE, direction decided
+
+Two visual directions were built as an A/B exploration: a dark/amber
+"institutional command center" theme, and a light/blue "Ramp" theme
+(white background, `#1D4ED8` accent, Inter typography). **The light
+"Ramp" direction won** and is now the sole reference — merged into
+`feature/ux-1-design-system` as of the light-exploration branch merge.
+
+- **Source of truth:** `lib/design-system/tokens-light.ts`. Import from
+  here for any new/restyled screen. The earlier dark `tokens.ts` is kept
+  only for historical reference — do not import from it in new work.
+- **Screen 1 (`app/dashboard/page.tsx` + `MerchantIntelligence`
+  sub-component):** restyled and merged. Structure/data/interaction logic
+  unchanged; only the visual layer (colors, fonts, spacing) changed.
+- **`caseRiskColor()`:** thresholds (`>=75` high, `>=50` medium, else low)
+  are unchanged from the dark exploration — only the three output colors
+  were remapped to the light danger/warning/success values. Never reuse
+  this function for EthoScore (0–1000, inverted direction) — see brief.
+- **Full brief:** `ethosfi-ux1-design-brief.md` (kept outside this repo,
+  in the working design-docs location) documents the finalized palette,
+  type scale, and remaining screens (2 and 3 next; Screen 4 / login is
+  explicitly out of scope for now and still on the old dark hardcoded
+  colors).
+- **Preview-only auth bypass:** `app/dashboard/page.tsx`'s auth guard
+  skips the `/login` redirect when `NEXT_PUBLIC_VERCEL_ENV === 'preview'`
+  and no session exists, so anonymous Vercel preview visitors see the
+  restyled dashboard with demo data instead of bouncing to the
+  still-dark, unrestyled login screen. Production/dev behavior is
+  unaffected — do not remove this without confirming Screen 4 has since
+  been restyled too, or the guard becomes load-bearing again.
+
+---
+
 ## PARALLEL WORKSTREAM — Backtesting Tool (BUILD-ONLY, DORMANT)
 
 **Status: built and verified. USE is gated by the same GTM trigger as

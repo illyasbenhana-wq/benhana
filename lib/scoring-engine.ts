@@ -3,12 +3,13 @@ import { ApplicationForm, ScoreResult, RiskBand, Recommendation } from '@/types'
 import { log } from './logger'
 import * as PromptV1 from './prompts/ethoscore-v1'
 import * as PromptV2 from './prompts/ethoscore-llm-v2'
+import { computeRiskBand } from './risk-band'
 
-export function computeRiskBand(ethoScore: number): RiskBand {
-  if (ethoScore >= 70) return 'low'
-  if (ethoScore >= 40) return 'medium'
-  return 'high'
-}
+// Moved to lib/risk-band.ts (dependency-free — safe to import from
+// client components, unlike this file, whose `new Anthropic()` below
+// throws in any browser environment). Re-exported here so existing
+// server-side callers (app/api/*, lib/backtest-engine.ts) are unaffected.
+export { computeRiskBand }
 
 const client = new Anthropic()
 
