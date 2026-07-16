@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation'
 import { ScoreResult } from '@/types'
 import { readScoreSession, ScoreSessionPayload } from '@/lib/score-session'
 import { computeRiskBand } from '@/lib/risk-band'
+import { isPreviewDeployment } from '@/lib/preview-bypass'
 import { Logo } from '@/app/components/Logo'
 import {
   color as C,
@@ -117,6 +118,33 @@ function fromApi(application: { full_name: string }, score: any): ScoreView {
   }
 }
 
+// Preview-only demo fallback — lets a reviewer reach a fully populated
+// /score/[id] via a direct link (any id) without going through /apply
+// first or needing a real Supabase record. Exercises both the v1 legacy
+// 5-factor view AND the v2 pillar breakdown ("Why this score") so both
+// render for visual review. Never used outside isPreviewDeployment().
+const DEMO_VIEW: ScoreView = {
+  fullName: 'Amara Diallo',
+  score: {
+    id: 'demo-score', application_id: 'demo-app', etho_score: 78, risk_band: 'low',
+    recommendation: 'approve', model_version: 'ethoscore-v1-demo', created_at: new Date().toISOString(),
+    ai_summary: 'Amara shows 22 months of consistent on-time rent payments and a stable gig-income trend across three platforms. Loan-to-income ratio is well within range, and savings buffer covers 4+ months of expenses. Strong candidate for approval.',
+    factors: [
+      { name: 'Rent Payment Consistency', weight: 30, score: 92, rationale: '22 consecutive on-time payments, no missed months in the last 2 years.' },
+      { name: 'Income Stability', weight: 25, score: 81, rationale: 'Gig income across 3 platforms, trending upward over the last 6 months.' },
+      { name: 'Savings Buffer', weight: 20, score: 74, rationale: 'Average balance covers 4.2 months of stated expenses.' },
+      { name: 'Loan-to-Income Ratio', weight: 15, score: 69, rationale: 'Requested amount is 1.8x monthly income — within accepted range.' },
+      { name: 'Identity Verification', weight: 10, score: 88, rationale: 'Government ID and address verified via two independent sources.' },
+    ],
+  },
+  pillars: {
+    trust:            { score: 245, max: 300, factors: [{ name: 'Identity Verification', score: 132, max: 150, rationale: 'ID + address cross-verified.' }, { name: 'Network Signals', score: 113, max: 150, rationale: 'No adverse network associations found.' }] },
+    track_record:     { score: 260, max: 300, factors: [{ name: 'Payment History', score: 140, max: 150, rationale: '22 months on-time, zero defaults.' }, { name: 'Dispute Rate', score: 120, max: 150, rationale: 'No disputes on file.' }] },
+    financial_health:  { score: 138, max: 200, factors: [{ name: 'Income Trend', score: 78, max: 100, rationale: 'Gig income up 12% over 6 months.' }, { name: 'Savings Ratio', score: 60, max: 100, rationale: '4.2 months of expenses in reserve.' }] },
+    esg:              { score: 137, max: 200, factors: [{ name: 'Financial Inclusion', score: 90, max: 100, rationale: 'First-time credit access via alternative data.' }, { name: 'Data Consent', score: 47, max: 100, rationale: 'Full consent granted, no restricted data used.' }] },
+  },
+}
+
 export default function ScorePage() {
   const params = useParams()
   const id = params?.id as string
@@ -150,6 +178,15 @@ export default function ScorePage() {
         }
       } catch (e) {
         console.error('Score fetch failed:', e)
+      }
+
+      // 3. Preview-only demo fallback — see DEMO_VIEW above. Lets a
+      // reviewer reach a populated screen via any direct /score/[id]
+      // link without a real record or the /apply flow.
+      if (isPreviewDeployment()) {
+        setView(DEMO_VIEW)
+        setLoading(false)
+        return
       }
 
       setNotFound(true)

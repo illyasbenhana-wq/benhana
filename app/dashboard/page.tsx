@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../lib/user-role'
+import { isPreviewDeployment } from '../../lib/preview-bypass'
 import { MerchantIntelligence } from './components/MerchantIntelligence'
 import { fatimaOkoyeComplianceCase } from '../../lib/fatima-okoye-demo'
 import { PrecisionGauge } from '../components/PrecisionGauge'
@@ -250,18 +251,20 @@ export default function DashboardPage() {
       return
     }
 
+    // On a Vercel preview deployment, always render the demo dataset — an
+    // anonymous preview visitor has no session, so a real Supabase query
+    // below would be RLS-filtered to an empty (not errored) result, and
+    // the existing `!supabase` mock-data fallback never triggers because
+    // Supabase env vars ARE present in Preview. Force mock mode here
+    // instead of relying on the query's own empty-result handling.
+    if (isPreviewDeployment()) {
+      setCases(MOCK_CASES)
+      return
+    }
+
     // Auth guard — redirect to /login if no active session.
-    // Preview-only auth bypass for design review: on Vercel preview deployments
-    // (NEXT_PUBLIC_VERCEL_ENV === 'preview'), an anonymous visitor sees the
-    // dashboard with demo data instead of being redirected to the (still dark,
-    // unrestyled) /login screen. Production behavior is untouched — this
-    // branch of the condition never runs outside `vercel env=preview`.
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        if (process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview') return
-        router.push('/login')
-        return
-      }
+      if (!session) { router.push('/login'); return }
       setUserRole(getRoleFromSession(session))
     })
     console.log('[EthosFi] Supabase client initialised. Fetching cases...')

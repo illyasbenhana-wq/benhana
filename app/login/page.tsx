@@ -1,8 +1,9 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { useRouter } from 'next/navigation'
+import { redirect, useRouter } from 'next/navigation'
 import { getRoleFromSession, ROLE_HOME } from '../../lib/user-role'
+import { isPreviewDeployment } from '../../lib/preview-bypass'
 import { Logo } from '../components/Logo'
 
 const supabase = createClient(
@@ -11,6 +12,18 @@ const supabase = createClient(
 )
 
 export default function LoginPage() {
+  // Preview-only auth bypass — safety net, not the primary mechanism.
+  // app/dashboard and app/lender/dashboard already check
+  // isPreviewDeployment() themselves before ever pushing here. This
+  // exists for any route that forgets to: if it still lands here on a
+  // preview deployment, bounce to /dashboard (which itself won't redirect
+  // back) instead of rendering the real, still-dark login form. Do NOT
+  // change the bounce target to a route that itself redirects back to
+  // /login on preview — that would create a redirect loop.
+  if (isPreviewDeployment()) {
+    redirect('/dashboard')
+  }
+
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
