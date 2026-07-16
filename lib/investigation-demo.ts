@@ -11,7 +11,15 @@
  *
  * Entities are clearly fictional. Keyed by case reference (e.g.
  * INV-1047) so the route /case/[ref] can resolve directly.
+ *
+ * Every case shown on the dashboard (including the Fatima Okoye /
+ * INV-1052 case from lib/fatima-okoye-demo.ts, which lives in a
+ * separate file since it's also used by MerchantIntelligence on
+ * Screen 1) must have a matching entry here, or "Open Full
+ * Investigation" from the dashboard hits "Case not found".
  */
+
+import { fatimaOkoyeComplianceCase, FATIMA_OKOYE_CASE_REF } from './fatima-okoye-demo'
 
 export type DossierSignal = { name: string; score: number; rationale: string }
 
@@ -270,6 +278,44 @@ export const INVESTIGATION_DOSSIERS: Record<string, InvestigationDossier> = {
       { name: 'Track Record', value: 650, humanNote: '5 years trading, no prior enforcement' },
       { name: 'Financial Health', value: 690, humanNote: 'Solid trading revenue' },
       { name: 'ESG', value: 560, humanNote: 'No adverse media identified' },
+    ],
+  },
+
+  // Reuses fatimaOkoyeComplianceCase's own fields (case_ref, entity_name,
+  // severity, SLA, ai_summary, signals) directly rather than re-typing
+  // them, so this dossier can't drift from the dashboard/Merchant
+  // Intelligence card's copy of the same case.
+  [FATIMA_OKOYE_CASE_REF]: {
+    id: fatimaOkoyeComplianceCase.id,
+    caseRef: fatimaOkoyeComplianceCase.case_ref,
+    entityName: fatimaOkoyeComplianceCase.entity_name,
+    caseType: fatimaOkoyeComplianceCase.case_type,
+    jurisdiction: fatimaOkoyeComplianceCase.jurisdiction,
+    exposureAmount: fatimaOkoyeComplianceCase.exposure_amount,
+    severity: fatimaOkoyeComplianceCase.severity,
+    status: fatimaOkoyeComplianceCase.status,
+    slaHours: fatimaOkoyeComplianceCase.sla_hours,
+    slaRemainingHours: fatimaOkoyeComplianceCase.sla_remaining_hours,
+    assignedTo: fatimaOkoyeComplianceCase.assigned_to,
+    openedAt: fatimaOkoyeComplianceCase.opened_at,
+    riskScore: fatimaOkoyeComplianceCase.risk_score,
+    aiSummary: fatimaOkoyeComplianceCase.ai_summary,
+    signals: fatimaOkoyeComplianceCase.signals,
+    timeline: [
+      { time: '10:02', day: 'Today', kind: 'signal', title: 'Corridor risk flagged', detail: 'UK→Lagos volume +22% vs 30-day baseline across 3 active corridors (UK, UAE, Ghana).', confidence: 64 },
+      { time: '09:47', day: 'Today', kind: 'note', title: 'Merchant Intelligence reviewed', detail: 'Trust score moderate; 92% on-time payment history and corridor diversity considered favorably.', confidence: 28 },
+      { time: '08:15', day: 'Today', kind: 'opened', title: 'Case opened', detail: 'Auto-assigned to R. Okonkwo from the transaction monitoring queue.' },
+    ],
+    connectedEntities: [
+      { relation: 'Principal', name: 'Fatima Okoye' },
+      { relation: 'Trade Corridor', name: 'UK Apparel Distributors Ltd' },
+    ],
+    ethoScore: 690,
+    ethoPillars: [
+      { name: 'Trust', value: 210, humanNote: 'Corridor concentration noted; identity fully verified' },
+      { name: 'Track Record', value: 250, humanNote: '92% on-time payments across 3 active corridors' },
+      { name: 'Financial Health', value: 140, humanNote: 'Stable apparel trading revenue, $120K annualised' },
+      { name: 'ESG', value: 90, humanNote: 'Financial inclusion signal — first-time cross-border credit access' },
     ],
   },
 }
