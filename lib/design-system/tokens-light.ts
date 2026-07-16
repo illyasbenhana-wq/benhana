@@ -52,6 +52,32 @@ export function caseRiskColor(score: number): string {
   return color.riskLow
 }
 
+/**
+ * ethoScoreColor — maps an EthoScore (0–1000, higher = BETTER / lower
+ * risk) to a display color. This is a DIFFERENT scale running in the
+ * OPPOSITE direction from caseRiskColor (0–100, higher = worse) — never
+ * call caseRiskColor on an EthoScore value or vice versa.
+ *
+ * Thresholds are derived from computeRiskBand's actual, unmodified
+ * source values — not reinvented here:
+ *   - lib/risk-band.ts `computeRiskBand(ethoScore)` (canonical impl,
+ *     re-exported from lib/scoring-engine.ts for existing callers):
+ *       >=70 'low', >=40 'medium', else 'high' — operates on a 0–100
+ *       NORMALIZED scale (see CLAUDE.md: "normalized scale").
+ *   - lib/ethoscore-v2.ts:229 `normalized = clamp(Math.round(total / 10), 0, 100)`
+ *       confirms normalized = raw EthoScore / 10.
+ * So on the raw 0–1000 scale, computeRiskBand's thresholds are
+ * 70*10=700 and 40*10=400. 'low' (risk) = success/green (good score),
+ * 'high' (risk) = danger/red (poor score) — inverted from case-risk's
+ * mapping, where high risk-score also means danger, but here a HIGH
+ * ethoScore is what's good.
+ */
+export function ethoScoreColor(score: number): string {
+  if (score >= 700) return color.riskLow
+  if (score >= 400) return color.riskMedium
+  return color.riskHigh
+}
+
 // ─── Typography ─────────────────────────────────────────────────────
 // Inter — single family everywhere, per the Ramp brief.
 export const fontFamily = {
@@ -169,6 +195,7 @@ export const tokens = {
   keyframes,
   surface,
   caseRiskColor,
+  ethoScoreColor,
 }
 
 export default tokens
