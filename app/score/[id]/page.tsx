@@ -382,7 +382,7 @@ export default function ScorePage() {
         {/* EU AI Act notice */}
         <div style={{ borderTop: borderLine, paddingTop: SP.xl, marginBottom: SP.xl }}>
           <p style={{ fontSize: FS.sm, color: C.textMuted, lineHeight: 1.6 }}>
-            <strong style={{ color: C.textSecondary }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: C.accent }}>review@ethosfai.com</span> within 30 days.
+            <strong style={{ color: C.textSecondary }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: C.accent }}>review@ethosfiai.com</span> within 30 days.
           </p>
         </div>
 
@@ -479,7 +479,7 @@ export default function ScorePage() {
 
         {/* EU AI Act */}
         <div className="pdf-compliance">
-          <strong>EU AI Act Compliance Notice (Article 22).</strong> This credit assessment was produced by an automated AI system (EthosFi AI, model: {score.model_version}). You have the right to request human review of this decision within 30 days of issue. To exercise this right, contact <strong>review@ethosfai.com</strong> with your Application ID. You may also request a plain-language explanation of the factors that influenced this score.
+          <strong>EU AI Act Compliance Notice (Article 22).</strong> This credit assessment was produced by an automated AI system (EthosFi AI, model: {score.model_version}). You have the right to request human review of this decision within 30 days of issue. To exercise this right, contact <strong>review@ethosfiai.com</strong> with your Application ID. You may also request a plain-language explanation of the factors that influenced this score.
         </div>
 
         {/* Footer */}

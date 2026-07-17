@@ -36,9 +36,15 @@ const SIZES: Record<LogoSize, { fontSize: number; height: number; markSize: numb
   lg: { fontSize: 32, height: 46, markSize: 40, gap: 12, tracking: '0em' },
 }
 
-// Rough per-character width factor for Inter Semibold at 1px font-size,
-// used only to size the SVG viewBox — approximate, not kerned.
-const CHAR_WIDTH = 0.62
+// Approximate per-character advance for Inter Semibold at 1px font-size,
+// used to size the SVG viewBox. "ETHOSFI" is all wide capitals (only the
+// final I is narrow), so a low factor under-sizes the box and the last
+// letter gets clipped by the SVG's default overflow. Sized generously and
+// paired with overflow:visible below so the wordmark can never truncate,
+// regardless of platform font metrics.
+const CHAR_WIDTH = 0.66
+// Trailing padding (in font-size units) so the final glyph always has room.
+const WORD_PAD = 0.35
 
 export type LogoProps = {
   size?: LogoSize
@@ -52,7 +58,7 @@ export type LogoProps = {
 
 export function Logo({ size = 'md', textColor, notchColor, accentColor }: LogoProps) {
   const s = SIZES[size]
-  const wordWidth = 'ETHOSFI'.length * s.fontSize * CHAR_WIDTH
+  const wordWidth = ('ETHOSFI'.length + WORD_PAD) * s.fontSize * CHAR_WIDTH
   const width = s.markSize + s.gap + wordWidth
   const notch = s.markSize * 0.34
   const markY = (s.height - s.markSize) / 2
@@ -61,7 +67,7 @@ export function Logo({ size = 'md', textColor, notchColor, accentColor }: LogoPr
   const notchFill = notchColor ?? C.background
 
   return (
-    <svg width={width} height={s.height} viewBox={`0 0 ${width} ${s.height}`} role="img" aria-label="EthosFi">
+    <svg width={width} height={s.height} viewBox={`0 0 ${width} ${s.height}`} style={{ overflow: 'visible' }} role="img" aria-label="EthosFi">
       <rect x={0} y={markY} width={s.markSize} height={s.markSize} fill={accent} />
       {/* precision notch — sharp diagonal cut, not a rounded/gradient flourish */}
       <polygon

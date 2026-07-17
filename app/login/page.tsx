@@ -6,10 +6,14 @@ import { getRoleFromSession, ROLE_HOME } from '../../lib/user-role'
 import { isPreviewDeployment } from '../../lib/preview-bypass'
 import { Logo } from '../components/Logo'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+// Guarded client init — never construct with undefined env, which throws
+// ("supabaseUrl is required") at module evaluation and 500s the whole page
+// (including the SSR/prerender pass). Mirrors the dashboard's null-client
+// pattern so /login always renders; sign-in degrades gracefully when the
+// backend isn't configured (e.g. a Preview build without Supabase env).
+const _url = process.env.NEXT_PUBLIC_SUPABASE_URL
+const _key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabase = _url && _key ? createClient(_url, _key) : null
 
 export default function LoginPage() {
   // Preview-only auth bypass — safety net, not the primary mechanism.
@@ -33,6 +37,12 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+
+    if (!supabase) {
+      setError('Sign-in is temporarily unavailable. Please try again shortly.')
+      return
+    }
+
     setLoading(true)
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
