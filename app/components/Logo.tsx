@@ -48,6 +48,7 @@ const HEIGHTS: Record<LogoSize, number> = { sm: 22, md: 30, lg: 46 }
 // (a 336.7 x 64 composition). Scaled uniformly by k = desiredHeight / 64.
 const LOCKUP_HEIGHT = 64
 const LOCKUP_WIDTH = 336.7
+const SYMBOL_SCALE = 0.64 // native 100x100 symbol -> 64px lockup height, per logo-horizontal.svg
 const WORDMARK_TX = 85.76
 const WORDMARK_TY = 51.2
 const WORDMARK_SCALE = 0.05598
@@ -83,7 +84,7 @@ export function Logo({ size = 'md', textColor, accentColor }: LogoProps) {
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="EthosFi">
       {/* Signal Field symbol — three signals converging on the lit nucleus */}
-      <g transform={`scale(${k})`}>
+      <g transform={`scale(${k * SYMBOL_SCALE})`}>
         <g stroke="#CBD5E1" strokeWidth={2.2} strokeLinecap="round">
           <line x1={50} y1={50} x2={50} y2={18} />
           <line x1={50} y1={50} x2={23} y2={66} />
