@@ -2,6 +2,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Logo } from '../components/Logo'
+import {
+  color as C,
+  fontFamily as F,
+  fontWeight as FW,
+  radius as R,
+  googleFontsHref,
+} from '../../lib/design-system/tokens-light'
 
 const GIG_PLATFORMS = ['Deliveroo', 'Uber', 'Fiverr', 'Upwork', 'TaskRabbit', 'Etsy', 'Airbnb', 'Other']
 
@@ -58,24 +65,24 @@ export default function ApplyPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif' }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+    <div style={{ minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans }}>
+      <link href={googleFontsHref} rel="stylesheet" />
 
       <style>{`
         * { box-sizing: border-box; }
-        input, select, textarea { background: #13131a; border: 1px solid #2a2a38; color: #e8e6df; padding: 12px 16px; border-radius: 10px; width: 100%; font-family: inherit; font-size: 15px; outline: none; transition: border-color 0.2s; }
-        input:focus, select:focus, textarea:focus { border-color: #4a9eff; }
-        input::placeholder { color: #555570; }
-        .step-btn { padding: 14px 28px; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; }
-        .btn-primary { background: #4a9eff; color: #000; }
-        .btn-primary:hover { background: #6ab4ff; }
-        .btn-primary:disabled { background: #2a4a70; color: #556; cursor: not-allowed; }
-        .btn-secondary { background: transparent; color: #888; border: 1px solid #2a2a38; }
-        .btn-secondary:hover { border-color: #444; color: #aaa; }
-        .tag { padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; border: 1px solid #2a2a38; background: transparent; color: #888; transition: all 0.2s; }
-        .tag.active { border-color: #4a9eff; color: #4a9eff; background: #0d1f33; }
+        input, select, textarea { background: ${C.surface}; border: 1px solid ${C.border}; color: ${C.textPrimary}; padding: 12px 16px; border-radius: ${R.control}px; width: 100%; font-family: inherit; font-size: 15px; outline: none; transition: border-color 0.15s ease; }
+        input:focus, select:focus, textarea:focus { border-color: ${C.accent}; }
+        input::placeholder { color: ${C.textSecondary}; }
+        .step-btn { padding: 14px 28px; border-radius: ${R.control}px; font-family: inherit; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; border: none; }
+        .btn-primary { background: ${C.accent}; color: #fff; }
+        .btn-primary:hover { background: ${C.accentHover}; }
+        .btn-primary:disabled { background: ${C.border}; color: ${C.textSecondary}; cursor: not-allowed; }
+        .btn-secondary { background: ${C.background}; color: ${C.textPrimary}; border: 1px solid ${C.border}; }
+        .btn-secondary:hover { background: ${C.surface}; }
+        .tag { padding: 8px 14px; border-radius: ${R.control}px; font-size: 13px; cursor: pointer; border: 1px solid ${C.border}; background: ${C.background}; color: ${C.textSecondary}; transition: all 0.15s ease; }
+        .tag.active { border-color: ${C.accent}; color: ${C.accent}; background: ${C.accentSubtle}; }
         .progress-dot { width: 8px; height: 8px; border-radius: 50%; transition: all 0.3s; }
-        label { font-size: 13px; color: #888; margin-bottom: 6px; display: block; letter-spacing: 0.02em; }
+        label { font-size: 13px; color: ${C.textSecondary}; margin-bottom: 6px; display: block; letter-spacing: 0.02em; }
         .field { margin-bottom: 20px; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         .fade-up { animation: fadeUp 0.4s ease forwards; }
@@ -86,22 +93,22 @@ export default function ApplyPage() {
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
           <div style={{ marginBottom: 32 }}>
-            <Logo size="md" textColor="#e8e6df" notchColor="#0a0a0f" />
+            <Logo size="md" />
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
             {[1, 2, 3].map(i => (
-              <div key={i} className="progress-dot" style={{ background: i <= step ? '#4a9eff' : '#2a2a38', width: i === step ? 24 : 8 }} />
+              <div key={i} className="progress-dot" style={{ background: i <= step ? C.accent : C.border, width: i === step ? 24 : 8 }} />
             ))}
           </div>
 
-          <p style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
+          <p style={{ fontSize: 11, color: C.textSecondary, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8, fontWeight: FW.semibold }}>
             Step {step} of 3 · {['Your details', 'Financial picture', 'Loan request'][step - 1]}
           </p>
-          <h1 style={{ fontFamily: '"DM Serif Display", serif', fontSize: 32, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>
+          <h1 style={{ fontFamily: F.sans, fontSize: 32, fontWeight: FW.semibold, letterSpacing: '-0.01em', margin: 0, lineHeight: 1.2 }}>
             {['Tell us about yourself', 'Your financial picture', 'What do you need?'][step - 1]}
           </h1>
-          <p style={{ color: '#666', fontSize: 15, marginTop: 8 }}>
+          <p style={{ color: C.textSecondary, fontSize: 15, marginTop: 8 }}>
             {[
               'No credit score needed. We look at the full picture.',
               'Alternative signals that traditional banks ignore.',
@@ -139,8 +146,8 @@ export default function ApplyPage() {
         {/* Step 2 */}
         {step === 2 && (
           <div className="fade-up">
-            <div style={{ background: '#13131a', border: '1px solid #2a2a38', borderRadius: 12, padding: '16px 20px', marginBottom: 24 }}>
-              <p style={{ fontSize: 13, color: '#888', margin: 0 }}>These signals are weighted heavily in your EthoScore™ — consistent rent payments and stable income are strong indicators of creditworthiness.</p>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: R.card, padding: '16px 20px', marginBottom: 24 }}>
+              <p style={{ fontSize: 13, color: C.textSecondary, margin: 0 }}>These signals are weighted heavily in your EthoScore™ — consistent rent payments and stable income are strong indicators of creditworthiness.</p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div className="field"><label>Rent paid on time (months)</label><input type="number" value={form.rent_months_paid} onChange={e => set('rent_months_paid', e.target.value)} placeholder="18" /></div>
@@ -185,21 +192,21 @@ export default function ApplyPage() {
               </div>
             </div>
             {form.loan_amount && form.monthly_income && (
-              <div style={{ background: '#0d1f33', border: '1px solid #1a3a5c', borderRadius: 10, padding: '14px 18px', marginBottom: 20 }}>
-                <p style={{ margin: 0, fontSize: 13, color: '#4a9eff' }}>
+              <div style={{ background: C.accentSubtle, border: `1px solid ${C.border}`, borderRadius: R.control, padding: '14px 18px', marginBottom: 20 }}>
+                <p style={{ margin: 0, fontSize: 13, color: C.accent }}>
                   ~£{Math.round(Number(form.loan_amount) / Number(form.loan_term_months))}/month · {((Number(form.loan_amount) / (Number(form.monthly_income) * 12)) * 100).toFixed(0)}% of annual income
                 </p>
               </div>
             )}
 
-            <div style={{ background: '#13131a', border: '1px solid #2a2a38', borderRadius: 12, padding: '18px 20px', marginBottom: 20 }}>
+            <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: R.card, padding: '18px 20px', marginBottom: 20 }}>
               <label style={{ display: 'flex', gap: 12, cursor: 'pointer', marginBottom: 12 }}>
                 <input type="checkbox" checked={form.consent_data_use} onChange={e => set('consent_data_use', e.target.checked)} style={{ width: 'auto' }} />
-                <span style={{ fontSize: 13, color: '#999', lineHeight: 1.5 }}>I consent to EthosFi processing my financial data to generate a credit score.</span>
+                <span style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>I consent to EthosFi processing my financial data to generate a credit score.</span>
               </label>
               <label style={{ display: 'flex', gap: 12, cursor: 'pointer' }}>
                 <input type="checkbox" checked={form.consent_ai_decision} onChange={e => set('consent_ai_decision', e.target.checked)} style={{ width: 'auto' }} />
-                <span style={{ fontSize: 13, color: '#999', lineHeight: 1.5 }}>I understand this assessment uses AI, compliant with EU AI Act Article 22, and I have the right to request human review.</span>
+                <span style={{ fontSize: 13, color: C.textSecondary, lineHeight: 1.5 }}>I understand this assessment uses AI, compliant with EU AI Act Article 22, and I have the right to request human review.</span>
               </label>
             </div>
 
