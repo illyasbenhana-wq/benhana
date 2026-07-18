@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>EthosFi — Logo System (Signal Field)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --surface:#F8FAFC;--border:#E2E8F0;--tprimary:#0F172A;--tsecondary:#475569;--tmuted:#94A3B8;--accent:#1D4ED8;
+    --dark:#0B1220;--dtext:#E8ECF4;--dtsec:#9DB0CE;--dborder:#1F2A44;--daccent:#5B8DEF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--surface);color:var(--tprimary);-webkit-font-smoothing:antialiased;line-height:1.5}
+  .wrap{max-width:1200px;margin:0 auto;padding:48px 40px 90px}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:38px;font-weight:600;letter-spacing:-.02em;margin:12px 0 8px}
+  .sub{font-size:17px;color:var(--tsecondary);max-width:820px}
+  .sec{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--tmuted);margin:44px 0 14px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:16px;overflow:hidden}
+  .row{display:grid;gap:16px}
+  .r3{grid-template-columns:repeat(3,1fr)}
+  .r4{grid-template-columns:repeat(4,1fr)}
+  .r2{grid-template-columns:1fr 1fr}
+  .tile{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#fff}
+  .tile .box{min-height:150px;display:flex;align-items:center;justify-content:center;padding:26px}
+  .tile .box.d{background:var(--dark)}
+  .tile .box.a{background:var(--accent)}
+  .tile .box.s{background:var(--surface)}
+  .tile .cap{padding:11px 14px;border-top:1px solid var(--border);font-size:12px;font-weight:600;color:var(--tsecondary)}
+  .tile .cap span{display:block;font-weight:400;color:var(--tmuted);font-size:11px;margin-top:2px}
+  img.asset{display:block}
+
+  /* palette */
+  .sw{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .sw .c{height:74px}
+  .sw .m{padding:10px 12px;font-size:12px}
+  .sw .m b{display:block;font-weight:600}
+  .sw .m span{color:var(--tmuted);font-family:'Inter';font-variant-numeric:tabular-nums}
+
+  /* spec: clearspace / minsize */
+  .spec{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .spec .p{padding:30px;display:flex;align-items:center;justify-content:center;gap:26px}
+
+  /* usage */
+  .siteheader{border:1px solid var(--border);border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:16px 22px}
+  .siteheader nav{display:flex;gap:22px;align-items:center;font-size:13.5px;color:var(--tsecondary);font-weight:500}
+  .siteheader .btn{background:var(--accent);color:#fff;font-size:13px;font-weight:600;padding:8px 15px;border-radius:8px}
+  .slide{aspect-ratio:16/9;background:var(--dark);border-radius:12px;border:1px solid var(--dborder);padding:34px;display:flex;flex-direction:column;justify-content:space-between;color:var(--dtext)}
+  .slide .ey{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--daccent)}
+  .slide h3{font-size:25px;font-weight:600;letter-spacing:-.01em;margin-top:10px;max-width:82%}
+  .slide .foot{font-size:11px;color:var(--dtsec);display:flex;justify-content:space-between}
+  .report{border:1px solid var(--border);border-radius:12px;background:#fff;padding:34px;min-height:340px;display:flex;flex-direction:column}
+  .report .top{display:flex;justify-content:space-between;align-items:flex-start}
+  .report .meta{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tmuted);text-align:right;line-height:1.7}
+  .report .center{margin:auto 0;text-align:left}
+  .report .center .lab{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+  .report .center h3{font-size:30px;font-weight:600;letter-spacing:-.015em;margin-top:8px}
+  .report .center p{font-size:13px;color:var(--tsecondary);margin-top:8px}
+  .report .foot{border-top:1px solid var(--border);padding-top:12px;font-size:10px;color:var(--tmuted);letter-spacing:.04em;display:flex;justify-content:space-between}
+  .note{font-size:13px;color:var(--tsecondary);margin-top:10px;max-width:880px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">EthosFi · Logo System</div>
+  <h1>Signal Field — the EthosFi identity.</h1>
+  <p class="sub">Three points of evidence converging on one illuminated signal. Intelligence lives in the lit nucleus (the only place the accent appears); trust lives in the balanced, engineered geometry. Wordmark set in <b>Archivo SemiBold, +2% tracking</b> — refined and premium, not heavy. One system, working from a 16px favicon to a boardroom slide. All wordmarks ship as outlined vectors (no font dependency).</p>
+
+  <!-- SYMBOL -->
+  <div class="sec">The symbol</div>
+  <div class="row r4">
+    <div class="tile"><div class="box"><img class="asset" src="svg/symbol.svg" width="96" height="96"/></div><div class="cap">Primary<span>On light</span></div></div>
+    <div class="tile"><div class="box d"><img class="asset" src="svg/symbol-dark.svg" width="96" height="96"/></div><div class="cap">Reversed<span>On dark</span></div></div>
+    <div class="tile"><div class="box s"><img class="asset" src="svg/symbol-mono-black.svg" width="96" height="96"/></div><div class="cap">One-color<span>Print / mono</span></div></div>
+    <div class="tile"><div class="box d"><img class="asset" src="svg/symbol-mono-white.svg" width="96" height="96"/></div><div class="cap">One-color reversed<span>Dark print / mono</span></div></div>
+  </div>
+
+  <!-- WORDMARK + LOCKUPS -->
+  <div class="sec">Wordmark &amp; lockups</div>
+  <div class="row r2">
+    <div class="tile"><div class="box"><img class="asset" src="svg/wordmark.svg" width="230"/></div><div class="cap">Wordmark<span>Archivo SemiBold · +2% tracking</span></div></div>
+    <div class="tile"><div class="box"><img class="asset" src="svg/logo-stacked.svg" width="185"/></div><div class="cap">Stacked lockup<span>Covers, centered contexts</span></div></div>
+  </div>
+  <div class="row" style="margin-top:16px">
+    <div class="tile"><div class="box" style="min-height:120px"><img class="asset" src="svg/logo-horizontal.svg" width="330"/></div><div class="cap">Primary horizontal lockup — on light</div></div>
+  </div>
+  <div class="row" style="margin-top:16px">
+    <div class="tile"><div class="box d" style="min-height:120px"><img class="asset" src="svg/logo-horizontal-dark.svg" width="330"/></div><div class="cap">Primary horizontal lockup — on dark</div></div>
+  </div>
+
+  <!-- SECONDARY SIGNATURE -->
+  <div class="sec">Secondary brand signature</div>
+  <div class="row r2">
+    <div class="tile"><div class="box" style="min-height:120px"><img class="asset" src="svg/logo-signature.svg" width="300"/></div><div class="cap">Signature — on light<span>Space Grotesk · custom “O” = Signal Field nucleus</span></div></div>
+    <div class="tile"><div class="box d" style="min-height:120px"><img class="asset" src="svg/logo-signature-dark.svg" width="300"/></div><div class="cap">Signature — on dark<span>Reserved for hero / marketing moments</span></div></div>
+  </div>
+  <p class="note">The signature is a limited-use flourish for covers, campaign headers, and the website hero — where the subtle branded “O” rewards a second look. Everywhere functional (product UI, documents, favicons), use the Archivo primary.</p>
+
+  <!-- APP ICON / FAVICON -->
+  <div class="sec">App icon &amp; favicon</div>
+  <div class="row r4">
+    <div class="tile"><div class="box s"><img class="asset" src="svg/app-icon.svg" width="96" height="96"/></div><div class="cap">App icon<span>Accent tile, safe margins</span></div></div>
+    <div class="tile"><div class="box s"><img class="asset" src="svg/app-icon-dark.svg" width="96" height="96"/></div><div class="cap">App icon — dark<span>Navy tile</span></div></div>
+    <div class="tile"><div class="box"><div style="display:flex;align-items:center;gap:22px"><img class="asset" src="svg/favicon-32.svg" width="32" height="32"/><span style="font-size:11px;color:var(--tmuted)">32px</span></div></div><div class="cap">Favicon @32<span>Nucleus + triad</span></div></div>
+    <div class="tile"><div class="box"><div style="display:flex;align-items:center;gap:22px"><img class="asset" src="svg/favicon-16.svg" width="16" height="16"/><span style="font-size:11px;color:var(--tmuted)">16px</span></div></div><div class="cap">Favicon @16<span>Nucleus only — stays legible</span></div></div>
+  </div>
+
+  <!-- COLOR -->
+  <div class="sec">Color</div>
+  <div class="row r4">
+    <div class="sw"><div class="c" style="background:#1D4ED8"></div><div class="m"><b>Signal Blue</b><span>#1D4ED8 · accent</span></div></div>
+    <div class="sw"><div class="c" style="background:#0F172A"></div><div class="m"><b>Ink</b><span>#0F172A · wordmark</span></div></div>
+    <div class="sw"><div class="c" style="background:#64748B"></div><div class="m"><b>Slate</b><span>#64748B · evidence nodes</span></div></div>
+    <div class="sw"><div class="c" style="background:#0B1220;border-bottom:1px solid var(--dborder)"></div><div class="m"><b>Midnight</b><span>#0B1220 · dark ground</span></div></div>
+  </div>
+  <p class="note">On dark grounds the accent shifts to <b>#5B8DEF</b> and nodes to <b>#8494AC</b> for contrast. The accent is reserved exclusively for the lit nucleus — never applied to the wordmark or evidence nodes.</p>
+
+  <!-- SPEC -->
+  <div class="sec">Clearspace &amp; minimum size</div>
+  <div class="spec">
+    <div class="card"><div class="p">
+      <div style="position:relative;padding:22px;border:1px dashed #CBD5E1;border-radius:10px">
+        <img class="asset" src="svg/logo-horizontal.svg" width="230"/>
+      </div>
+      <div style="font-size:13px;color:var(--tsecondary);max-width:210px">Clearspace = the height of the symbol nucleus on all sides. Keep the lockup free of competing elements.</div>
+    </div></div>
+    <div class="card"><div class="p" style="justify-content:flex-start;gap:34px">
+      <img class="asset" src="svg/logo-horizontal.svg" width="150"/>
+      <div style="font-size:13px;color:var(--tsecondary);max-width:230px">Minimum sizes — horizontal lockup <b>120px</b> / 32mm wide; symbol alone <b>20px</b>; favicon collapses to the nucleus at 16px.</div>
+    </div></div>
+  </div>
+
+  <!-- USAGE -->
+  <div class="sec">Usage · 1 — Enterprise website header</div>
+  <div class="siteheader">
+    <img class="asset" src="svg/logo-horizontal.svg" height="30"/>
+    <nav><span>Platform</span><span>Intelligence</span><span>Explainability</span><span>Security</span><span>Company</span><span class="btn">Request access</span></nav>
+  </div>
+
+  <div class="sec">Usage · 2 — Investor presentation</div>
+  <div class="slide">
+    <img class="asset" src="svg/logo-horizontal-dark.svg" height="30"/>
+    <div>
+      <div class="ey">Decision Intelligence Infrastructure</div>
+      <h3>See the signals others miss. Decide with confidence.</h3>
+    </div>
+    <div class="foot"><span>Investor Overview · 2025</span><span>Confidential</span></div>
+  </div>
+
+  <div class="sec">Usage · 3 — Financial institution report</div>
+  <div class="report">
+    <div class="top">
+      <img class="asset" src="svg/logo-horizontal.svg" height="28"/>
+      <div class="meta">Prepared for · Meridian Capital<br/>Ref · ETH-RA-2025-014<br/>Classification · Confidential</div>
+    </div>
+    <div class="center">
+      <div class="lab">Risk Assessment Report</div>
+      <h3>EthoScore Decision Summary — Meridian SME Ltd</h3>
+      <p>Signals, evidence, and confidence supporting the recommended decision.</p>
+    </div>
+    <div class="foot"><span>EthosFi · Decision Intelligence Infrastructure</span><span>Explainable by design · EU AI Act aligned</span></div>
+  </div>
+
+  <!-- DO / DONT -->
+  <div class="sec">Do &amp; don't</div>
+  <div class="row r2">
+    <div class="tile"><div class="box" style="flex-direction:column;align-items:flex-start;gap:10px;min-height:auto;padding:22px 24px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#059669">Do</div>
+      <div style="font-size:13.5px;color:var(--tsecondary);line-height:1.7">Keep the accent on the nucleus only · maintain clearspace · use the dark lockup on dark grounds · use one-color versions for print/fax/engraving · let the mark sit on calm backgrounds.</div>
+    </div></div>
+    <div class="tile"><div class="box" style="flex-direction:column;align-items:flex-start;gap:10px;min-height:auto;padding:22px 24px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#DC2626">Don't</div>
+      <div style="font-size:13.5px;color:var(--tsecondary);line-height:1.7">Don't recolor the wordmark with the accent · don't rotate, stretch, or restyle the symbol · don't add gradients, shadows, or outlines · don't place on busy imagery without a solid backing · don't swap the typeface.</div>
+    </div></div>
+  </div>
+
+  <p class="note" style="margin-top:26px">Same geometry, one accent, and light/dark parity carry the identity across every surface — from a browser tab to a signed institutional report — so EthosFi reads as one recognizable company, not a concept.</p>
+</div>
+</body>
+</html>
