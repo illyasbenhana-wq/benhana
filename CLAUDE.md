@@ -175,19 +175,50 @@ code, never accept a summary table as proof.**
   Resend key, demo token — all confirmed env-only in production, rotation
   path documented for each.
 
-**⚠️ ACCEPTED/DEFERRED RISK (does not block Phase 3.5 closure):** The
-**test** Supabase project's `anon` and `service_role` JWTs (project ref
-`ehmingbvknavehcjgkou`) were found committed in `supabase_setup.sql`, pushed
-to `origin/main` on GitHub. Confirmed via decoded JWT claims — these are
-TEST project keys only, never production. Rotation via Supabase dashboard
-UI was attempted twice and blocked (legacy key regeneration isn't
-straightforwardly exposed in the current UI for this project). **Risk
-accepted as low**: test project contains only synthetic seed data, fully
-recreatable from committed SQL scripts in minutes, no production impact.
-The file itself has been cleaned going forward (JWTs removed from
-`supabase_setup.sql` in a follow-up commit), but the keys remain visible in
-git history. **Revisit when:** creating a fresh test project becomes
-convenient, or Supabase's UI changes to better expose legacy key rotation.
+**🔴 RESOLVED INCIDENT — corrects this section's original mischaracterization.**
+This was originally logged below as an "accepted/deferred, low-severity" risk
+on the premise that the exposed keys belonged to a separate test project. That
+premise was wrong, and the incident was more serious than recorded at the
+time. Corrected account:
+
+- **What was exposed:** the Supabase `anon` and `service_role` JWTs for
+  project ref `ehmingbvknavehcjgkou`, committed in `supabase_setup.sql` and
+  pushed to `origin/main` on GitHub.
+- **When introduced:** commit `b376c535` ("Fix Next.js build and clean
+  gitignore"), 2026-05-27.
+- **When "cleaned":** commit `50dc210b` ("Phase 3.5.6: Security beyond the
+  audit"), 2026-06-29 — removed the JWTs from the file's current content
+  and logged the risk below as accepted/low-severity, on the belief
+  `ehmingbvknavehcjgkou` was a test-only project distinct from production.
+  Removing them from the file did nothing to git history — both keys
+  remained fully retrievable via `git show b376c535:supabase_setup.sql` by
+  anyone with read access to the repo, the entire time.
+- **When the real severity was understood:** the night of 2026-07-19,
+  during this session's schema-governance audit (prompted by preparing a
+  Phase 4 architectural handoff). Checking the Vercel dashboard for
+  production's `NEXT_PUBLIC_SUPABASE_URL` led to discovering only **one**
+  Supabase project exists in the account — the second ("Germany region")
+  project was empty and has since been deleted. `ehmingbvknavehcjgkou` is
+  not "the test project" — it is, and always was, the only database, and
+  it serves live production traffic (confirmed via `/api/health`). That
+  means **the exposed `service_role` key had full, unauthenticated,
+  RLS-bypassing read/write/delete access to real production data** for the
+  ~7 weeks between introduction and rotation — not synthetic test data as
+  originally recorded.
+- **Resolution:** both keys rotated the same night (new names
+  `ethosfi_prod` / `ethosfi_prod_secret`), updated in Vercel production env
+  vars, redeployed, reconfirmed healthy via `/api/health`
+  (`{"status":"ok","db":"connected"}`). The old keys from `b376c535` are now
+  invalid — the exposure is neutralized, though the raw JWTs remain
+  permanently visible in git history (harmless now that they're dead, but
+  worth knowing history was not rewritten/scrubbed).
+- **Standing gap this incident revealed:** there is currently no real
+  test/production database separation. Every local dev session, every
+  `npm run test:http` run, and this session's own backtest-table migration
+  operated directly against production. See the Phase 4 architectural
+  handoff (schema-governance discussion) for the follow-through plan:
+  rotate (done) → stand up an actual second test project → then resume
+  Phase 4 implementation. Not yet started as of this entry.
 
 **🎉 Phase 3.5 (Production Hardening) is complete — all 6 blocks closed.**
 Per founder/advisor agreement, Phase 4 work may now begin, and a single

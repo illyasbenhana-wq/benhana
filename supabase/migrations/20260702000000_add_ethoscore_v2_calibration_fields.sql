@@ -1,6 +1,13 @@
 -- Additive schema support for EthoScore v2 (Fable 5) calibration prep.
--- NOT applied to any database by Claude. Review, then run manually
--- (Supabase SQL editor or `supabase db push`) when ready.
+--
+-- STATUS: CONFIRMED APPLIED to the live database (project ehmingbvknavehcjgkou)
+-- as of 2026-07-19 — verified via direct information_schema query
+-- (scores.prompt_version / model_requested / model_responded /
+-- confidence_overall all present; workflow_events check constraint
+-- includes 'ethoscore_assessed'). This file was applied manually
+-- (Supabase SQL editor) without updating this header at the time —
+-- do not trust this comment's applied/not-applied status without
+-- re-verifying against the database; trust the database.
 --
 -- Scope, per project rules: additive only. No destructive ALTER, no
 -- renamed/removed columns, no backfill. Existing rows keep these columns
