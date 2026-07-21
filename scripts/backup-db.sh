@@ -26,7 +26,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 mkdir -p "$BACKUP_DIR"
 
 if [ "$ENV" = "test" ]; then
-  DB_URL="postgresql://postgres:${TEST_DB_PASSWORD}@db.ehmingbvknavehcjgkou.supabase.co:5432/postgres"
+  DB_URL="postgresql://postgres:${TEST_DB_PASSWORD}@db.gwvhlemfubmcnbzdarnx.supabase.co:5432/postgres"
   FILENAME="${BACKUP_DIR}/ethosfi_test_${TIMESTAMP}.sql"
 else
   DB_URL="postgresql://postgres:${PROD_DB_PASSWORD}@db.${PROD_SUPABASE_REF}.supabase.co:5432/postgres"

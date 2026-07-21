@@ -37,6 +37,12 @@ export async function POST(
   )
 
   if (result.success === false) {
+    if (result.error === 'Case not found') {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: result.error } },
+        { status: 404 }
+      )
+    }
     return NextResponse.json(
       { error: { code: 'INSERT_FAILED', message: result.error } },
       { status: 500 }

@@ -212,13 +212,49 @@ time. Corrected account:
   invalid — the exposure is neutralized, though the raw JWTs remain
   permanently visible in git history (harmless now that they're dead, but
   worth knowing history was not rewritten/scrubbed).
-- **Standing gap this incident revealed:** there is currently no real
-  test/production database separation. Every local dev session, every
-  `npm run test:http` run, and this session's own backtest-table migration
-  operated directly against production. See the Phase 4 architectural
-  handoff (schema-governance discussion) for the follow-through plan:
-  rotate (done) → stand up an actual second test project → then resume
-  Phase 4 implementation. Not yet started as of this entry.
+- **Standing gap this incident revealed — ✅ CLOSED 2026-07-21.** There was
+  no real test/production database separation. Every local dev session,
+  every `npm run test:http` run, and the backtest-table migration had been
+  operating directly against production. Follow-through plan (rotate →
+  stand up an actual second test project → resume Phase 4) is now complete:
+  - New dedicated test Supabase project created: `gwvhlemfubmcnbzdarnx`
+    (fully separate from production `ehmingbvknavehcjgkou`).
+  - Full schema (`__tests__/setup-test-db.sql`, 17 tables) plus both
+    outstanding migrations (`20260702000000_add_ethoscore_v2_calibration_fields.sql`,
+    `20260719000000_add_backtest_tables.sql`) applied to it and confirmed.
+  - `.env.test` repointed to the new project (still gitignored, never
+    committed). All hardcoded references to the old test ref
+    (`ehmingbvknavehcjgkou`) updated to `gwvhlemfubmcnbzdarnx` across
+    `__tests__/integration/test-helpers.ts` (the `ALLOWED_TEST_PROJECT_REF`
+    safety allowlist), `__tests__/integration/safety-check.test.ts`,
+    `scripts/backup-restore-test.mjs`, `__tests__/run-setup.mjs`, and
+    `scripts/backup-db.sh`.
+  - Full `npm run test:http` suite (23 tests: isolation, RBAC,
+    multi-tenancy) run against the new project with `.env.local` removed
+    from the equation entirely (renamed aside during the run) so there was
+    no possibility of silently falling back to production credentials —
+    all 23 passed.
+  - **A real cross-org isolation bug was caught by this run, not a false
+    positive:** `addComment()` in `lib/case-manager.ts` inserted into
+    `case_comments` tagged with the caller's own `organization_id` but never
+    verified the target `case_id` actually belonged to that org — an Org A
+    API key could attach a comment to Org B's case. Fixed by checking case
+    ownership (`.eq('organization_id', orgId)`) before insert, mirroring the
+    pattern already used in `getCaseContext()`; the route
+    (`app/api/v1/cases/[id]/comments/route.ts`) now returns 404 instead of
+    inserting. The identical latent gap in the unwired `addTask()` was fixed
+    at the same time (not currently reachable via any route, but same bug).
+  - Backup/restore drill (`scripts/backup-restore-test.mjs`) re-run against
+    the new project — passed, real delete-and-restore cycle, counts
+    matched.
+  - Note: this dev machine has unusually high per-request latency in `next
+    dev` (~25–30s baseline, more for AI-calling routes) — `testTimeout` in
+    `vitest.http.config.ts` and `HTTP_TIMEOUT` in
+    `endpoint-isolation.test.ts` were raised from 30s to 120s to
+    accommodate this. This is an environment characteristic observed during
+    this session, not a code change to the app itself — worth
+    re-examining if it turns out to be specific to this machine rather than
+    inherent to the stack.
 
 **🎉 Phase 3.5 (Production Hardening) is complete — all 6 blocks closed.**
 Per founder/advisor agreement, Phase 4 work may now begin, and a single

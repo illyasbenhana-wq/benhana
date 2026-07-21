@@ -43,4 +43,4 @@ const response = await fetch(`${url}/rest/v1/rpc/`, {
 
 console.log('Note: Raw SQL must be run via Supabase SQL Editor.')
 console.log('Copy the contents of __tests__/setup-test-db.sql and paste into:')
-console.log(`${url.replace('.supabase.co', '')}/project/ehmingbvknavehcjgkou/sql/new`)
+console.log(`${url.replace('.supabase.co', '')}/project/gwvhlemfubmcnbzdarnx/sql/new`)

@@ -4,7 +4,7 @@ import path from 'path'
 export default defineConfig({
   test: {
     globals: true,
-    testTimeout: 30000,
+    testTimeout: 120000,
     include: ['__tests__/integration/endpoint-isolation.test.ts'],
     env: Object.fromEntries(
       require('fs').existsSync('.env.test')

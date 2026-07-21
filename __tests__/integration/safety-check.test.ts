@@ -39,6 +39,6 @@ describe('Production safety check', () => {
 
   it('the allowlisted project ref matches the test env URL', () => {
     const url = process.env.TEST_SUPABASE_URL ?? ''
-    expect(url).toContain('ehmingbvknavehcjgkou')
+    expect(url).toContain('gwvhlemfubmcnbzdarnx')
   })
 })

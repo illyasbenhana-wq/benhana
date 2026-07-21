@@ -20,6 +20,14 @@
 -- should be treated as a live exposure, not an accepted low-severity
 -- risk). The backtest tool itself remains dormant/gated
 -- (BACKTEST_ACCESS_TOKEN, unlinked from nav) regardless of this.
+--
+-- ALSO APPLIED to the dedicated test project gwvhlemfubmcnbzdarnx
+-- (created 2026-07-21 specifically to give this project a real,
+-- separate test database) on 2026-07-21, run manually via Supabase
+-- SQL editor immediately after __tests__/setup-test-db.sql and the
+-- calibration-fields migration above. Confirmed successful by the
+-- user in-session. This is the first time backtest_runs/backtest_results
+-- have existed on a database that is not also production.
 
 create table if not exists backtest_runs (
   id uuid primary key default gen_random_uuid(),

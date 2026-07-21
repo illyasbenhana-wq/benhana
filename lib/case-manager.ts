@@ -102,6 +102,16 @@ export async function addComment(
   const supabase = getSupabase()
   if (!supabase) return { success: false, error: 'Database not configured' }
 
+  const { data: caseRow, error: caseErr } = await supabase
+    .from('cases')
+    .select('id')
+    .eq('id', caseId)
+    .eq('organization_id', orgId)
+    .is('deleted_at', null)
+    .single()
+
+  if (caseErr || !caseRow) return { success: false, error: 'Case not found' }
+
   const { data, error } = await supabase
     .from('case_comments')
     .insert({
@@ -127,6 +137,16 @@ export async function addTask(
 ): Promise<{ success: true; task: CaseTask } | { success: false; error: string }> {
   const supabase = getSupabase()
   if (!supabase) return { success: false, error: 'Database not configured' }
+
+  const { data: caseRow, error: caseErr } = await supabase
+    .from('cases')
+    .select('id')
+    .eq('id', caseId)
+    .eq('organization_id', orgId)
+    .is('deleted_at', null)
+    .single()
+
+  if (caseErr || !caseRow) return { success: false, error: 'Case not found' }
 
   const { data, error } = await supabase
     .from('case_tasks')

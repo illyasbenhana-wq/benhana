@@ -9,6 +9,12 @@
 -- do not trust this comment's applied/not-applied status without
 -- re-verifying against the database; trust the database.
 --
+-- ALSO APPLIED to the dedicated test project gwvhlemfubmcnbzdarnx
+-- (created 2026-07-21 to replace the mistaken ehmingbvknavehcjgkou
+-- test/prod dual-use) on 2026-07-21, run manually via Supabase SQL
+-- editor immediately after __tests__/setup-test-db.sql. Confirmed
+-- successful by the user in-session.
+--
 -- Scope, per project rules: additive only. No destructive ALTER, no
 -- renamed/removed columns, no backfill. Existing rows keep these columns
 -- NULL, which means "scored under v1" (the pre-existing behavior).

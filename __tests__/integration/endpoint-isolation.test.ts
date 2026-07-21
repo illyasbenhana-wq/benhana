@@ -17,7 +17,7 @@ import {
  */
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3847'
-const HTTP_TIMEOUT = 30000
+const HTTP_TIMEOUT = 120000
 const supabase = getTestSupabase()
 
 let orgAKey: string
@@ -28,7 +28,7 @@ let serverRunning: boolean | null = null
 async function requireServer(): Promise<void> {
   if (serverRunning === null) {
     try {
-      await fetch(`${BASE_URL}/api/demo-data`, { signal: AbortSignal.timeout(3000) })
+      await fetch(`${BASE_URL}/api/demo-data`, { signal: AbortSignal.timeout(HTTP_TIMEOUT) })
       serverRunning = true
     } catch {
       serverRunning = false

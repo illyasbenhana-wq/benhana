@@ -7,7 +7,9 @@ const TEST_URL = process.env.TEST_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABA
 const TEST_SERVICE_KEY = process.env.TEST_SUPABASE_SERVICE_KEY ?? process.env.SUPABASE_SERVICE_KEY ?? ''
 
 // SAFETY: allowlist approach — only the test project ref is permitted
-const ALLOWED_TEST_PROJECT_REF = 'ehmingbvknavehcjgkou'
+// gwvhlemfubmcnbzdarnx (2026-07-21) — ehmingbvknavehcjgkou was retired as the
+// test ref after it was found to be the production project (see CLAUDE.md).
+const ALLOWED_TEST_PROJECT_REF = 'gwvhlemfubmcnbzdarnx'
 
 export function getTestSupabase() {
   if (!TEST_URL || !TEST_SERVICE_KEY) {

@@ -22,7 +22,7 @@ const url = env.TEST_SUPABASE_URL
 const key = env.TEST_SUPABASE_SERVICE_KEY
 
 // SAFETY: only the test project
-if (!url?.includes('ehmingbvknavehcjgkou')) {
+if (!url?.includes('gwvhlemfubmcnbzdarnx')) {
   console.error('FATAL: this script only runs against the test project')
   process.exit(1)
 }
