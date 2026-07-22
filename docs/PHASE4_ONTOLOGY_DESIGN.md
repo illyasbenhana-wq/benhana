@@ -151,3 +151,170 @@ No table definitions, no SQL, no migration files exist yet — this is
 deliberately conceptual. Translating §2 into actual `CREATE TABLE`
 statements is future additive work, once §3's open questions are
 resolved and the test project (§4) is live to build against safely.
+
+---
+
+## 6. Organization/counterparty split — table shapes (2026-07-22)
+
+**Decision on §3 open question 1: split, not a role flag.** Two separate
+types: `organizations` stays tenant-only (unchanged shape — no migration
+needed on it at all); a new table holds the counterparty side. The test
+project (§4) is now live and wired up, so this is concrete enough to
+become a migration when approved — still design-only for now, per this
+session's instruction.
+
+### 6.1 Naming: `counterparties`, not `Entity`
+
+`Entity` was on the table as an option but I'm recommending against it,
+for a reason specific to this schema rather than taste:
+
+- `workflow_events` already has `entity_type` / `entity_id` as its
+  **generic polymorphic reference to any ontology object** (`application`
+  or `case` today, more as the ontology grows). The edge table proposed
+  below (§6.3) needs the same generic polymorphic pattern for its
+  `from_type`/`to_type` columns.
+- Naming the new *specific* counterparty table `entities` while `entity_type`
+  already means *"any node in the ontology, whatever kind"* creates a
+  standing collision — every future reader has to remember that "entity"
+  means two different things depending on which table they're looking at.
+- `counterparties` is also just domain-accurate: the case seed data's own
+  narratives already use the word ("two counterparties... previously
+  flagged in unrelated structuring investigations" — `INV-1038`), and the
+  AML/compliance context this table exists for is exactly counterparty
+  risk, not generic entities.
+
+Type name in the ontology: **Counterparty**. Table name: **`counterparties`**.
+
+Note: this is distinct from **Person** (§2.1, still open per §3 question 2).
+`Counterparty` is for company/organization-shaped non-tenant parties
+(e.g. "Meridian Capital Ltd"); `Person` is for individual humans (UBOs,
+PEPs, applicants). Not resolving Person's backfill question here — see
+§6.4 for how edges can reference `person` as a type before that table
+exists.
+
+### 6.2 `counterparties`
+
+```sql
+CREATE TABLE counterparties (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at      TIMESTAMPTZ,
+
+  -- Tenant scope — non-negotiable per CLAUDE.md principle 3. A counterparty
+  -- record is *who Tenant A is investigating*, not a shared directory —
+  -- two tenants independently tracking "Meridian Capital Ltd" get two
+  -- separate rows, never one shared row. Leaking counterparty intel across
+  -- tenants would be a real competitive/confidentiality problem, not just
+  -- a modeling nicety.
+  organization_id UUID NOT NULL REFERENCES organizations(id),
+
+  name                TEXT NOT NULL,
+  jurisdiction        TEXT,
+  registration_number TEXT,               -- company reg #, often unknown at case-open time
+
+  -- How this record entered the graph — traceability, not enforcement.
+  source TEXT NOT NULL DEFAULT 'case_investigation'
+    CHECK (source IN ('case_investigation', 'application_borrower', 'manual', 'external_feed')),
+
+  risk_rating TEXT CHECK (risk_rating IN ('low', 'medium', 'high', 'critical')),
+
+  metadata JSONB NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX ON counterparties(organization_id);
+-- Soft per-tenant dedup, not global — see tenant-scope note above.
+CREATE UNIQUE INDEX ON counterparties(organization_id, name) WHERE deleted_at IS NULL;
+```
+
+### 6.3 Referencing from existing `cases` / `applications`
+
+Extend, don't replace: add a nullable FK, keep the existing text field.
+
+```sql
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS counterparty_id UUID REFERENCES counterparties(id);
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS counterparty_id UUID REFERENCES counterparties(id);
+```
+
+- `cases.entity_name` (existing free text) is untouched — old rows stay as
+  they are, no backfill. New cases can populate both `entity_name` (display)
+  and `counterparty_id` (graph edge target).
+- `applications.counterparty_id` is nullable and, realistically, rarely
+  populated today — the table's shape (`employment_type`,
+  `gig_platforms`, etc.) is consumer-lending-oriented, not business-entity
+  oriented. It exists for the business-loan case §2.1 already called out
+  ("edges to Organization (if a business loan)" — now Counterparty).
+
+### 6.4 Edge tables (§2.2) — one generic `ontology_edges` table
+
+The decided engine is Postgres edge tables via recursive CTEs (§3.3,
+already decided), so the question is one generic edge table vs. one table
+per relationship type. Recommendation: **one generic table**, mirroring
+the polymorphic pattern `workflow_events` already established in this
+schema — consistent with "extend, don't replace" (new edge types are a
+`CHECK` constraint update, not a new table) and avoids seven near-identical
+join tables for what's structurally the same shape.
+
+Trade-off, stated plainly: polymorphic `from_id`/`to_id` can't carry a
+real FK constraint (the referenced table varies by `from_type`), so
+referential integrity here is enforced at the application layer, not the
+database — the same trade-off `workflow_events.entity_id` already accepted
+in this codebase, not a new risk being introduced.
+
+```sql
+CREATE TABLE ontology_edges (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+
+  organization_id UUID NOT NULL REFERENCES organizations(id),  -- tenant scope, non-negotiable
+
+  edge_type TEXT NOT NULL CHECK (edge_type IN (
+    'owns',             -- Person -> Counterparty | Counterparty -> Counterparty (use weight = ownership %)
+    'related_to',       -- Person -> Person (family / PEP linkage)
+    'counterparty_of',  -- Counterparty -> Counterparty (transaction relationship)
+    'references',       -- Application -> Counterparty (borrowing entity)
+    'investigates',     -- Case -> Counterparty | Person
+    'relates_to',       -- Case -> Application (closes the §1 applications/cases gap)
+    'assessed',         -- Score -> Application
+    'acts_on'           -- Decision -> Score
+  )),
+
+  from_type TEXT NOT NULL CHECK (from_type IN ('person', 'counterparty', 'application', 'case', 'score', 'decision')),
+  from_id   UUID NOT NULL,
+  to_type   TEXT NOT NULL CHECK (to_type IN ('person', 'counterparty', 'application', 'case', 'score', 'decision')),
+  to_id     UUID NOT NULL,
+
+  weight    NUMERIC,   -- e.g. ownership % for 'owns'; nullable, most edge types are unweighted
+  rationale TEXT,       -- human-readable evidence, e.g. "32% UBO stake per Companies House filing"
+  actor_id  TEXT,        -- who/what asserted this edge — mirrors workflow_events.actor_id
+  metadata  JSONB NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX ON ontology_edges(organization_id);
+CREATE INDEX ON ontology_edges(from_type, from_id);
+CREATE INDEX ON ontology_edges(to_type, to_id);
+CREATE INDEX ON ontology_edges(edge_type);
+```
+
+`from_type`/`to_type` include `'person'` even though the `Person` table
+doesn't exist yet (§3 question 2, still open) — that's fine at the schema
+level, the same way `workflow_events.entity_type` already tolerates types
+without full referential enforcement. No edge should actually be written
+with `from_type = 'person'` or `to_type = 'person'` until Person is
+resolved; that's an application-layer rule, not a schema one.
+
+### 6.5 What's still not decided
+
+- Person table shape and backfill (§3 question 2) — unchanged, still open.
+- Whether `counterparties` needs its own `case_actions`/`comments`-style
+  workflow tables, or whether investigation activity on a counterparty
+  stays modeled through the `Case` it's linked to via `investigates` — not
+  addressed here, worth a follow-up if counterparties start accumulating
+  their own standalone activity outside any case.
+- Migration filename/sequencing when this is approved:
+  `supabase/migrations/<timestamp>_add_ontology_counterparty_and_edges.sql`,
+  applied to `ethosfi-test` (`gwvhlemfubmcnbzdarnx`) first per the
+  established gate, verified there before any production path is even
+  discussed.
