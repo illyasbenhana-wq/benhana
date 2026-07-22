@@ -308,6 +308,18 @@ resolved; that's an application-layer rule, not a schema one.
 ### 6.5 What's still not decided
 
 - Person table shape and backfill (§3 question 2) — unchanged, still open.
+  **Scope note added 2026-07-22:** when Person is eventually designed, it
+  must not be scoped as "AML counterparty individuals only" (UBOs, PEPs,
+  directors). `lib/investigation-demo.ts`'s Fatima Okoye case
+  (`INV-1052`) — positive credit scoring for a thin-file/gig-income
+  applicant, not an AML investigation — is a core part of EthosFi's
+  differentiation (financial inclusion, not just risk detection), and it
+  was deliberately excluded from the §6.6 counterparty backfill below
+  because "counterparty" is the wrong concept for an applicant. Person
+  needs to represent *both* investigated individuals (UBOs, PEPs,
+  directors — see §6.6) *and* applicants like Fatima, or the graph will
+  structurally only ever reflect risk/AML cases and miss the
+  inclusion-side use cases EthosFi is meant to also serve.
 - Whether `counterparties` needs its own `case_actions`/`comments`-style
   workflow tables, or whether investigation activity on a counterparty
   stays modeled through the `Case` it's linked to via `investigates` — not
@@ -318,3 +330,49 @@ resolved; that's an application-layer rule, not a schema one.
   applied to `ethosfi-test` (`gwvhlemfubmcnbzdarnx`) first per the
   established gate, verified there before any production path is even
   discussed.
+
+### 6.6 Status: applied and backfilled on `ethosfi-test` (2026-07-22)
+
+The migration in §6.2–§6.4 was applied to `ethosfi-test`
+(`gwvhlemfubmcnbzdarnx`) and verified (FK enforcement, per-tenant unique
+dedup, edge-type/from-type/to-type CHECK constraints, `updated_at`
+trigger — all confirmed against real inserts, then rolled back). See
+`supabase/migrations/20260722000000_add_ontology_counterparty_and_edges.sql`.
+**Not applied to production.**
+
+The five AML demo cases from `lib/investigation-demo.ts` (Meridian Capital
+Ltd, Vega Trade Finance, Nakamura Holdings, Atlas Logistics Co, Elara
+Commodities) were backfilled onto `ethosfi-test` as real rows, sourced
+field-for-field from the dossier data already validated on Screen 2 (not
+re-derived from `supabase_setup.sql`'s older, differently-shaped case
+data):
+
+- **11 `counterparties` rows** — the 5 case subjects plus 6
+  referenced-only entities from each dossier's `connectedEntities`
+  ("Parent"/"Counterparty" relations): Apex Holdings, Gulf Bridge FZE,
+  Nakamura Estate KK, Lion City Ventures Pte, Lagos Freight Partners, Zug
+  Metals AG.
+- **5 `cases` rows**, each with `counterparty_id` linked to its subject.
+- **12 `ontology_edges`**: 5 `case --investigates--> counterparty`, 2
+  `counterparty --owns--> counterparty` (parent relations, weight left
+  null — the dossiers never state an ownership %), 5
+  `counterparty --counterparty_of--> counterparty` (transaction/linked
+  relations).
+- **Deliberately not modeled as edges** — flagged during design review
+  rather than forced:
+  - Five "Director" relations (J. Hartwell, A. Farouk, P. Okafor, H.
+    Meier) — a director isn't necessarily an owner (`owns` implies
+    equity) and isn't a person-to-person link (`related_to`); the real
+    fix is a `Person` entity plus a future `officer_of` edge type, both
+    out of scope here.
+  - Nakamura Holdings' UBO/PEP relationship (32% stake via a family
+    member of a sitting cabinet minister) — this is exactly the
+    `Person --owns--> Counterparty` / `Person --related_to--> Person`
+    edge pair that §6.4's own migration comments say not to write until
+    Person is resolved. Represented instead as structured `metadata` on
+    the Nakamura Holdings `counterparties` row
+    (`{"pep_exposure": true, "ubo_note": "..."}`)  — queryable as data,
+    explicitly not a graph edge, so nothing pretends this is real graph
+    traversal before Person exists.
+- Fatima Okoye (`INV-1052`) intentionally excluded from this backfill —
+  see the Person scope note above (§6.5).
