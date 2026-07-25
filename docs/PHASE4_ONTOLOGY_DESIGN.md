@@ -376,3 +376,242 @@ data):
     traversal before Person exists.
 - Fatima Okoye (`INV-1052`) intentionally excluded from this backfill —
   see the Person scope note above (§6.5).
+
+---
+
+## 7. Person entity — table shape (design draft, 2026-07-22)
+
+Resolves §3 question 2 / §6.5's scope note. Design-only, per this
+session's instruction — no migration yet, same pattern as §6 before it
+was implemented.
+
+### 7.1 One type, not a split — and why that's a different call than §6
+
+§6 split `Organization` into `Organization` (tenant) vs `Counterparty`
+because of a concrete hazard: a counterparty inheriting tenant-level RBAC
+permissions. **That hazard doesn't have an equivalent here.** Neither an
+applicant nor a UBO/PEP is ever an `organization_members` row — a
+`Person` node, in either context, is never a login, never holds a role,
+never gets granted access to anything. There's no permission-inheritance
+risk to design around, so the reason that forced a split in §6 simply
+isn't present for Person.
+
+More positively: a single type is what makes the ontology's actual value
+possible. If "applicant Person" and "risk Person" were separate tables, a
+real cross-referencing question this graph exists to answer — *"is this
+loan applicant also a UBO flagged in another case?"* — would require
+joining two structurally identical tables that happen to have different
+names, instead of being a one-hop edge traversal. A human doesn't stop
+being one person because they show up in two different contexts.
+
+Per Architecture Principle 1 (ontology-first: *"what does it relate to,
+who can act on it"*), the correct framing is that **role is relational,
+not a property of the entity.** Whether a `Person` row represents "an
+applicant," "a UBO," or both, is expressed entirely by which edges point
+at it (`Application.applicant_person_id`, an `owns`/`related_to` edge in
+`ontology_edges`) — never by a type flag on the row itself. That also
+means a person who applies for a loan under one tenant's case and is
+later flagged as a UBO under a (possibly different) tenant's
+investigation is representable as the same node with two roles, which is
+exactly the kind of insight a real entity graph is supposed to surface —
+not something to architect away by splitting the table.
+
+### 7.2 `persons`
+
+```sql
+CREATE TABLE persons (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at      TIMESTAMPTZ,
+
+  -- Tenant scope, non-negotiable — same rationale as counterparties (§6.2):
+  -- an applicant's identity under Tenant A and a UBO's identity under
+  -- Tenant B are both confidential to that tenant, not a shared directory.
+  organization_id UUID NOT NULL REFERENCES organizations(id),
+
+  full_name    TEXT NOT NULL,
+  email        TEXT,
+  jurisdiction TEXT,   -- nationality/country of primary association; nullable, relevant to both contexts
+
+  -- How this Person entered the graph — mirrors counterparties.source exactly.
+  source TEXT NOT NULL DEFAULT 'manual'
+    CHECK (source IN ('application_borrower', 'case_investigation', 'manual', 'external_feed')),
+
+  metadata JSONB NOT NULL DEFAULT '{}'
+);
+
+CREATE INDEX ON persons(organization_id);
+```
+
+**Deliberately no unique-name index**, unlike `counterparties`
+(§6.2's `(organization_id, name)` unique index). Two different humans
+sharing a name (two applicants both named "John Smith" at the same
+tenant) is far more likely than two companies sharing a name, and a
+unique constraint would silently force a false identity merge — a much
+worse failure mode here than the duplicate-row risk it would prevent.
+Real identity resolution (same person referenced twice — via DOB,
+national ID, fuzzy name matching) is a genuinely hard, separate problem,
+explicitly out of scope for this table shape and not something to fake
+with a name-uniqueness shortcut.
+
+**Deliberately minimal** — no `is_applicant`/`is_pep`/role columns (role
+is relational, §7.1), no KYC-specific fields beyond what both contexts
+already share. `metadata JSONB` is the extension point for
+context-specific detail that doesn't yet warrant its own column, same
+pattern as `counterparties.metadata`.
+
+### 7.3 Referencing from `applications` and `ontology_edges`
+
+```sql
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS applicant_person_id UUID REFERENCES persons(id);
+```
+
+- `applications.full_name`/`.email` (existing) are untouched — extend,
+  don't replace, no backfill. New applications can populate both the
+  existing text fields (display) and `applicant_person_id` (graph edge
+  target).
+- **`ontology_edges` needs no schema change at all.** `from_type`/`to_type`
+  already accept `'person'` (§6.4's CHECK constraint was written
+  anticipating exactly this) — that constraint just stops being
+  theoretical once `persons` exists to back those IDs. `owns` and
+  `related_to` edges (Nakamura's UBO/PEP relationship, §6.6) become
+  writable the moment this table exists; no edge-table migration needed.
+
+### 7.4 Existing data — not migrated by this design, scoped as follow-ups
+
+Consistent with how `counterparty_id` backfill was handled in §6 (no
+backfill of pre-existing rows, forward population only): this design does
+not migrate existing data. Two distinct follow-ups, to be scoped and
+confirmed separately when asked for, same "hold here" pattern as before:
+
+1. **Nakamura's UBO/PEP metadata → real Person + edges.** Currently
+   `{"pep_exposure": true, "ubo_note": "..."}` on the Nakamura Holdings
+   `counterparties` row (§6.6). Once `persons` exists, this becomes: a
+   `persons` row for the UBO (name not currently captured anywhere —
+   the dossier only says "a first-degree family member of a current
+   Japanese cabinet minister," not a name; `connectedEntities` lists "K.
+   Nakamura" as the UBO field, which may or may not be that family
+   member specifically — this ambiguity needs resolving with real data
+   before writing the row, not guessed), a `Person --owns--> Counterparty`
+   edge (weight = 32), and ideally a `Person --related_to--> Person` edge
+   for the minister linkage (second person, also unnamed in the dossier).
+   The counterparty `metadata` field should stay as a human-readable
+   fallback even after this, not be deleted — it's the audit-trail
+   explanation for why the edges exist.
+2. **`applications.full_name` → `persons` backfill.** Unlike the AML
+   cases (all newly-created rows this session), `ethosfi-test` already
+   has pre-existing `applications` rows (Alice/Bob/Carol Alpha, Dave
+   Beta, from `setup-test-db.sql`'s seed) that would need
+   `applicant_person_id` populated retroactively for this to be more than
+   forward-only. This is real backfill work with real risk (matching text
+   names to new Person rows correctly), not a byproduct of adding the
+   column — scope it as its own project when it's actually needed, don't
+   bundle it into "add the Person table," per the same caution §3
+   originally flagged for this exact question.
+
+### 7.5 Naming
+
+`persons`, not `people`. Both are valid English plurals; `persons` is the
+term already implicit in this document's own vocabulary (`Person` as the
+type name, KYC/AML terms like PEP and UBO are themselves
+compliance-domain language for "a person entity") and avoids `people`
+reading as a collective/group noun in schema contexts. Not a load-bearing
+decision either way — flag if you'd prefer `people` for consistency with
+`counterparties`' plain-English pluralization.
+
+### 7.6 Backfill plan — `applications` → `persons` (design draft, 2026-07-22)
+
+Design-only, per this session's instruction — moving at a measured pace,
+not implementing yet. Grounded in `ethosfi-test`'s actual current data,
+not a hypothetical: `applications` currently has **7 rows, not the clean
+4 from the original seed** (Alice/Bob/Carol Alpha, Dave Beta) — three are
+literal duplicates: `Isolation Test Applicant` /
+`isolation-test@example.com`, same org (`aaaaaaaa-...`), created by the
+HTTP isolation test suite's POST test across three separate runs earlier
+this session. This turns out to be a genuinely useful, if accidental,
+rehearsal input for question 1 below.
+
+**1. Mapping `full_name`/`email` → a `persons` row — dedup key.**
+Recommend keying on **`(organization_id, lower(email))`**, not name.
+Email is the stronger identity signal — two real humans sharing a name is
+common (two different "Alice Smith"s at the same tenant is entirely
+plausible), sharing an exact email is much less likely outside genuine
+duplicates. Under this key, `ethosfi-test`'s real data resolves to **5
+`persons` rows**, not 7: Alice Alpha, Bob Alpha, Carol Alpha, Dave Beta
+(each with a distinct org/email, one row each), and **one**
+`Isolation Test Applicant` row shared by all three duplicate
+`applications` rows.
+
+That last collapse is the honest, slightly uncomfortable answer to "could
+duplicates exist even in this small dataset": **yes, confirmed, not
+hypothetical** — but note what kind of duplicate this actually is. These
+three rows aren't three real people who happen to share contact details;
+they're test-harness noise, the same fixture re-inserted three times by
+re-running the same test. The `(org, email)` key can't tell the
+difference between "this is genuinely the same applicant reapplying" and
+"this is a test artifact" — it only sees identical email + org and
+correctly collapses them either way. That's not a flaw in the key, it's
+the honest limit of what identity resolution from `(name, email)` alone
+can ever tell you (same limit already noted in §7.2 re: no unique-name
+index — full identity resolution needs more signals: DOB, national ID,
+phone). For this specific dataset the collapse happens to be correct by
+coincidence (all three *should* map to one node, since they're not real
+distinct applicants); a real production backfill won't have this
+convenient coincidence and needs to be designed knowing the key can be
+wrong in both directions (splitting one real person into two rows on a
+typo'd email, or merging two different real people who happen to share
+one).
+
+**2. Backfilling `applicant_person_id` — same effort, separate migration
+file.** Recommend doing both steps (create `persons` rows, then set
+`applications.applicant_person_id`) as one combined backfill operation —
+splitting "create the person" from "point the application at it" would be
+arbitrary, since an orphaned `persons` row with nothing referencing it
+accomplishes nothing on its own; the FK update *is* the deliverable.
+But: keep this backfill **script/migration separate from §7.3's schema
+migration** (the `ALTER TABLE ... ADD COLUMN applicant_person_id`), the
+same way §6's counterparty schema and its later demo-data backfill
+(§6.6) were two separate commits, not one. Reasoning holds identically
+here: a schema-only change can be rolled back cleanly without also having
+to reverse data mutations; bundling them removes that option for no
+benefit.
+
+**3. Is `ethosfi-test` a fair rehearsal for this?** Partially — worth
+being explicit about what does and doesn't carry over:
+
+*Does carry over:* the mechanical logic (dedup-key grouping, upsert
+persons, update applications), the FK/constraint behavior, the
+multi-tenancy scoping discipline, and the "verify on ethosfi-test before
+production" process itself — none of that depends on data realism.
+
+*Doesn't carry over, and would need separate consideration before a real
+backfill:*
+- **Volume.** 7 rows here vs. a real production `applications` table —
+  batch size, transaction duration, and index lock contention on a live
+  table are untested by this rehearsal at any scale.
+- **Duplicate *character*, not just duplicate *existence*.** This
+  dataset's duplicates are clean, exact-match test-harness artifacts
+  (identical string down to the character). Real duplicates come from
+  actual human behavior — typo'd emails, a work vs. personal email for
+  the same person, "Alice J Alpha" vs "Alice Alpha" — messier than an
+  exact-match key can resolve. A real backfill likely needs email
+  normalization (`lower(trim(email))` at minimum) and probably a manual
+  review queue for near-misses, neither of which this rehearsal exercises
+  since the test data doesn't need it.
+- **PII handling discipline.** Test data has no real confidentiality
+  requirement; a backfill script written loosely against it (e.g.
+  logging names/emails to stdout for debugging) would be a real problem
+  if that habit carried into a script run against actual applicant PII.
+  Worth writing the real script assuming it'll be reviewed under that
+  standard from the start, not adding scrubbing after the fact.
+- **Downstream referential depth.** Production applications likely carry
+  more attached history (`scores`, `decisions`, `workflow_events`) per
+  row than this test dataset does — this rehearsal doesn't stress-test
+  whether the backfill script behaves correctly when an application has
+  substantial related data attached.
+
+Net: worth doing as a rehearsal for the *mechanics*, not as evidence the
+real backfill is low-risk. The real one needs its own explicit risk pass
+when it's actually scheduled, not an assumption that "we already tested
+this on ethosfi-test."

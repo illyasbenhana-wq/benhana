@@ -22,6 +22,11 @@ advisors.
 | **Workflow Orchestration** | Case management, approval chains, document workflows |
 | **Multi-party Collaboration** | SMEs, lenders, advisors, partners on one platform |
 
+> Long-term direction beyond the current CDFI-focused roadmap (partnership
+> vs. acquisition shape, condition-gated on real traction) is captured in
+> `docs/LONG_TERM_VISION.md` — reference-only, not a current priority. Do
+> not propose, scope, or build anything from it without explicit instruction.
+
 Do not implement generic features. Every feature must map to one of these
 four pillars.
 
