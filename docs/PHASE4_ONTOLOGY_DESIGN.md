@@ -616,6 +616,29 @@ real backfill is low-risk. The real one needs its own explicit risk pass
 when it's actually scheduled, not an assumption that "we already tested
 this on ethosfi-test."
 
+### 7.7 Status: applied and backfilled on `ethosfi-test` (2026-07-27)
+
+The migration in §7.2–§7.3 was applied to `ethosfi-test`
+(`gwvhlemfubmcnbzdarnx`) and verified (FK enforcement, the deliberate
+*absence* of a unique-name constraint — confirmed two rows can share a
+`full_name` within the same org, per §7.2's reasoning — `source` CHECK
+constraint, `updated_at` trigger, and `ontology_edges` accepting
+`from_type`/`to_type = 'person'` with no schema change, exactly as §7.3
+predicted). See
+`supabase/migrations/20260727000000_add_persons.sql`. **Not applied to
+production.**
+
+The §7.6 backfill plan was then run exactly as designed, against
+`ethosfi-test`'s real (still 7-row) `applications` table — the numbers
+matched the design doc's prediction exactly, not just directionally:
+**5 `persons` rows created, all 7 `applications` rows linked via
+`applicant_person_id`**, and the three `Isolation Test Applicant`
+duplicates (test-harness artifacts from repeated `test:http` runs, see
+§7.6) correctly collapsed into a single `persons` row under the
+`(organization_id, lower(email))` key, as anticipated. Verified via a
+direct read-back: 5/5 persons, 7/7 applications with `applicant_person_id`
+set, 0 orphans.
+
 ---
 
 ## 8. Future workstreams (design/reference only, 2026-07-27)
@@ -626,16 +649,15 @@ thinking isn't lost, not queued as active work. Pick up whichever one
 becomes relevant, independently of the other two; they don't depend on
 each other.
 
-### 8.1 Person entity implementation
+### 8.1 Person entity implementation — ✅ schema + backfill done 2026-07-27
 
 §7 already designed the `persons` table shape, the single-type-not-a-split
 reasoning, the `applications`/`ontology_edges` wiring, and the backfill
-plan (§7.6). What's left is purely technical execution: the migration
-itself (mirroring §6's pattern — schema first, verified on `ethosfi-test`,
-backfill as a separate follow-up commit) plus whatever UI wiring surfaces
-`persons` data (e.g. a "connected entities" view resolving real edges
-instead of `lib/investigation-demo.ts`'s static `connectedEntities`
-mock).
+plan (§7.6). The migration and backfill are now done — see §7.7 for the
+verified result. **What's left is UI wiring only**: surfacing `persons`
+data in the product (e.g. a "connected entities" view resolving real
+`ontology_edges` instead of `lib/investigation-demo.ts`'s static
+`connectedEntities` mock).
 
 **This does not depend on any external input** — no partner, no CDFI
 data, no business decision is needed to build it. It's ready to build
