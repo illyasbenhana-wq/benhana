@@ -292,27 +292,59 @@ new key issued same day.
 - **⚠️ New key expires in 30 days (~2026-08-26).** Rotate again before
   then or scoring will silently fall back to mock data again, the same
   way it apparently already was.
-- **Second, separate exposure found while investigating Vercel env
-  vars, not yet remediated — flagged, not fixed, pending explicit
-  instruction:** two Vercel env vars have actual secret *values* sitting
-  in the variable **name** field, not the value field: one
-  Supabase publishable-format key and one Supabase secret-format key.
-  **Values deliberately not written into this file** — unlike a value,
-  a Vercel env var *name* is always visible in plaintext to anyone with
-  project access (`vercel env ls`, dashboard) regardless of encryption,
-  so writing the actual value here would just create a second copy of
-  the same exposure, this time committed to git history permanently
-  (exactly the mistake the JWT incident above already covers). The
-  secret-format one **is the current, live production Supabase
-  `SUPABASE_SERVICE_KEY`** (confirmed by direct comparison against
-  `.env.local` at the time this was found) — meaning the live production
-  service_role key is currently sitting exposed in plaintext as a Vercel
-  variable name, most likely from a past `vercel env add` where a secret
-  value was pasted into the name prompt by mistake. This was not in scope
-  for the Anthropic rotation and has not been touched — needs its own
-  decision
-  (rotate this Supabase key again, and delete both malformed env var
-  entries) before it can be marked resolved.
+- **Second, separate exposure found while investigating Vercel env vars —
+  corrected account below; an earlier draft of this entry contained a
+  wrong claim, caught and fixed before being trusted further.** Two Vercel
+  env vars have actual secret *values* sitting in the variable **name**
+  field, not the value field: one Supabase publishable-format key
+  (`sb_publishable_...`, paired value empty — low severity, publishable
+  keys are meant to be public-safe by design) and one Supabase
+  secret-format key (`sb_secret_...`, paired value the literal string
+  `"ethosfi_prod_secret2"` — name and value clearly swapped: that string
+  is an obvious human-chosen label matching this incident's own
+  `ethosfi_prod`/`ethosfi_prod_secret` naming convention, while the
+  `sb_secret_...` string in the name field is obviously a real key).
+  **Values deliberately not written into this file** — unlike a value, a
+  Vercel env var *name* is always visible in plaintext to anyone with
+  project access (`vercel env ls`, dashboard) regardless of encryption, so
+  writing the actual value here would just create a second copy of the
+  same exposure, this time committed to git history permanently (exactly
+  the mistake the JWT incident above already covers).
+  - **First draft of this finding wrongly claimed** the secret-format one
+    "is the current, live production `SUPABASE_SERVICE_KEY`" — that was
+    based on comparing a stale local `vercel env pull` snapshot
+    (`.env.prod-check`, ~7 weeks old) against current `.env.local`,
+    without checking live Vercel state. Wrong methodology, wrong
+    conclusion — caught before being acted on.
+  - **Verified account, via direct authenticated requests to production
+    Supabase (not file comparison):** both the properly-named
+    `SUPABASE_SERVICE_KEY` (the one the app actually uses) *and* the
+    exposed `ethosfi_prod_secret2` key independently returned HTTP 200
+    against `ehmingbvknavehcjgkou`. **Two separate, simultaneously-valid,
+    full-access production secret keys existed at the same time** — not
+    one key exposed twice. The exposed one was confirmed unreferenced
+    anywhere in the codebase (`grep`, zero hits) — a live, unused,
+    forgotten credential from an apparent incomplete second key-rotation
+    attempt, sitting exposed by name.
+  - **Remediation, 2026-07-27:** both malformed Vercel env var entries
+    deleted (`vercel env rm`), confirmed gone via `vercel env ls`.
+    Production re-verified healthy after removal (`/api/health` →
+    `{"status":"ok","db":"connected"}`) — the removed var was unreferenced
+    by any code path, so no functional impact, no redeploy required.
+    **The `ethosfi_prod_secret2` key itself still needs to be revoked on
+    the Supabase dashboard** (Project Settings → API Keys) — this requires
+    manual action; there is no Supabase Management API token or dashboard
+    access available to do it from this environment. Until that's done,
+    the key is deleted from Vercel but still technically valid if anyone
+    retained a copy of the value from before this fix.
+  - **✅ RESOLVED, 2026-07-27, same day.** The `ethosfi_prod_secret2` key
+    was revoked on the Supabase dashboard. Re-tested the same direct
+    authenticated request that earlier confirmed it live — now returns
+    HTTP 401 (dead). `/api/health` re-confirmed healthy after revocation
+    (`{"status":"ok","db":"connected"}`) — the app's real key
+    (`SUPABASE_SERVICE_KEY`) was never touched, so this closes cleanly
+    with no impact to the running application. Both the Vercel-side
+    exposure and the underlying live credential are now fully closed.
 
 **🎉 Phase 3.5 (Production Hardening) is complete — all 6 blocks closed.**
 Per founder/advisor agreement, Phase 4 work may now begin, and a single
