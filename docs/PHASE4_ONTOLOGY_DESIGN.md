@@ -615,3 +615,77 @@ Net: worth doing as a rehearsal for the *mechanics*, not as evidence the
 real backfill is low-risk. The real one needs its own explicit risk pass
 when it's actually scheduled, not an assumption that "we already tested
 this on ethosfi-test."
+
+---
+
+## 8. Future workstreams (design/reference only, 2026-07-27)
+
+**Status: reference-only, no urgency, not to be implemented now.** Same
+treatment as everything else held in this document — recorded so the
+thinking isn't lost, not queued as active work. Pick up whichever one
+becomes relevant, independently of the other two; they don't depend on
+each other.
+
+### 8.1 Person entity implementation
+
+§7 already designed the `persons` table shape, the single-type-not-a-split
+reasoning, the `applications`/`ontology_edges` wiring, and the backfill
+plan (§7.6). What's left is purely technical execution: the migration
+itself (mirroring §6's pattern — schema first, verified on `ethosfi-test`,
+backfill as a separate follow-up commit) plus whatever UI wiring surfaces
+`persons` data (e.g. a "connected entities" view resolving real edges
+instead of `lib/investigation-demo.ts`'s static `connectedEntities`
+mock).
+
+**This does not depend on any external input** — no partner, no CDFI
+data, no business decision is needed to build it. It's ready to build
+whenever it's prioritized, purely a scheduling/priority call, not a
+blocked one.
+
+### 8.2 LLM output stability testing
+
+**Not yet tested — flagging a real gap, not reporting a result.** The
+scoring engine (`lib/scoring-engine.ts`, `scoreApplication()`) generates
+free-text rationale/explanation alongside the deterministic score. The
+score itself is deterministic (`computeRiskBand()`, `lib/ethoscore-v2.ts`)
+and unaffected by LLM variance, but the *explanation text* the LLM
+generates for a given application has never been checked for
+consistency across repeated runs. Proposed test: run the same case
+through the scoring engine 10-20 times and compare the generated
+explanations for **substantive consistency** — same facts cited, same
+reasoning, same conclusion — not exact wording (verbatim match is the
+wrong bar; paraphrasing the same reasoning differently each time would be
+fine, contradicting itself between runs would not).
+
+This matters for the EU AI Act explainability posture this project
+already cares about (`computeRiskBand()` was made deterministic in Phase
+3.5.1 for exactly this kind of reason) — an explanation that changes its
+stated reasoning between two runs on identical input data is a real
+explainability problem, not a cosmetic one, even though the score itself
+stays fixed.
+
+**Testable now, no external dependency** — this can be built as a
+standalone test/script today, run against `ethosfi-test` or even a
+disconnected harness, using existing seed application data. No reason
+this needs to wait for a partner, a pilot, or any Phase 4 schema work —
+flagged as available to pick up independently of §8.1 or §8.3.
+
+### 8.3 "Relevant memory" for repeat applicants
+
+How much weight should historical events carry in a re-score — is a late
+payment from 3 years ago treated the same as one from last month, or
+should recency matter? This is the kind of question the eventual
+`Person`/graph-traversal work (§7, §8.1) will make newly *possible* to
+answer with real historical data once an applicant is a queryable node
+across multiple applications — but the question itself is not an
+engineering question and has no correct answer derivable from the
+codebase or from first principles.
+
+**This explicitly depends on external input, unlike §8.1 and §8.2.** It's
+a business/credit-policy decision — what a real CDFI's own underwriting
+practice actually treats as stale vs. still-relevant history — not
+something to guess at or encode a plausible-sounding default for ahead of
+that input. Per the sequencing already established in
+`docs/LONG_TERM_VISION.md` (evidence-gated, not calendar-gated), this
+should stay unscoped until there's a real CDFI relationship to actually
+ask.

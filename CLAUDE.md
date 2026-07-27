@@ -261,6 +261,59 @@ time. Corrected account:
     re-examining if it turns out to be specific to this machine rather than
     inherent to the stack.
 
+**🔴 SEPARATE INCIDENT — Anthropic API key rotation, 2026-07-27.** An old
+Anthropic API key was found exposed in a past conversation
+history/summary (not in git — confirmed via `git log -S "sk-ant-api03"`
+across all commits/branches, zero hits; the exposure was in chat history,
+not the repo). All 4 old keys on console.anthropic.com were deleted and a
+new key issued same day.
+
+- **A real, unrelated finding surfaced while rotating this**:
+  `ANTHROPIC_API_KEY` was **not set in Vercel production at all** — not
+  present under any environment, confirmed via `vercel env ls` before
+  making any change. `app/api/score/route.ts` (line ~145) has a silent
+  mock-score fallback for exactly this condition
+  (`process.env.ANTHROPIC_API_KEY ? 'claude' : 'fallback'`, logged only as
+  `log.warn`, not `log.error`/Sentry) — meaning **production score
+  generation may have been silently returning mock/fallback scores, not
+  real Claude-generated ones, for an unknown period before this fix**, not
+  a new problem introduced by the rotation. Worth a deliberate check of
+  how long this has been the case (e.g. via `workflow_events`/Sentry
+  history for `aiProvider: 'fallback'` occurrences) rather than assuming
+  it was recent.
+- New key added to Vercel production (`vercel env add ANTHROPIC_API_KEY
+  production`), local `.env.local` updated, production redeployed
+  (`vercel deploy --prod`) so the new env var actually takes effect —
+  confirmed via `/api/health` and a direct call to Anthropic's API with
+  the new key (not via `/api/score`, deliberately — that route writes
+  real rows to production `applications`/`scores`, and creating fake test
+  data in production is exactly the mistake the test/production
+  separation work earlier this month exists to prevent).
+- **⚠️ New key expires in 30 days (~2026-08-26).** Rotate again before
+  then or scoring will silently fall back to mock data again, the same
+  way it apparently already was.
+- **Second, separate exposure found while investigating Vercel env
+  vars, not yet remediated — flagged, not fixed, pending explicit
+  instruction:** two Vercel env vars have actual secret *values* sitting
+  in the variable **name** field, not the value field: one
+  Supabase publishable-format key and one Supabase secret-format key.
+  **Values deliberately not written into this file** — unlike a value,
+  a Vercel env var *name* is always visible in plaintext to anyone with
+  project access (`vercel env ls`, dashboard) regardless of encryption,
+  so writing the actual value here would just create a second copy of
+  the same exposure, this time committed to git history permanently
+  (exactly the mistake the JWT incident above already covers). The
+  secret-format one **is the current, live production Supabase
+  `SUPABASE_SERVICE_KEY`** (confirmed by direct comparison against
+  `.env.local` at the time this was found) — meaning the live production
+  service_role key is currently sitting exposed in plaintext as a Vercel
+  variable name, most likely from a past `vercel env add` where a secret
+  value was pasted into the name prompt by mistake. This was not in scope
+  for the Anthropic rotation and has not been touched — needs its own
+  decision
+  (rotate this Supabase key again, and delete both malformed env var
+  entries) before it can be marked resolved.
+
 **🎉 Phase 3.5 (Production Hardening) is complete — all 6 blocks closed.**
 Per founder/advisor agreement, Phase 4 work may now begin, and a single
 calibration outreach send (one institution, learning not growth) may
