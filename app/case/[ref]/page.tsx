@@ -10,11 +10,12 @@
  * buttons are intentionally local/presentational so the view is safe
  * to review with no session.
  */
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { PrecisionGauge } from '../../components/PrecisionGauge'
 import { getDossier, TimelineEvent } from '../../../lib/investigation-demo'
+import type { CaseGraph } from '../../../lib/ontology-graph'
 import {
   color as C,
   fontFamily as F,
@@ -83,6 +84,33 @@ export default function InvestigationPage() {
   const params = useParams<{ ref: string }>()
   const dossier = useMemo(() => getDossier(params?.ref), [params])
   const [note, setNote] = useState('')
+
+  // Real ontology data (docs/PHASE4_ONTOLOGY_DESIGN.md §6/§7) — additive to
+  // the static dossier, not a replacement. `graph` stays null for any
+  // case_ref with no matching DB row (most dossiers are still mock-only),
+  // in which case the section below falls back to dossier.connectedEntities
+  // exactly as before.
+  const [graph, setGraph] = useState<CaseGraph | null>(null)
+  useEffect(() => {
+    if (!dossier) return
+    let cancelled = false
+    fetch(`/api/cases/${dossier.caseRef}/graph`)
+      .then(r => (r.ok ? r.json() : null))
+      .then((data: CaseGraph | null) => { if (!cancelled) setGraph(data) })
+      .catch(() => { if (!cancelled) setGraph(null) })
+    return () => { cancelled = true }
+  }, [dossier])
+
+  // Merge: real DB-backed connections first, then any mock connectedEntities
+  // whose name isn't already covered by a real connection (e.g. "Director"
+  // relations — deliberately not modeled as edges yet, see §6.6) — so
+  // nothing already visible disappears, but facts we do have real data for
+  // now come from the database instead of frozen mock text.
+  const realNames = new Set((graph?.connections ?? []).map(c => c.name.toLowerCase()))
+  const mergedConnections = [
+    ...(graph?.connections ?? []),
+    ...(dossier?.connectedEntities ?? []).filter(e => !realNames.has(e.name.toLowerCase())),
+  ]
 
   const labelCss: React.CSSProperties = {
     fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold,
@@ -178,8 +206,9 @@ export default function InvestigationPage() {
           <section style={{ ...cardCss, padding: SP.xl }}>
             <div style={{ ...labelCss, marginBottom: SP.lg }}>Connected Entities</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: SP.md }}>
-              {dossier.connectedEntities.map((e, i) => {
+              {mergedConnections.map((e, i) => {
                 const open = !!e.linkedCaseRef
+                const note: string | undefined = 'note' in e ? (e as { note?: string }).note : undefined
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: SP.md }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: open ? C.riskMedium : 'transparent', border: `1.5px solid ${open ? C.riskMedium : C.textSecondary}` }} />
@@ -189,13 +218,27 @@ export default function InvestigationPage() {
                         {open
                           ? <Link href={`/case/${e.linkedCaseRef}`} className="ethos-linkcase">{e.name}</Link>
                           : e.name}
-                        {e.note && <span style={{ ...monoCss, marginLeft: SP.sm, fontSize: FS.xs, color: open ? C.riskMedium : C.textSecondary }}>{open ? `↗ ${e.note}` : e.note}</span>}
+                        {note && <span style={{ ...monoCss, marginLeft: SP.sm, fontSize: FS.xs, color: open ? C.riskMedium : C.textSecondary }}>{open ? `↗ ${note}` : note}</span>}
                       </div>
                     </div>
                   </div>
                 )
               })}
             </div>
+            {graph?.person && (
+              <div style={{ marginTop: SP.lg, paddingTop: SP.lg, borderTop: borderLine, display: 'flex', alignItems: 'center', gap: SP.md }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: 'transparent', border: `1.5px solid ${C.accent}` }} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ ...labelCss, marginBottom: 2 }}>Linked Applicant</div>
+                  <div style={{ fontSize: FS.base, fontWeight: FW.medium }}>
+                    {graph.person.full_name}
+                    {graph.person.email && (
+                      <span style={{ ...monoCss, marginLeft: SP.sm, fontSize: FS.xs, color: C.textSecondary }}>{graph.person.email}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* EthoScore intelligence — illustrative preview; full breakdown is Screen 3 */}
