@@ -74,11 +74,21 @@ LOAN REQUEST
 - Implied monthly repayment: ~£${Math.round(form.loan_amount / form.loan_term_months)}/month`
 }
 
-async function callClaude(model: string, systemPrompt: string, userPrompt: string): Promise<Anthropic.Message> {
-  return client.messages.create({
+// Allowlist, not blocklist: confirmed via direct API test (2026-08-03) that
+// BOTH claude-opus-4-8 (production default) and claude-fable-5 reject
+// `temperature` outright ("`temperature` is deprecated for this model", 400)
+// — this isn't a Fable5-specific quirk. Add a model here only once you've
+// confirmed live that it still accepts the parameter; default is to omit it.
+const MODELS_WITH_TEMPERATURE = new Set<string>([])
+
+function buildMessageParams(
+  model: string,
+  systemPrompt: string,
+  messages: Anthropic.MessageParam[]
+): Anthropic.MessageCreateParamsNonStreaming {
+  const params: Anthropic.MessageCreateParamsNonStreaming = {
     model,
     max_tokens: 4096,
-    temperature: 0.2,
     system: [
       {
         type: 'text',
@@ -86,12 +96,23 @@ async function callClaude(model: string, systemPrompt: string, userPrompt: strin
         cache_control: { type: 'ephemeral' },
       },
     ],
-    messages: [{ role: 'user', content: userPrompt }],
-  })
+    messages,
+  }
+  if (MODELS_WITH_TEMPERATURE.has(model)) {
+    params.temperature = 0.2
+  }
+  return params
 }
 
+async function callClaude(model: string, systemPrompt: string, userPrompt: string): Promise<Anthropic.Message> {
+  return client.messages.create(buildMessageParams(model, systemPrompt, [{ role: 'user', content: userPrompt }]))
+}
+
+// content[0] isn't reliably the text block — claude-fable-5 emits an
+// extended-thinking block first (confirmed via direct API test, 2026-08-03),
+// which content[0]-only extraction silently reads as empty text.
 function extractText(response: Anthropic.Message): string {
-  const block = response.content[0]
+  const block = response.content.find(b => b.type === 'text')
   return block?.type === 'text' ? block.text : ''
 }
 
@@ -113,17 +134,11 @@ async function requestAndParse(
   }
 
   // Retry 1: same model, corrective follow-up turn
-  response = await client.messages.create({
-    model,
-    max_tokens: 4096,
-    temperature: 0.2,
-    system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
-    messages: [
-      { role: 'user', content: userPrompt },
-      { role: 'assistant', content: rawResponse },
-      { role: 'user', content: 'Your previous response was not valid JSON. Respond with ONLY the valid JSON object described in the schema — no preamble, no markdown fences, no trailing text.' },
-    ],
-  })
+  response = await client.messages.create(buildMessageParams(model, systemPrompt, [
+    { role: 'user', content: userPrompt },
+    { role: 'assistant', content: rawResponse },
+    { role: 'user', content: 'Your previous response was not valid JSON. Respond with ONLY the valid JSON object described in the schema — no preamble, no markdown fences, no trailing text.' },
+  ]))
   rawResponse = extractText(response)
 
   try {

@@ -212,13 +212,13 @@ describe('scoreApplication — request shape', () => {
     mockCreate.mockReset()
   })
 
-  it('sends cache_control, temperature, and max_tokens per spec', async () => {
+  it('sends cache_control and max_tokens per spec, and omits temperature (both claude-opus-4-8 and claude-fable-5 reject it as of 2026-08-03)', async () => {
     mockCreate.mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_V1_JSON))
 
     await scoreApplication(FORM)
 
     const call = mockCreate.mock.calls[0][0]
-    expect(call.temperature).toBe(0.2)
+    expect(call.temperature).toBeUndefined()
     expect(call.max_tokens).toBe(4096)
     expect(call.system[0].cache_control).toEqual({ type: 'ephemeral' })
   })
