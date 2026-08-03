@@ -10,7 +10,10 @@ function getSupabase() {
   return createClient(url, key)
 }
 
-const MODEL_ID = 'claude-sonnet-4-20250514'
+// Was a dated snapshot ('claude-sonnet-4-20250514') that started returning a
+// live 404 (model no longer served) — confirmed via direct API test,
+// 2026-08-03. Same tier (Sonnet, not Opus) as before, just current.
+const MODEL_ID = 'claude-sonnet-5'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -240,7 +243,12 @@ async function executeReview(
       messages: [{ role: 'user', content: userData }],
     })
 
-    const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
+    // content[0] isn't reliably the text block — this model emits an
+    // extended-thinking block first for longer/structured prompts like this
+    // one (confirmed via direct API test, 2026-08-03; same issue found and
+    // fixed in lib/scoring-engine.ts's extractText()).
+    const textBlock = response.content.find(b => b.type === 'text')
+    const rawText = textBlock?.type === 'text' ? textBlock.text : ''
     const parsed = parseAiJson(rawText)
     const review = validateReviewOutput(parsed)
 
