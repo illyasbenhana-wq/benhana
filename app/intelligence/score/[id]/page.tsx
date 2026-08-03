@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { colors, font, type, space } from '../../../../lib/intelligence/tokens'
 import { ScoreGauge } from './components/ScoreGauge'
 import { ProvenanceBar } from './components/ProvenanceBar'
@@ -90,6 +90,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function IntelligenceScorePage() {
   const params = useParams()
   const id = params?.id as string
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token') ?? ''
 
   const [data, setData] = useState<PanelData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -103,7 +105,9 @@ export default function IntelligenceScorePage() {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`/api/intelligence/score/${id}`)
+        const res = await fetch(`/api/intelligence/score/${id}`, {
+          headers: { 'X-Intelligence-Token': token },
+        })
         if (!res.ok) {
           if (!cancelled) setError(res.status === 404 ? 'No score found for this application.' : `Request failed (${res.status})`)
           return
@@ -119,7 +123,7 @@ export default function IntelligenceScorePage() {
 
     load()
     return () => { cancelled = true }
-  }, [id])
+  }, [id, token])
 
   if (loading) {
     return (

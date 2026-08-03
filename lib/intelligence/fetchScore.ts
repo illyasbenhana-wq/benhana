@@ -11,14 +11,11 @@ import { createClient } from '@supabase/supabase-js'
 // it from any consumer-facing or Partner API route — those must keep going
 // through the existing org-scoped resolution.
 //
-// SECURITY NOTE (flagged, not resolved here): this file does not add any
-// authentication/authorization of its own. As of this pass, nothing gates
-// access to /intelligence/* — anyone with a URL and an application id can
-// pull full applicant PII (name, email, income) plus the full AI
-// assessment. That's fine for local/internal use today but must be gated
-// (session + role check, partner-key equivalent, or an access token like
-// the existing DEMO_ACCESS_TOKEN pattern in app/demo/page.tsx) before this
-// is deployed anywhere reachable by non-staff.
+// SECURITY: this file still has no auth of its own by design — gating now
+// happens one layer up, in app/api/intelligence/score/[id]/route.ts, via a
+// fail-closed INTELLIGENCE_ACCESS_TOKEN check (same static-token pattern as
+// DEMO_ACCESS_TOKEN/BACKTEST_ACCESS_TOKEN). Do not call this function from
+// any route that skips that check.
 
 function getServiceSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
