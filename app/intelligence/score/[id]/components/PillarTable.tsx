@@ -1,4 +1,4 @@
-import { colors, font, type, space, density, mapRiskBandToLevel } from '../../../../../lib/intelligence/tokens'
+import { C, F, SP, cardCss, labelCss, monoCss, riskLevelColor, pillCss } from './styles'
 import { FactorList } from './FactorList'
 
 export interface PillarKeyFactor {
@@ -22,9 +22,9 @@ export interface PillarDatum {
 // number" visually consistent across the whole panel rather than
 // introducing a second color language.
 const CONFIDENCE_LEVEL: Record<PillarDatum['confidence'], 'low' | 'medium' | 'high'> = {
-  high: 'low',   // high confidence -> green (maps to risk.low = green)
+  high: 'low',   // high confidence -> green
   medium: 'medium',
-  low: 'high',   // low confidence -> red (maps to risk.high = red)
+  low: 'high',   // low confidence -> red
 }
 
 function pct(score: number, max: number): number {
@@ -32,38 +32,24 @@ function pct(score: number, max: number): number {
 }
 
 // Row-level bar, colored by the pillar's proportion of its own max — not
-// by the risk palette. Density/table treatment: fixed row height, no card
-// padding, hover reveals key_factors inline rather than in a modal.
+// by the confidence palette.
 function ProportionBar({ value, max }: { value: number; max: number }) {
   const p = pct(value, max)
-  const barColor = p >= 70 ? colors.risk.low.fg : p >= 40 ? colors.risk.medium.fg : colors.risk.high.fg
+  const barColor = p >= 70 ? C.riskLow : p >= 40 ? C.riskMedium : C.riskHigh
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: space.sm, minWidth: 140 }}>
-      <div style={{ flex: 1, height: 5, background: colors.bg.inset, borderRadius: 2, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, minWidth: 140 }}>
+      <div style={{ flex: 1, height: 5, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${p}%`, background: barColor, borderRadius: 2 }} />
       </div>
-      <span style={{ ...type.monoSmall, width: 32, textAlign: 'right', color: colors.text.secondary }}>{p}%</span>
+      <span style={{ ...monoCss, fontSize: 11, width: 32, textAlign: 'right', color: C.textSecondary }}>{p}%</span>
     </div>
   )
 }
 
 function ConfidenceTag({ confidence }: { confidence: PillarDatum['confidence'] }) {
-  const c = colors.risk[CONFIDENCE_LEVEL[confidence]]
+  const color = riskLevelColor(CONFIDENCE_LEVEL[confidence])
   return (
-    <span
-      style={{
-        fontFamily: font.body,
-        fontSize: 10.5,
-        fontWeight: 600,
-        letterSpacing: '0.04em',
-        textTransform: 'uppercase',
-        color: c.fg,
-        background: c.bg,
-        border: `1px solid ${c.border}`,
-        borderRadius: 3,
-        padding: '2px 6px',
-      }}
-    >
+    <span style={{ ...pillCss(color), padding: '2px 8px', color, fontFamily: F.sans, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
       {confidence}
     </span>
   )
@@ -71,41 +57,41 @@ function ConfidenceTag({ confidence }: { confidence: PillarDatum['confidence'] }
 
 export function PillarTable({ pillars }: { pillars: PillarDatum[] }) {
   return (
-    <div style={{ background: colors.bg.surface, border: `1px solid ${colors.border.default}`, borderRadius: 6 }}>
+    <div style={cardCss}>
       {/* Header row */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: '160px 90px 1fr 80px',
-          gap: space.md,
-          padding: `${space.sm}px ${density.rowPaddingX}px`,
-          borderBottom: `1px solid ${colors.border.default}`,
+          gap: SP.md,
+          padding: `${SP.sm}px ${SP.lg}px`,
+          borderBottom: `1px solid ${C.border}`,
         }}
       >
-        <span style={type.tableHeader}>Pillar</span>
-        <span style={type.tableHeader}>Score</span>
-        <span style={type.tableHeader}>Proportion of Max</span>
-        <span style={{ ...type.tableHeader, textAlign: 'right' }}>Confidence</span>
+        <span style={{ ...labelCss, fontSize: 11 }}>Pillar</span>
+        <span style={{ ...labelCss, fontSize: 11 }}>Score</span>
+        <span style={{ ...labelCss, fontSize: 11 }}>Proportion of Max</span>
+        <span style={{ ...labelCss, fontSize: 11, textAlign: 'right' }}>Confidence</span>
       </div>
 
       {pillars.map((p, i) => (
-        <div key={p.key} style={{ borderBottom: i < pillars.length - 1 ? `1px solid ${colors.border.subtle}` : 'none' }}>
+        <div key={p.key} style={{ borderBottom: i < pillars.length - 1 ? `1px solid ${C.border}` : 'none' }}>
           {/* Summary row */}
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: '160px 90px 1fr 80px',
-              gap: space.md,
+              gap: SP.md,
               alignItems: 'center',
-              minHeight: density.rowHeight,
-              padding: `0 ${density.rowPaddingX}px`,
+              minHeight: 36,
+              padding: `0 ${SP.lg}px`,
             }}
           >
-            <span style={{ fontFamily: font.body, fontSize: density.tableFontSize, fontWeight: 600, color: colors.text.primary }}>
+            <span style={{ fontFamily: F.sans, fontSize: 12.5, fontWeight: 600, color: C.textPrimary }}>
               {p.label}
             </span>
-            <span style={{ ...type.mono, fontSize: density.tableFontSize }}>
-              {p.score}<span style={{ color: colors.text.tertiary }}>/{p.max}</span>
+            <span style={{ ...monoCss, fontSize: 12.5, color: C.textPrimary }}>
+              {p.score}<span style={{ color: C.textMuted }}>/{p.max}</span>
             </span>
             <ProportionBar value={p.score} max={p.max} />
             <div style={{ textAlign: 'right' }}>
@@ -115,8 +101,8 @@ export function PillarTable({ pillars }: { pillars: PillarDatum[] }) {
 
           {/* Rationale + key factors — always expanded (investigation
               surface, not a summary card the analyst has to click into) */}
-          <div style={{ padding: `0 ${density.rowPaddingX}px ${space.md}px calc(160px + ${space.md}px)` }}>
-            <p style={{ ...type.body, fontSize: 12.5, margin: `0 0 ${space.xs}px`, color: colors.text.secondary }}>
+          <div style={{ padding: `0 ${SP.lg}px ${SP.md}px calc(160px + ${SP.md}px)` }}>
+            <p style={{ fontFamily: F.sans, fontSize: 12.5, lineHeight: 1.55, margin: `0 0 ${SP.xs}px`, color: C.textSecondary }}>
               {p.rationale}
             </p>
             <FactorList factors={p.key_factors} />
@@ -157,7 +143,3 @@ export function pillarsFromFable5Assessment(assessment: Record<string, any>): Pi
     }
   })
 }
-
-// Re-exported for callers that need to color a risk_band badge alongside
-// this table using the same mapping as the rest of the panel.
-export { mapRiskBandToLevel }

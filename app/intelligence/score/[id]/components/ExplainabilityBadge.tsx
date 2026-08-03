@@ -1,4 +1,4 @@
-import { colors, font } from '../../../../../lib/intelligence/tokens'
+import { F, riskLevelColor, pillCss, type RiskLevel } from './styles'
 
 export type ExplainabilityStatus = 'explainable' | 'fallback' | 'structured' | 'legacy'
 
@@ -16,7 +16,7 @@ export type ExplainabilityStatus = 'explainable' | 'fallback' | 'structured' | '
 //   Fable 5 assessment (see CLAUDE.md "Two unrelated v2 modules" — they
 //   are never merged), so it must not earn the green "AI Act Ready" label.
 // - 'legacy': v1 prompt, no structured pillar data of any kind.
-const STATUS_CONFIG: Record<ExplainabilityStatus, { label: string; risk: keyof typeof colors.risk; detail: string }> = {
+const STATUS_CONFIG: Record<ExplainabilityStatus, { label: string; risk: RiskLevel; detail: string }> = {
   explainable: {
     label: 'Explainable — AI Act Ready',
     risk: 'low',
@@ -41,31 +41,12 @@ const STATUS_CONFIG: Record<ExplainabilityStatus, { label: string; risk: keyof t
 
 export function ExplainabilityBadge({ status }: { status: ExplainabilityStatus }) {
   const cfg = STATUS_CONFIG[status]
-  const c = colors.risk[cfg.risk]
+  const color = riskLevelColor(cfg.risk)
 
   return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '6px 12px',
-        borderRadius: 4,
-        background: c.bg,
-        border: `1px solid ${c.border}`,
-      }}
-      title={cfg.detail}
-    >
-      <span
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          background: c.fg,
-          flexShrink: 0,
-        }}
-      />
-      <span style={{ fontFamily: font.body, fontSize: 12, fontWeight: 600, color: c.fg, letterSpacing: '0.02em' }}>
+    <div style={{ ...pillCss(color), padding: '6px 12px' }} title={cfg.detail}>
+      <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ fontFamily: F.sans, fontSize: 12, fontWeight: 600, color, letterSpacing: '0.02em' }}>
         {cfg.label}
       </span>
     </div>

@@ -1,4 +1,4 @@
-import { colors, font, space } from '../../../../../lib/intelligence/tokens'
+import { C, F, SP, R, riskLevelColor } from './styles'
 
 export interface ProvenanceData {
   model_requested: string | null
@@ -8,7 +8,9 @@ export interface ProvenanceData {
   confidence_overall: 'high' | 'medium' | 'low' | null
 }
 
-const CONFIDENCE_LEVEL: Record<'high' | 'medium' | 'low', keyof typeof colors.risk> = {
+// Confidence isn't a risk_band, but reuses the same low/medium/high ->
+// green/amber/red mapping for visual consistency across the panel.
+const CONFIDENCE_LEVEL: Record<'high' | 'medium' | 'low', 'low' | 'medium' | 'high'> = {
   high: 'low',    // high confidence -> green
   medium: 'medium',
   low: 'high',    // low confidence -> red
@@ -17,10 +19,10 @@ const CONFIDENCE_LEVEL: Record<'high' | 'medium' | 'low', keyof typeof colors.ri
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <span style={{ fontFamily: font.body, fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase', color: colors.text.disabled }}>
+      <span style={{ fontFamily: F.sans, fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMuted }}>
         {label}
       </span>
-      <span style={{ fontFamily: font.mono, fontSize: 12, color: colors.text.primary, whiteSpace: 'nowrap' }}>
+      <span style={{ fontFamily: F.mono, fontSize: 12, color: C.textPrimary, whiteSpace: 'nowrap' }}>
         {value}
       </span>
     </div>
@@ -33,19 +35,19 @@ function Field({ label, value }: { label: string; value: string }) {
 // that goes stale the moment the page is left open.
 export function ProvenanceBar({ data }: { data: ProvenanceData }) {
   const confidence = data.confidence_overall
-  const confColor = confidence ? colors.risk[CONFIDENCE_LEVEL[confidence]] : colors.risk.neutral
+  const confColor = confidence ? riskLevelColor(CONFIDENCE_LEVEL[confidence]) : riskLevelColor('neutral')
 
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: space.xl,
+        gap: SP.xl,
         flexWrap: 'wrap',
-        padding: `${space.sm}px ${space.lg}px`,
-        background: colors.bg.inset,
-        border: `1px solid ${colors.border.subtle}`,
-        borderRadius: 4,
+        padding: `${SP.sm}px ${SP.lg}px`,
+        background: C.background,
+        border: `1px solid ${C.border}`,
+        borderRadius: R.control,
       }}
     >
       <Field label="Model Requested" value={data.model_requested ?? 'n/a'} />
@@ -54,22 +56,22 @@ export function ProvenanceBar({ data }: { data: ProvenanceData }) {
       <Field label="Scored At (UTC)" value={data.created_at} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginLeft: 'auto' }}>
-        <span style={{ fontFamily: font.body, fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase', color: colors.text.disabled }}>
+        <span style={{ fontFamily: F.sans, fontSize: 10, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.textMuted }}>
           Overall Confidence
         </span>
         {confidence ? (
           <span
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
-              fontFamily: font.body, fontSize: 11.5, fontWeight: 600,
-              color: confColor.fg,
+              fontFamily: F.sans, fontSize: 11.5, fontWeight: 600,
+              color: confColor,
             }}
           >
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: confColor.fg }} />
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: confColor }} />
             {confidence.toUpperCase()}
           </span>
         ) : (
-          <span style={{ fontFamily: font.mono, fontSize: 12, color: colors.text.disabled }}>n/a</span>
+          <span style={{ fontFamily: F.mono, fontSize: 12, color: C.textMuted }}>n/a</span>
         )}
       </div>
     </div>
