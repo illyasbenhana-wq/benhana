@@ -484,7 +484,7 @@ export default function ScorePage() {
 
         {/* Footer */}
         <div className="pdf-footer">
-          <span>EthosFi AI · ethosfiai.com</span>
+          <span>EthosFi AI · ethosfiai.co</span>
           <span>This report is confidential and intended solely for the named applicant.</span>
           <span>Generated {new Date().toLocaleDateString('en-GB')}</span>
         </div>
