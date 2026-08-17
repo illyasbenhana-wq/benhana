@@ -45,7 +45,7 @@ export default function HomePage() {
       <p style={{ fontSize: FS.sm, color: C.textSecondary, textAlign: 'center', margin: 0 }}>
         Evaluating EthosFi as an investor or partner?{' '}
         <a
-          href="mailto:info@helloethosfiai.com?subject=Demo%20request"
+          href="mailto:hello@ethosfiai.co?subject=Demo%20request"
           style={{ color: C.accent, textDecoration: 'none' }}
         >
           Request a demo
