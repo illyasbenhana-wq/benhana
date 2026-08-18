@@ -382,7 +382,7 @@ export default function ScorePage() {
         {/* EU AI Act notice */}
         <div style={{ borderTop: borderLine, paddingTop: SP.xl, marginBottom: SP.xl }}>
           <p style={{ fontSize: FS.sm, color: C.textMuted, lineHeight: 1.6 }}>
-            <strong style={{ color: C.textSecondary }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: C.accent }}>hello@ethosfiai.co</span> within 30 days.
+            <strong style={{ color: C.textSecondary }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: C.accent }}>hello@ethosfi.co</span> within 30 days.
           </p>
         </div>
 
@@ -479,12 +479,12 @@ export default function ScorePage() {
 
         {/* EU AI Act */}
         <div className="pdf-compliance">
-          <strong>EU AI Act Compliance Notice (Article 22).</strong> This credit assessment was produced by an automated AI system (EthosFi AI, model: {score.model_version}). You have the right to request human review of this decision within 30 days of issue. To exercise this right, contact <strong>hello@ethosfiai.co</strong> with your Application ID. You may also request a plain-language explanation of the factors that influenced this score.
+          <strong>EU AI Act Compliance Notice (Article 22).</strong> This credit assessment was produced by an automated AI system (EthosFi AI, model: {score.model_version}). You have the right to request human review of this decision within 30 days of issue. To exercise this right, contact <strong>hello@ethosfi.co</strong> with your Application ID. You may also request a plain-language explanation of the factors that influenced this score.
         </div>
 
         {/* Footer */}
         <div className="pdf-footer">
-          <span>EthosFi AI · ethosfiai.co</span>
+          <span>EthosFi AI · ethosfi.co</span>
           <span>This report is confidential and intended solely for the named applicant.</span>
           <span>Generated {new Date().toLocaleDateString('en-GB')}</span>
         </div>

@@ -126,5 +126,5 @@ This script:
 
 **Likely fixes:**
 - `RESEND_API_KEY` not set → add it in Vercel env vars.
-- Sender domain not verified → currently using `onboarding@resend.dev` (Resend shared sender). For production, verify `ethosfiai.com` in Resend dashboard.
+- Sender domain not verified → currently using `onboarding@resend.dev` (Resend shared sender). For production, verify `ethosfi.co` in Resend dashboard.
 - Recipient email invalid → check the email in `organization_members` / `auth.users`.
