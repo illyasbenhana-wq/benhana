@@ -6,6 +6,7 @@ import { readScoreSession, ScoreSessionPayload } from '@/lib/score-session'
 import { computeRiskBand } from '@/lib/risk-band'
 import { isPreviewDeployment } from '@/lib/preview-bypass'
 import { Logo } from '@/app/components/Logo'
+import { DashboardSidebar } from '@/app/components/DashboardSidebar'
 import {
   color as C,
   fontFamily as F,
@@ -197,27 +198,33 @@ export default function ScorePage() {
   }, [id])
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: C.background, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', height: '100vh', background: C.background, overflow: 'hidden' }}>
       <link href={googleFontsHref} rel="stylesheet" />
-      <div style={{ textAlign: 'center', color: C.accent, fontFamily: F.sans }}>
-        <div style={{ fontSize: FS.sm, letterSpacing: '0.1em', marginBottom: SP.lg, textTransform: 'uppercase' }}>Calculating your EthoScore™</div>
-        <div style={{ width: 240, height: 2, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ height: '100%', background: C.accent, animation: 'load 1.5s ease-in-out infinite', width: '40%' }} />
+      <DashboardSidebar />
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center', color: C.accent, fontFamily: F.sans }}>
+          <div style={{ fontSize: FS.sm, letterSpacing: '0.1em', marginBottom: SP.lg, textTransform: 'uppercase' }}>Calculating your EthoScore™</div>
+          <div style={{ width: 240, height: 2, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', background: C.accent, animation: 'load 1.5s ease-in-out infinite', width: '40%' }} />
+          </div>
+          <style>{`@keyframes load { 0%{transform:translateX(-100%)} 100%{transform:translateX(700%)} }`}</style>
         </div>
-        <style>{`@keyframes load { 0%{transform:translateX(-100%)} 100%{transform:translateX(700%)} }`}</style>
       </div>
     </div>
   )
 
   if (notFound || !view) {
     return (
-      <div style={{ minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, padding: SP.xxl }}>
+      <div style={{ display: 'flex', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
         <link href={googleFontsHref} rel="stylesheet" />
-        <p style={{ marginBottom: SP.lg }}>Score not found.</p>
-        <p style={{ fontSize: FS.sm, color: C.textSecondary, maxWidth: 420, lineHeight: 1.6 }}>
-          Results are available right after you submit an application. If you opened this link in a new tab, submit again from the apply flow.
-        </p>
-        <a href="/apply" style={{ display: 'inline-block', marginTop: SP.lg, color: C.accent, fontSize: FS.sm }}>Go to apply →</a>
+        <DashboardSidebar />
+        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: SP.xxl }}>
+          <p style={{ marginBottom: SP.lg }}>Score not found.</p>
+          <p style={{ fontSize: FS.sm, color: C.textSecondary, maxWidth: 420, lineHeight: 1.6 }}>
+            Results are available right after you submit an application. If you opened this link in a new tab, submit again from the apply flow.
+          </p>
+          <a href="/apply" style={{ display: 'inline-block', marginTop: SP.lg, color: C.accent, fontSize: FS.sm }}>Go to apply →</a>
+        </div>
       </div>
     )
   }
@@ -234,7 +241,7 @@ export default function ScorePage() {
   return (
     <>
       <link href={googleFontsHref} rel="stylesheet" />
-    <div id="ethofi-screen" style={{ minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans }}>
+    <div id="ethofi-screen" style={{ display: 'flex', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
       <style>{`
         * { box-sizing: border-box; }
         @keyframes countUp { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
@@ -269,6 +276,9 @@ export default function ScorePage() {
         .pdf-footer { margin-top: 24px; padding-top: 14px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 10px; color: #aaa; }
       `}</style>
 
+      <DashboardSidebar />
+
+      <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
       <div style={{ maxWidth: 600, margin: '0 auto', padding: `${SP.xxl}px ${SP.xl}px` }}>
 
         {/* Logo */}
@@ -390,6 +400,7 @@ export default function ScorePage() {
           <a href="/apply" style={{ flex: 1, padding: '14px 20px', borderRadius: R.control, border: borderLine, color: C.textSecondary, textAlign: 'center', textDecoration: 'none', fontSize: FS.sm }}>Apply again</a>
           <button type="button" onClick={() => window.print()} style={{ flex: 1, padding: '14px 20px', borderRadius: R.control, background: C.accent, color: '#fff', border: 'none', cursor: 'pointer', fontSize: FS.sm, fontWeight: FW.medium, fontFamily: 'inherit' }}>Export PDF</button>
         </div>
+      </div>
       </div>
 
     </div>
