@@ -8,6 +8,8 @@ import { MerchantIntelligence } from './components/MerchantIntelligence'
 import { fatimaOkoyeComplianceCase } from '../../lib/fatima-okoye-demo'
 import { PrecisionGauge } from '../components/PrecisionGauge'
 import { Logo } from '../components/Logo'
+import { DashboardSidebar } from '../components/DashboardSidebar'
+import { DashboardKpiRow } from '../components/DashboardKpiRow'
 import {
   color as C,
   fontFamily as F,
@@ -370,8 +372,14 @@ export default function DashboardPage() {
     .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     .toUpperCase()
 
+  const criticalCount = activeCases.filter(c => c.severity === 'critical').length
+  const slaBreachingCount = activeCases.filter(c => liveSLA(c.sla_remaining_hours) / c.sla_hours < 0.3).length
+  const avgRiskScore = activeCases.length
+    ? Math.round(activeCases.reduce((sum, c) => sum + c.risk_score, 0) / activeCases.length)
+    : 0
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
       <link href={googleFontsHref} rel="stylesheet" />
       <style>{`
         * { box-sizing: border-box; }
@@ -384,6 +392,10 @@ export default function DashboardPage() {
         .ethos-queue-item:hover { background: ${C.accentSubtle}; }
         .ethos-signal:hover { background: ${C.accentSubtle}; }
       `}</style>
+
+      <DashboardSidebar activeCaseCount={activeCases.length} roleLabel={ROLE_LABEL[userRole]} />
+
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
 
       {/* ── Top command bar ── */}
       <header style={{ borderBottom: borderLine, flexShrink: 0 }}>
@@ -402,6 +414,18 @@ export default function DashboardPage() {
           <span style={{ marginLeft: 'auto', ...monoCss, fontSize: FS.xs, color: C.textSecondary, letterSpacing: '0.1em' }}>{dateStr}</span>
         </div>
       </header>
+
+      <div style={{ padding: `${SP.lg}px ${SP.xl}px 0` }}>
+        <DashboardKpiRow
+          title="Risk Intelligence Overview"
+          kpis={[
+            { label: 'Active Cases', value: String(activeCases.length) },
+            { label: 'Critical', value: String(criticalCount), tone: criticalCount > 0 ? 'danger' : 'default' },
+            { label: 'SLA Breaching', value: String(slaBreachingCount), tone: slaBreachingCount > 0 ? 'warning' : 'default' },
+            { label: 'Avg Risk Score', value: String(avgRiskScore), tone: avgRiskScore >= 75 ? 'danger' : avgRiskScore >= 50 ? 'warning' : 'success' },
+          ]}
+        />
+      </div>
 
       {/* ── Body: case queue + working area ── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -643,6 +667,7 @@ export default function DashboardPage() {
             </div>
           )}
         </main>
+      </div>
       </div>
     </div>
   )
