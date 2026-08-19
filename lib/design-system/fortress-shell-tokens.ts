@@ -10,18 +10,23 @@
  * Ported concepts only: sidebar chrome color, KPI-tile treatment, nav
  * grouping/collapse pattern. No Fortress business language — see
  * lib/design-system/nav-groups.ts for the EthosFi-only nav taxonomy.
+ *
+ * Sidebar is light, matching the rest of the "Ramp" body — reverted from
+ * an earlier dark-navy sidebar decision. Colors are drawn straight from
+ * tokens-light.ts so the sidebar reads as the same surface as page content,
+ * not as separate chrome.
  */
 import { color as C } from './tokens-light'
 
 export const sidebar = {
-  background: '#0F172A', // deliberately dark, breaks from the light "Ramp" body to read as persistent chrome
-  surfaceHover: 'rgba(255,255,255,0.06)',
-  surfaceActive: 'rgba(29,78,216,0.22)', // tinted with C.accent
-  border: 'rgba(255,255,255,0.08)',
-  textPrimary: '#E2E8F0',
-  textSecondary: 'rgba(226,232,240,0.55)',
-  textMuted: 'rgba(226,232,240,0.35)',
-  accent: '#60A5FA', // lighter accent for contrast against the dark sidebar
+  background: C.background,
+  surfaceHover: C.accentSubtle,
+  surfaceActive: C.accentSubtle,
+  border: C.border,
+  textPrimary: C.textPrimary,
+  textSecondary: C.textSecondary,
+  textMuted: C.textMuted,
+  accent: C.accent,
 } as const
 
 export const kpiTile = {
