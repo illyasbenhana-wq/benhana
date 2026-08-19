@@ -72,11 +72,11 @@ function NavGroupBlock({
 }
 
 export function DashboardSidebar({
-  activeCaseCount,
-  roleLabel,
+  activeCaseCount = 0,
+  roleLabel = 'Analyst',
 }: {
-  activeCaseCount: number
-  roleLabel: string
+  activeCaseCount?: number
+  roleLabel?: string
 }) {
   const pathname = usePathname()
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')

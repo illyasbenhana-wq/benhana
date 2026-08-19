@@ -14,6 +14,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { PrecisionGauge } from '../../components/PrecisionGauge'
+import { DashboardSidebar } from '../../components/DashboardSidebar'
 import { getDossier, TimelineEvent } from '../../../lib/investigation-demo'
 import type { CaseGraph } from '../../../lib/ontology-graph'
 import {
@@ -123,10 +124,13 @@ export default function InvestigationPage() {
 
   if (!dossier) {
     return (
-      <div style={{ minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: SP.lg }}>
+      <div style={{ display: 'flex', minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans }}>
         <link href={googleFontsHref} rel="stylesheet" />
-        <div style={{ ...labelCss }}>Case not found</div>
-        <Link href="/dashboard" style={{ color: C.accent, fontSize: FS.base, textDecoration: 'none' }}>← Back to queue</Link>
+        <DashboardSidebar />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: SP.lg, flex: 1 }}>
+          <div style={{ ...labelCss }}>Case not found</div>
+          <Link href="/dashboard" style={{ color: C.accent, fontSize: FS.base, textDecoration: 'none' }}>← Back to queue</Link>
+        </div>
       </div>
     )
   }
@@ -134,8 +138,10 @@ export default function InvestigationPage() {
   const sc = SEV_COLOR[dossier.severity] || C.textSecondary
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans }}>
       <link href={googleFontsHref} rel="stylesheet" />
+      <DashboardSidebar />
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       <style>{`
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -348,6 +354,7 @@ export default function InvestigationPage() {
             <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>DESIGN PREVIEW · ACTIONS NOT WIRED · FULL AUDIT TRAIL MAINTAINED IN PRODUCTION</p>
           </section>
         </div>
+      </div>
       </div>
     </div>
   )
