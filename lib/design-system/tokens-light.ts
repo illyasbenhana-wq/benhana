@@ -160,9 +160,11 @@ export const shadowSm = '0 1px 2px 0 rgba(15, 23, 42, 0.05)' // shadow-sm max, p
 // Elevation scale beyond shadowSm — for marketing-surface cards/sections
 // that need more depth than the brief's data-screen shadow-sm ceiling
 // (stat tiles, feature cards, hero panels). Not used on dense data
-// screens, which stay flat/bordered per the original brief.
-export const shadowMd = '0 4px 16px -4px rgba(15, 23, 42, 0.08), 0 1px 2px 0 rgba(15, 23, 42, 0.04)'
-export const shadowLg = '0 16px 40px -12px rgba(15, 23, 42, 0.14), 0 2px 6px -1px rgba(15, 23, 42, 0.05)'
+// screens, which stay flat/bordered per the original brief. Tuned
+// deliberately restrained — tight radius, low opacity, navy-tinted —
+// to read as institutional precision rather than a glowing SaaS card.
+export const shadowMd = '0 2px 8px -2px rgba(15, 23, 42, 0.06)'
+export const shadowLg = '0 8px 24px -8px rgba(15, 23, 42, 0.10)'
 
 // ─── Motion ─────────────────────────────────────────────────────────
 // Brief: 150ms ease, color/background/border/opacity only. No entrance
