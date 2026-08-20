@@ -521,6 +521,8 @@ export default function DashboardPage() {
                       value={c.risk_score}
                       label={SEV_LABEL[c.severity]}
                       caption={c.entity_name}
+                      size={76}
+                      strokeWidth={4}
                       trackColor={C.border}
                       captionColor={C.textSecondary}
                       fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
