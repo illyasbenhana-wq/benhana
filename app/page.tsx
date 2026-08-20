@@ -173,18 +173,18 @@ export default function HomePage() {
           {/* Audit-log strip — replaces a score panel as the hero's product
               artifact. Communicates "records and audits decisions" on
               sight, not "computes scores." */}
-          <div style={{ background: C.textPrimary, borderRadius: R.control, padding: SP.xl, width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: SP.lg, paddingBottom: SP.md, borderBottom: `1px solid rgba(255,255,255,0.12)` }}>
-              <span style={{ ...monoCss, fontSize: 10, color: 'rgba(226,232,240,0.5)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>workflow_events · live</span>
+          <div style={{ background: C.background, border: borderLine, borderRadius: R.control, padding: SP.xl, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: SP.lg, paddingBottom: SP.md, borderBottom: borderLine }}>
+              <span style={{ ...monoCss, fontSize: 10, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>workflow_events · live</span>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.riskLow, flexShrink: 0 }} />
             </div>
             {AUDIT_LOG.map(e => (
               <div key={e.ref + e.event} style={{ marginBottom: 12, fontSize: 12 }}>
-                <div style={{ ...monoCss, color: '#E2E8F0' }}>
-                  <span style={{ color: '#60A5FA' }}>{e.event}</span>
-                  <span style={{ color: 'rgba(226,232,240,0.4)' }}> · {e.ref}</span>
+                <div style={{ ...monoCss, color: C.textPrimary }}>
+                  <span style={{ color: C.accent }}>{e.event}</span>
+                  <span style={{ color: C.textMuted }}> · {e.ref}</span>
                 </div>
-                <div style={{ ...monoCss, fontSize: 11, color: 'rgba(226,232,240,0.5)', marginTop: 2 }}>{e.detail}</div>
+                <div style={{ ...monoCss, fontSize: 11, color: C.textSecondary, marginTop: 2 }}>{e.detail}</div>
               </div>
             ))}
           </div>
