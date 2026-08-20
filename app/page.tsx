@@ -141,7 +141,7 @@ export default function HomePage() {
             </p>
 
             <h1 style={{ fontFamily: F.sans, fontSize: 44, fontWeight: FW.bold, letterSpacing: '-0.02em', lineHeight: 1.15, margin: `0 0 ${SP.xl}px` }}>
-              Infrastructure for <span style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>explainable</span> AI lending decisions.
+              Infrastructure for <span style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>explainable, auditable</span> AI lending decisions.
             </h1>
 
             <p style={{ fontSize: FS.md, color: C.textSecondary, lineHeight: 1.6, maxWidth: 480, margin: `0 0 ${SP.xxl}px` }}>
