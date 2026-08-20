@@ -77,8 +77,9 @@ const labelCss: CSSProperties = {
 // score ring / factor-bar visual language as app/score/[id]/page.tsx,
 // so a visitor sees the actual EthoScore output, not an abstraction.
 function EthoScorePanel() {
-  const score = 78
-  const pct = score
+  const score = 780
+  const max = 1000
+  const pct = (score / max) * 100
   const r = 46
   const circumference = 2 * Math.PI * r
   const offset = circumference * (1 - pct / 100)
@@ -97,8 +98,8 @@ function EthoScorePanel() {
             <circle cx="50" cy="50" r={r} fill="none" stroke={C.riskLow} strokeWidth="6" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="butt" />
           </svg>
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 26, fontWeight: FW.bold, color: C.riskLow, fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{score}</span>
-            <span style={{ fontSize: 9, color: C.textMuted }}>/ 100</span>
+            <span style={{ fontSize: 22, fontWeight: FW.bold, color: C.riskLow, fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{score}</span>
+            <span style={{ fontSize: 9, color: C.textMuted }}>/ {max}</span>
           </div>
         </div>
         <div>
