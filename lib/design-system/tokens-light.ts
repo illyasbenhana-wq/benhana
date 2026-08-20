@@ -85,11 +85,16 @@ export const fontFamily = {
   // No serif/mono split in the light brief; numerical values use
   // tabular-nums on the sans family instead of a dedicated mono face.
   mono: 'Inter, system-ui, -apple-system, sans-serif',
+  // Display face for institutional headline moments (landing page hero,
+  // section headers) — not used in-app on data screens, which stay on
+  // fontSize.display/xl above with the sans family. Distinguishes
+  // EthosFi's editorial voice from Fortress's all-sans reference.
+  display: '"Fraunces", Georgia, serif',
 } as const
 
-/** Drop into a <link rel="stylesheet" href={...} /> to load Inter. */
+/** Drop into a <link rel="stylesheet" href={...} /> to load Inter + Fraunces. */
 export const googleFontsHref =
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap'
 
 export const fontSize = {
   micro: 10,
@@ -152,6 +157,13 @@ export const space = {
 export const borderLine = `1px solid ${color.border}`
 export const shadowSm = '0 1px 2px 0 rgba(15, 23, 42, 0.05)' // shadow-sm max, per brief
 
+// Elevation scale beyond shadowSm — for marketing-surface cards/sections
+// that need more depth than the brief's data-screen shadow-sm ceiling
+// (stat tiles, feature cards, hero panels). Not used on dense data
+// screens, which stay flat/bordered per the original brief.
+export const shadowMd = '0 4px 16px -4px rgba(15, 23, 42, 0.08), 0 1px 2px 0 rgba(15, 23, 42, 0.04)'
+export const shadowLg = '0 16px 40px -12px rgba(15, 23, 42, 0.14), 0 2px 6px -1px rgba(15, 23, 42, 0.05)'
+
 // ─── Motion ─────────────────────────────────────────────────────────
 // Brief: 150ms ease, color/background/border/opacity only. No entrance
 // or scroll-gadget animation. The dark theme's dataPulse/ringDraw are
@@ -190,6 +202,8 @@ export const tokens = {
   space,
   borderLine,
   shadowSm,
+  shadowMd,
+  shadowLg,
   transition,
   motion,
   keyframes,
