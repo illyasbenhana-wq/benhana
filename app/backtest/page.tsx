@@ -1,6 +1,17 @@
 'use client'
 import { useState } from 'react'
 import { Logo } from '../components/Logo'
+import { DashboardSidebar } from '../components/DashboardSidebar'
+import {
+  color as C,
+  fontFamily as F,
+  fontSize as FS,
+  fontWeight as FW,
+  radius as R,
+  space as SP,
+  borderLine,
+  googleFontsHref,
+} from '../../lib/design-system/tokens-light'
 
 type MappingField = string | null
 type Mapping = Record<string, MappingField>
@@ -86,172 +97,177 @@ export default function BacktestPage() {
 
   if (authError) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"DM Sans", sans-serif', flexDirection: 'column', gap: 12 }}>
-        <p style={{ fontSize: 16, fontWeight: 500 }}>EthosFi Backtest Tool</p>
-        <p style={{ color: '#555', fontSize: 13 }}>This tool requires an access token. Contact the platform admin.</p>
+      <div style={{ minHeight: '100vh', background: C.background, color: C.textPrimary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.sans, flexDirection: 'column', gap: SP.md }}>
+        <link href={googleFontsHref} rel="stylesheet" />
+        <p style={{ fontSize: FS.md, fontWeight: FW.medium }}>EthosFi Backtest Tool</p>
+        <p style={{ color: C.textSecondary, fontSize: FS.sm }}>This tool requires an access token. Contact the platform admin.</p>
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#e8e6df', fontFamily: '"DM Sans", sans-serif' }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+    <div style={{ display: 'flex', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
+      <link href={googleFontsHref} rel="stylesheet" />
 
-      <div style={{ borderBottom: '1px solid #1a1a28', padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Logo size="md" textColor="#e8e6df" notchColor="#0a0a0f" />
-        <div style={{ fontSize: 12, color: '#555', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Backtest Tool · Internal Only</div>
-      </div>
+      <DashboardSidebar />
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 32px' }}>
-        <h1 style={{ fontFamily: '"DM Serif Display", serif', fontSize: 28, fontWeight: 400, margin: '0 0 8px' }}>Historical Portfolio Backtest</h1>
-        <p style={{ color: '#555', fontSize: 13, marginBottom: 32 }}>Upload a CSV of historical loans → EthoScore v2 scores each row → performance report against actual outcomes.</p>
+      <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+        <div style={{ borderBottom: borderLine, padding: `${SP.lg}px ${SP.xxl}px`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Logo size="md" />
+          <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Backtest Tool · Internal Only</div>
+        </div>
 
-        {/* Step 1: Upload */}
-        {status === 'idle' && (
-          <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '32px', textAlign: 'center' }}>
-            <div style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>Upload a CSV file with historical loan data</div>
-            <input type="file" accept=".csv" onChange={handleFileUpload} style={{ color: '#888', fontSize: 13 }} />
-            <div style={{ fontSize: 11, color: '#444', marginTop: 12 }}>Expected: one row per loan, with columns for borrower info, loan details, and repayment outcome</div>
-          </div>
-        )}
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: `${SP.xxl}px ${SP.xl}px` }}>
+          <h1 style={{ fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, margin: `0 0 8px` }}>Historical Portfolio Backtest</h1>
+          <p style={{ color: C.textSecondary, fontSize: FS.sm, marginBottom: SP.xxl }}>Upload a CSV of historical loans → EthoScore v2 scores each row → performance report against actual outcomes.</p>
 
-        {/* Step 2: Field Mapping */}
-        {status === 'mapping' && (
-          <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '24px' }}>
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4 }}>Map Your Columns</div>
-            <p style={{ fontSize: 12, color: '#555', marginBottom: 20 }}>We auto-detected {csvHeaders.length} columns. Verify the mapping below.</p>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, color: '#888' }}>Run Name (optional)</label>
-              <input value={runName} onChange={e => setRunName(e.target.value)} placeholder="Q1 2025 Portfolio" style={{ width: '100%', padding: '8px 12px', background: '#0a0a0f', border: '1px solid #2a2a38', borderRadius: 8, color: '#e8e6df', fontSize: 13, marginTop: 4 }} />
+          {/* Step 1: Upload */}
+          {status === 'idle' && (
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center' }}>
+              <div style={{ fontSize: FS.sm, color: C.textSecondary, marginBottom: SP.lg }}>Upload a CSV file with historical loan data</div>
+              <input type="file" accept=".csv" onChange={handleFileUpload} style={{ color: C.textSecondary, fontSize: FS.sm }} />
+              <div style={{ fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>Expected: one row per loan, with columns for borrower info, loan details, and repayment outcome</div>
             </div>
+          )}
 
-            <div style={{ fontSize: 11, color: '#4a9eff', marginBottom: 12 }}>Required Fields</div>
-            {REQUIRED_FIELDS.map(f => (
-              <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                <span style={{ width: 180, fontSize: 12, color: '#888' }}>{f.label}</span>
-                <select value={mapping[f.key] ?? ''} onChange={e => updateMapping(f.key, e.target.value || null)} style={{ flex: 1, padding: '6px 10px', background: '#0a0a0f', border: '1px solid #2a2a38', borderRadius: 6, color: '#e8e6df', fontSize: 12 }}>
-                  <option value="">— not mapped —</option>
-                  {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
+          {/* Step 2: Field Mapping */}
+          {status === 'mapping' && (
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xl }}>
+              <div style={{ fontSize: FS.sm, fontWeight: FW.medium, marginBottom: 4 }}>Map Your Columns</div>
+              <p style={{ fontSize: FS.xs, color: C.textSecondary, marginBottom: SP.xl }}>We auto-detected {csvHeaders.length} columns. Verify the mapping below.</p>
+
+              <div style={{ marginBottom: SP.lg }}>
+                <label style={{ fontSize: FS.xs, color: C.textSecondary }}>Run Name (optional)</label>
+                <input value={runName} onChange={e => setRunName(e.target.value)} placeholder="Q1 2025 Portfolio" style={{ width: '100%', padding: '8px 12px', background: C.background, border: borderLine, borderRadius: R.control, color: C.textPrimary, fontSize: FS.sm, marginTop: 4 }} />
               </div>
-            ))}
 
-            <div style={{ fontSize: 11, color: '#555', marginBottom: 12, marginTop: 20 }}>Optional Fields</div>
-            {OPTIONAL_FIELDS.map(f => (
-              <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                <span style={{ width: 180, fontSize: 12, color: '#666' }}>{f.label}</span>
-                <select value={mapping[f.key] ?? ''} onChange={e => updateMapping(f.key, e.target.value || null)} style={{ flex: 1, padding: '6px 10px', background: '#0a0a0f', border: '1px solid #2a2a38', borderRadius: 6, color: '#e8e6df', fontSize: 12 }}>
-                  <option value="">— not mapped —</option>
-                  {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-            ))}
+              <div style={{ fontSize: FS.xs, color: C.accent, marginBottom: SP.md }}>Required Fields</div>
+              {REQUIRED_FIELDS.map(f => (
+                <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: SP.md, marginBottom: SP.sm }}>
+                  <span style={{ width: 180, fontSize: FS.xs, color: C.textSecondary }}>{f.label}</span>
+                  <select value={mapping[f.key] ?? ''} onChange={e => updateMapping(f.key, e.target.value || null)} style={{ flex: 1, padding: '6px 10px', background: C.background, border: borderLine, borderRadius: R.control, color: C.textPrimary, fontSize: FS.xs }}>
+                    <option value="">— not mapped —</option>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              ))}
 
-            <button onClick={runBacktest} style={{ marginTop: 20, padding: '12px 32px', borderRadius: 10, background: '#4a9eff', color: '#000', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 500 }}>
-              Run Backtest
-            </button>
-          </div>
-        )}
+              <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.md, marginTop: SP.xl }}>Optional Fields</div>
+              {OPTIONAL_FIELDS.map(f => (
+                <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: SP.md, marginBottom: SP.sm }}>
+                  <span style={{ width: 180, fontSize: FS.xs, color: C.textMuted }}>{f.label}</span>
+                  <select value={mapping[f.key] ?? ''} onChange={e => updateMapping(f.key, e.target.value || null)} style={{ flex: 1, padding: '6px 10px', background: C.background, border: borderLine, borderRadius: R.control, color: C.textPrimary, fontSize: FS.xs }}>
+                    <option value="">— not mapped —</option>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              ))}
 
-        {/* Step 3: Running */}
-        {status === 'running' && (
-          <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 14, padding: '32px', textAlign: 'center' }}>
-            <div style={{ fontSize: 14, color: '#888' }}>Scoring in progress...</div>
-          </div>
-        )}
-
-        {/* Step 4: Error */}
-        {status === 'error' && (
-          <div style={{ background: '#2a0d0d', border: '1px solid #E24B4A44', borderRadius: 14, padding: '24px' }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: '#E24B4A', marginBottom: 8 }}>Backtest Failed</div>
-            <p style={{ fontSize: 13, color: '#888', margin: 0 }}>{error}</p>
-            <button onClick={() => setStatus('mapping')} style={{ marginTop: 16, padding: '8px 20px', borderRadius: 8, background: '#2a2a38', color: '#888', border: 'none', cursor: 'pointer', fontSize: 12 }}>Try Again</button>
-          </div>
-        )}
-
-        {/* Step 5: Results */}
-        {status === 'completed' && result && (
-          <div>
-            {/* Summary Banner */}
-            <div style={{ background: '#0d2a20', border: '1px solid #1D9E7544', borderRadius: 14, padding: '20px 24px', marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#1D9E75', marginBottom: 8 }}>Backtest Complete</div>
-              <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.6 }}>{result.summary?.plain_language_summary}</p>
+              <button onClick={runBacktest} style={{ marginTop: SP.xl, padding: '12px 32px', borderRadius: R.control, background: C.accent, color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: FS.base, fontWeight: FW.medium }}>
+                Run Backtest
+              </button>
             </div>
+          )}
 
-            {/* Metrics Grid */}
-            {result.summary && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
-                <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 12, padding: '16px 20px' }}>
-                  <div style={{ fontSize: 11, color: '#555', marginBottom: 8 }}>PRECISION</div>
-                  <div style={{ fontSize: 28, fontFamily: '"DM Serif Display", serif', color: '#4a9eff' }}>{Math.round(result.summary.precision * 100)}%</div>
-                  <div style={{ fontSize: 11, color: '#555' }}>of high-risk flags were actual defaults</div>
-                </div>
-                <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 12, padding: '16px 20px' }}>
-                  <div style={{ fontSize: 11, color: '#555', marginBottom: 8 }}>RECALL</div>
-                  <div style={{ fontSize: 28, fontFamily: '"DM Serif Display", serif', color: '#1D9E75' }}>{Math.round(result.summary.recall * 100)}%</div>
-                  <div style={{ fontSize: 11, color: '#555' }}>of actual defaults were caught</div>
-                </div>
-                <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 12, padding: '16px 20px' }}>
-                  <div style={{ fontSize: 11, color: '#555', marginBottom: 8 }}>ROWS SCORED</div>
-                  <div style={{ fontSize: 28, fontFamily: '"DM Serif Display", serif', color: '#e8e6df' }}>{result.summary.scored_count}</div>
-                  <div style={{ fontSize: 11, color: '#555' }}>{result.summary.skipped_count} skipped · {result.summary.error_count} errors</div>
-                </div>
+          {/* Step 3: Running */}
+          {status === 'running' && (
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center' }}>
+              <div style={{ fontSize: FS.base, color: C.textSecondary }}>Scoring in progress...</div>
+            </div>
+          )}
+
+          {/* Step 4: Error */}
+          {status === 'error' && (
+            <div style={{ background: `${C.riskHigh}0d`, border: `1px solid ${C.riskHigh}44`, borderRadius: R.card, padding: SP.xl }}>
+              <div style={{ fontSize: FS.base, fontWeight: FW.medium, color: C.riskHigh, marginBottom: SP.sm }}>Backtest Failed</div>
+              <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: 0 }}>{error}</p>
+              <button onClick={() => setStatus('mapping')} style={{ marginTop: SP.lg, padding: '8px 20px', borderRadius: R.control, background: C.surface, border: borderLine, color: C.textSecondary, cursor: 'pointer', fontSize: FS.xs }}>Try Again</button>
+            </div>
+          )}
+
+          {/* Step 5: Results */}
+          {status === 'completed' && result && (
+            <div>
+              {/* Summary Banner */}
+              <div style={{ background: `${C.riskLow}0d`, border: `1px solid ${C.riskLow}44`, borderRadius: R.card, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
+                <div style={{ fontSize: FS.sm, fontWeight: FW.medium, color: C.riskLow, marginBottom: SP.sm }}>Backtest Complete</div>
+                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: 0, lineHeight: 1.6 }}>{result.summary?.plain_language_summary}</p>
               </div>
-            )}
 
-            {/* Default Rate by Band */}
-            {result.summary && (
-              <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 12, padding: '20px 24px', marginBottom: 20 }}>
-                <div style={{ fontSize: 11, color: '#555', marginBottom: 16, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Default Rate by Risk Band</div>
-                {(['low', 'medium', 'high'] as const).map(band => {
-                  const rate = result.summary.default_rate_by_band[band]
-                  const color = band === 'low' ? '#1D9E75' : band === 'medium' ? '#BA7517' : '#E24B4A'
-                  return (
-                    <div key={band} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                      <span style={{ width: 70, fontSize: 12, color, fontWeight: 500, textTransform: 'capitalize' }}>{band}</span>
-                      <div style={{ flex: 1, height: 8, background: '#1a1a28', borderRadius: 4, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(rate * 100, 100)}%`, background: color, borderRadius: 4 }} />
+              {/* Metrics Grid */}
+              {result.summary && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: SP.md, marginBottom: SP.lg }}>
+                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: '16px 20px' }}>
+                    <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>PRECISION</div>
+                    <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.accent }}>{Math.round(result.summary.precision * 100)}%</div>
+                    <div style={{ fontSize: FS.xs, color: C.textMuted }}>of high-risk flags were actual defaults</div>
+                  </div>
+                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: '16px 20px' }}>
+                    <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>RECALL</div>
+                    <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.riskLow }}>{Math.round(result.summary.recall * 100)}%</div>
+                    <div style={{ fontSize: FS.xs, color: C.textMuted }}>of actual defaults were caught</div>
+                  </div>
+                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: '16px 20px' }}>
+                    <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>ROWS SCORED</div>
+                    <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.textPrimary }}>{result.summary.scored_count}</div>
+                    <div style={{ fontSize: FS.xs, color: C.textMuted }}>{result.summary.skipped_count} skipped · {result.summary.error_count} errors</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Default Rate by Band */}
+              {result.summary && (
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
+                  <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.lg, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Default Rate by Risk Band</div>
+                  {(['low', 'medium', 'high'] as const).map(band => {
+                    const rate = result.summary.default_rate_by_band[band]
+                    const color = band === 'low' ? C.riskLow : band === 'medium' ? C.riskMedium : C.riskHigh
+                    return (
+                      <div key={band} style={{ display: 'flex', alignItems: 'center', gap: SP.md, marginBottom: SP.sm }}>
+                        <span style={{ width: 70, fontSize: FS.xs, color, fontWeight: FW.medium, textTransform: 'capitalize' }}>{band}</span>
+                        <div style={{ flex: 1, height: 8, background: C.border, borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${Math.min(rate * 100, 100)}%`, background: color, borderRadius: 4 }} />
+                        </div>
+                        <span style={{ width: 50, fontSize: FS.xs, color: C.textSecondary, textAlign: 'right' }}>{Math.round(rate * 100)}%</span>
                       </div>
-                      <span style={{ width: 50, fontSize: 12, color: '#888', textAlign: 'right' }}>{Math.round(rate * 100)}%</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                    )
+                  })}
+                </div>
+              )}
 
-            {/* Confusion Matrix */}
-            {result.summary && (
-              <div style={{ background: '#13131a', border: '1px solid #1a1a28', borderRadius: 12, padding: '20px 24px', marginBottom: 20 }}>
-                <div style={{ fontSize: 11, color: '#555', marginBottom: 16, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Confusion Matrix</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, maxWidth: 300 }}>
-                  <div style={{ background: '#0d2a20', borderRadius: 8, padding: 12, textAlign: 'center' }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#1D9E75' }}>{result.summary.confusion_matrix.tp}</div>
-                    <div style={{ fontSize: 10, color: '#555' }}>True Positive</div>
-                    <div style={{ fontSize: 9, color: '#444' }}>Flagged + Defaulted</div>
-                  </div>
-                  <div style={{ background: '#2a1e0a', borderRadius: 8, padding: 12, textAlign: 'center' }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#BA7517' }}>{result.summary.confusion_matrix.fp}</div>
-                    <div style={{ fontSize: 10, color: '#555' }}>False Positive</div>
-                    <div style={{ fontSize: 9, color: '#444' }}>Flagged but Repaid</div>
-                  </div>
-                  <div style={{ background: '#2a0d0d', borderRadius: 8, padding: 12, textAlign: 'center' }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#E24B4A' }}>{result.summary.confusion_matrix.fn}</div>
-                    <div style={{ fontSize: 10, color: '#555' }}>False Negative</div>
-                    <div style={{ fontSize: 9, color: '#444' }}>Missed Default</div>
-                  </div>
-                  <div style={{ background: '#0a0a0f', border: '1px solid #1a1a28', borderRadius: 8, padding: 12, textAlign: 'center' }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#888' }}>{result.summary.confusion_matrix.tn}</div>
-                    <div style={{ fontSize: 10, color: '#555' }}>True Negative</div>
-                    <div style={{ fontSize: 9, color: '#444' }}>Passed + Repaid</div>
+              {/* Confusion Matrix */}
+              {result.summary && (
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
+                  <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.lg, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Confusion Matrix</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.sm, maxWidth: 300 }}>
+                    <div style={{ background: `${C.riskLow}14`, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: FS.lg, fontWeight: FW.bold, color: C.riskLow }}>{result.summary.confusion_matrix.tp}</div>
+                      <div style={{ fontSize: 10, color: C.textMuted }}>True Positive</div>
+                      <div style={{ fontSize: 9, color: C.textMuted }}>Flagged + Defaulted</div>
+                    </div>
+                    <div style={{ background: `${C.riskMedium}14`, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: FS.lg, fontWeight: FW.bold, color: C.riskMedium }}>{result.summary.confusion_matrix.fp}</div>
+                      <div style={{ fontSize: 10, color: C.textMuted }}>False Positive</div>
+                      <div style={{ fontSize: 9, color: C.textMuted }}>Flagged but Repaid</div>
+                    </div>
+                    <div style={{ background: `${C.riskHigh}14`, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: FS.lg, fontWeight: FW.bold, color: C.riskHigh }}>{result.summary.confusion_matrix.fn}</div>
+                      <div style={{ fontSize: 10, color: C.textMuted }}>False Negative</div>
+                      <div style={{ fontSize: 9, color: C.textMuted }}>Missed Default</div>
+                    </div>
+                    <div style={{ background: C.background, border: borderLine, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: FS.lg, fontWeight: FW.bold, color: C.textSecondary }}>{result.summary.confusion_matrix.tn}</div>
+                      <div style={{ fontSize: 10, color: C.textMuted }}>True Negative</div>
+                      <div style={{ fontSize: 9, color: C.textMuted }}>Passed + Repaid</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            <button onClick={() => { setStatus('idle'); setCsvText(''); setResult(null) }} style={{ padding: '10px 24px', borderRadius: 8, background: '#2a2a38', color: '#888', border: 'none', cursor: 'pointer', fontSize: 13 }}>Run Another Backtest</button>
-          </div>
-        )}
+              <button onClick={() => { setStatus('idle'); setCsvText(''); setResult(null) }} style={{ padding: '10px 24px', borderRadius: R.control, background: C.surface, border: borderLine, color: C.textSecondary, cursor: 'pointer', fontSize: FS.sm }}>Run Another Backtest</button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
