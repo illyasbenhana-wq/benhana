@@ -12,6 +12,7 @@ import { usePathname } from 'next/navigation'
 import { navGroups } from '../../lib/design-system/nav-groups'
 import { sidebar as S, shellLayout } from '../../lib/design-system/fortress-shell-tokens'
 import { fontFamily as F, fontSize as FS, fontWeight as FW } from '../../lib/design-system/tokens-light'
+import { Logo } from './Logo'
 
 function NavGroupBlock({
   label,
@@ -86,12 +87,9 @@ export function DashboardSidebar({
       width: shellLayout.sidebarWidth, flexShrink: 0, height: '100vh', background: S.background,
       borderRight: `1px solid ${S.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }}>
-      <div style={{ height: shellLayout.headerHeight, display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: S.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: F.sans, fontSize: 13, fontWeight: FW.bold, color: '#FFFFFF' }}>E</div>
-        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
-          <span style={{ fontFamily: F.sans, fontSize: FS.sm, fontWeight: FW.bold, color: S.textPrimary }}>EthosFi</span>
-          <span style={{ fontFamily: F.sans, fontSize: 9, fontWeight: FW.semibold, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.textMuted }}>Risk Intelligence</span>
-        </div>
+      <div style={{ height: shellLayout.headerHeight, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3, padding: '0 16px', borderBottom: `1px solid ${S.border}`, flexShrink: 0 }}>
+        <Logo size="sm" />
+        <span style={{ fontFamily: F.sans, fontSize: 9, fontWeight: FW.semibold, letterSpacing: '0.12em', textTransform: 'uppercase', color: S.textMuted }}>Risk Intelligence</span>
       </div>
 
       <nav style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>

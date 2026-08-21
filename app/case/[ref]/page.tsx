@@ -186,6 +186,7 @@ export default function InvestigationPage() {
               <PrecisionGauge
                 value={dossier.riskScore}
                 label={SEV_LABEL[dossier.severity]}
+                color={caseRiskColor(dossier.riskScore)}
                 size={148}
                 trackColor={C.border}
                 captionColor={C.textSecondary}

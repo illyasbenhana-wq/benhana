@@ -521,6 +521,7 @@ export default function DashboardPage() {
                       value={c.risk_score}
                       label={SEV_LABEL[c.severity]}
                       caption={c.entity_name}
+                      color={riskColor(c.risk_score)}
                       size={76}
                       strokeWidth={4}
                       trackColor={C.border}
@@ -601,6 +602,7 @@ export default function DashboardPage() {
                 <PrecisionGauge
                   value={activeCase.risk_score}
                   label={SEV_LABEL[activeCase.severity]}
+                  color={riskColor(activeCase.risk_score)}
                   size={128}
                   trackColor={C.border}
                   captionColor={C.textSecondary}
