@@ -4,7 +4,7 @@
  */
 import React from 'react'
 import { scoreMerchant, MerchantProfile } from '../../../lib/merchant-scoring'
-import { color as C, fontWeight as FW, radius as R, borderLine } from '../../../lib/design-system/tokens-light'
+import { color as C, fontWeight as FW, radius as R, borderLine, shadowSm } from '../../../lib/design-system/tokens-light'
 
 export function MerchantIntelligence() {
   // Sample SME profile: Fatima Diallo, cross-border apparel trader
@@ -33,7 +33,7 @@ export function MerchantIntelligence() {
         : { bg: C.accentSubtle, border: `${C.riskHigh}44`, text: C.riskHigh, label: 'Decline' }
 
   return (
-    <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '20px 24px' }}>
+    <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '20px 24px' }}>
       <div style={{ fontSize: 11, color: C.textSecondary, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
         Merchant Intelligence
       </div>

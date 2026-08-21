@@ -18,6 +18,7 @@ import {
   radius as R,
   space as SP,
   borderLine,
+  shadowSm,
   motion as M,
   keyframes as KF,
   googleFontsHref,
@@ -358,7 +359,7 @@ export default function DashboardPage() {
     letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSecondary,
   }
   const monoCss: React.CSSProperties = { fontFamily: F.mono, fontVariantNumeric: 'tabular-nums' }
-  const panelCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.data }
+  const panelCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm }
 
   const activeCases = cases.filter(c => c.status !== 'cleared')
   const rankedCases = [...activeCases].sort((a, b) => b.risk_score - a.risk_score)

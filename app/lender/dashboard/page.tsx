@@ -15,6 +15,7 @@ import {
   radius as R,
   space as SP,
   borderLine,
+  shadowSm,
   googleFontsHref,
 } from '../../../lib/design-system/tokens-light'
 
@@ -167,7 +168,7 @@ export default function LenderDashboard() {
     fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold,
     letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSecondary,
   }
-  const panelCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.data }
+  const panelCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm }
 
   // ─────────────────────────────────────────────────────────────────────────
 

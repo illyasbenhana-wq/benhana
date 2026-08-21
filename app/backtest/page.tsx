@@ -10,6 +10,7 @@ import {
   radius as R,
   space as SP,
   borderLine,
+  shadowSm,
   googleFontsHref,
 } from '../../lib/design-system/tokens-light'
 
@@ -123,7 +124,7 @@ export default function BacktestPage() {
 
           {/* Step 1: Upload */}
           {status === 'idle' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center' }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xxl, textAlign: 'center' }}>
               <div style={{ fontSize: FS.sm, color: C.textSecondary, marginBottom: SP.lg }}>Upload a CSV file with historical loan data</div>
               <input type="file" accept=".csv" onChange={handleFileUpload} style={{ color: C.textSecondary, fontSize: FS.sm }} />
               <div style={{ fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>Expected: one row per loan, with columns for borrower info, loan details, and repayment outcome</div>
@@ -132,7 +133,7 @@ export default function BacktestPage() {
 
           {/* Step 2: Field Mapping */}
           {status === 'mapping' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xl }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xl }}>
               <div style={{ fontSize: FS.sm, fontWeight: FW.medium, marginBottom: 4 }}>Map Your Columns</div>
               <p style={{ fontSize: FS.xs, color: C.textSecondary, marginBottom: SP.xl }}>We auto-detected {csvHeaders.length} columns. Verify the mapping below.</p>
 
@@ -171,7 +172,7 @@ export default function BacktestPage() {
 
           {/* Step 3: Running */}
           {status === 'running' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center' }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xxl, textAlign: 'center' }}>
               <div style={{ fontSize: FS.base, color: C.textSecondary }}>Scoring in progress...</div>
             </div>
           )}
@@ -197,17 +198,17 @@ export default function BacktestPage() {
               {/* Metrics Grid */}
               {result.summary && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: SP.md, marginBottom: SP.lg }}>
-                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: '16px 20px' }}>
+                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: '16px 20px' }}>
                     <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>PRECISION</div>
                     <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.accent }}>{Math.round(result.summary.precision * 100)}%</div>
                     <div style={{ fontSize: FS.xs, color: C.textMuted }}>of high-risk flags were actual defaults</div>
                   </div>
-                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: '16px 20px' }}>
+                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: '16px 20px' }}>
                     <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>RECALL</div>
                     <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.riskLow }}>{Math.round(result.summary.recall * 100)}%</div>
                     <div style={{ fontSize: FS.xs, color: C.textMuted }}>of actual defaults were caught</div>
                   </div>
-                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: '16px 20px' }}>
+                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: '16px 20px' }}>
                     <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>ROWS SCORED</div>
                     <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.textPrimary }}>{result.summary.scored_count}</div>
                     <div style={{ fontSize: FS.xs, color: C.textMuted }}>{result.summary.skipped_count} skipped · {result.summary.error_count} errors</div>
@@ -217,7 +218,7 @@ export default function BacktestPage() {
 
               {/* Default Rate by Band */}
               {result.summary && (
-                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
                   <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.lg, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Default Rate by Risk Band</div>
                   {(['low', 'medium', 'high'] as const).map(band => {
                     const rate = result.summary.default_rate_by_band[band]
@@ -237,7 +238,7 @@ export default function BacktestPage() {
 
               {/* Confusion Matrix */}
               {result.summary && (
-                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
                   <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.lg, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Confusion Matrix</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.sm, maxWidth: 300 }}>
                     <div style={{ background: `${C.riskLow}14`, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
