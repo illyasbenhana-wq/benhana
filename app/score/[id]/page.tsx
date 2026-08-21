@@ -7,6 +7,8 @@ import { computeRiskBand } from '@/lib/risk-band'
 import { isPreviewDeployment } from '@/lib/preview-bypass'
 import { Logo } from '@/app/components/Logo'
 import { DashboardSidebar } from '@/app/components/DashboardSidebar'
+import { Badge } from '@/app/components/Badge'
+import { EvidenceRow } from '@/app/components/EvidenceRow'
 import {
   color as C,
   fontFamily as F,
@@ -17,7 +19,6 @@ import {
   borderLine,
   shadowSm,
   googleFontsHref,
-  ethoScoreColor,
 } from '@/lib/design-system/tokens-light'
 
 type PillarFactor = { name: string; score: number; max: number; rationale: string }
@@ -56,35 +57,6 @@ const REC_COLOR: Record<ScoreResult['recommendation'], string> = {
   approve: C.riskLow,
   review: C.riskMedium,
   decline: C.riskHigh,
-}
-
-function PillarBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = max > 0 ? Math.round((value / max) * 100) : 0
-  return (
-    <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: 'hidden' }}>
-      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3, transition: 'width 0.8s ease' }} />
-    </div>
-  )
-}
-
-// Structured (v2) EthoScore ring — the raw total is 0–1000, higher =
-// better, so its color comes from ethoScoreColor(), NOT a re-derived
-// percentage threshold (as this component previously computed inline).
-function ScoreRing({ total, max }: { total: number; max: number }) {
-  const pct = Math.round((total / max) * 100)
-  const color = ethoScoreColor(total)
-  return (
-    <div style={{ position: 'relative', width: 120, height: 120, margin: '0 auto' }}>
-      <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="50" cy="50" r="42" fill="none" stroke={C.border} strokeWidth="8" />
-        <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="8" strokeDasharray={`${pct * 2.64} 264`} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 28, fontWeight: FW.bold, color, fontFamily: F.sans, fontVariantNumeric: 'tabular-nums' }}>{total}</div>
-        <div style={{ fontSize: 10, color: C.textSecondary }}>/ {max}</div>
-      </div>
-    </div>
-  )
 }
 
 type ScoreView = {
@@ -237,6 +209,7 @@ export default function ScorePage() {
 
   const cardCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm }
   const labelCss: React.CSSProperties = { fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSecondary }
+  const monoCss: React.CSSProperties = { fontFamily: F.mono, fontVariantNumeric: 'tabular-nums' }
 
   return (
     <>
@@ -291,107 +264,86 @@ export default function ScorePage() {
           {band.headline}
         </h1>
 
-        {/* Score card */}
-        <div style={{ ...cardCss, padding: SP.xxl, marginBottom: SP.xl, textAlign: 'center' }}>
-          <p style={{ ...labelCss, color: bandColor, margin: `0 0 ${SP.md}px` }}>Your EthoScore™</p>
-          <div style={{ fontSize: 96, fontFamily: F.sans, fontWeight: FW.bold, color: bandColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', animation: 'countUp 0.6s ease forwards' }}>
-            {score.etho_score}
-          </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: C.accentSubtle, border: `1px solid ${bandColor}44`, borderRadius: 20, padding: '6px 16px', marginTop: SP.md }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: bandColor }} />
-            <span style={{ fontSize: FS.sm, color: bandColor }}>{band.label}</span>
-          </div>
-
-          {/* Score bar */}
-          <div style={{ marginTop: SP.xl, position: 'relative' }}>
-            <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${score.etho_score}%`, background: bandColor, borderRadius: 3, transition: 'width 1s ease' }} />
+        {/* Score + Decision — compact, Tier-2 (deliberately not the page's
+            dominant hero). A small ring paired inline with band + AI
+            recommendation, not an isolated giant number. */}
+        <div style={{ ...cardCss, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl, display: 'flex', alignItems: 'center', gap: SP.xl, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+            <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="50" cy="50" r="42" fill="none" stroke={C.border} strokeWidth="6" />
+              <circle cx="50" cy="50" r="42" fill="none" stroke={bandColor} strokeWidth="6" strokeDasharray={`${score.etho_score * 2.64} 264`} strokeLinecap="butt" />
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontFamily: F.mono, fontSize: 18, fontWeight: FW.bold, color: bandColor }}>{score.etho_score}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: FS.xs, color: C.textMuted }}>
-              <span>0</span><span>50</span><span>100</span>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: 6, flexWrap: 'wrap' }}>
+              <span style={labelCss}>EthoScore™</span>
+              <Badge tone={score.risk_band === 'low' ? 'low' : score.risk_band === 'medium' ? 'medium' : 'high'}>{band.label}</Badge>
             </div>
+            <p style={{ margin: 0, fontSize: FS.sm, color: recColor }}>
+              {rec === 'approve' && '✓ AI recommendation: Approve — your profile meets lending criteria.'}
+              {rec === 'review' && '◎ AI recommendation: Manual review — a lender will assess your application.'}
+              {rec === 'decline' && '○ AI recommendation: Not approved at this time — see improvement tips below.'}
+            </p>
           </div>
         </div>
 
-        {/* Recommendation banner */}
-        <div style={{ background: C.accentSubtle, border: `1px solid ${recColor}44`, borderRadius: R.card, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
-          <p style={{ margin: 0, fontSize: FS.base, color: recColor }}>
-            {rec === 'approve' && '✓ AI recommendation: Approve — your profile meets lending criteria.'}
-            {rec === 'review' && '◎ AI recommendation: Manual review — a lender will assess your application.'}
-            {rec === 'decline' && '○ AI recommendation: Not approved at this time — see improvement tips below.'}
-          </p>
-        </div>
-
-        {/* AI Summary */}
-        <div style={{ ...cardCss, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
-          <p style={{ ...labelCss, marginBottom: SP.md }}>AI assessment</p>
+        {/* Analysis — the AI's synthesis, right after the score it explains */}
+        <div style={{ marginBottom: SP.xxl }}>
+          <p style={{ ...labelCss, marginBottom: SP.md }}>Analysis</p>
           <p style={{ margin: 0, fontSize: FS.base, lineHeight: 1.6, color: C.textSecondary }}>{score.ai_summary}</p>
         </div>
 
-        {/* Factors */}
+        {/* Evidence — the factors behind the score, promoted to the page's
+            main content, not an afterthought below a giant number */}
         <div style={{ marginBottom: SP.xxl }}>
-          <p style={{ ...labelCss, marginBottom: SP.lg }}>Score breakdown — 5 factors</p>
-          {score.factors.map((f, i) => {
-            const fColor = RISK_BAND_COLOR[computeRiskBand(f.score)]
-            return (
-              <div key={i} style={{ marginBottom: SP.lg }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: FS.base, fontWeight: FW.medium }}>{f.name}</span>
-                  <span style={{ fontSize: FS.base, color: fColor, fontWeight: FW.medium, fontVariantNumeric: 'tabular-nums' }}>{f.score}/100</span>
-                </div>
-                <div style={{ height: 4, background: C.border, borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
-                  <div style={{ height: '100%', width: `${f.score}%`, background: fColor, borderRadius: 2 }} />
-                </div>
-                <p style={{ margin: 0, fontSize: FS.sm, color: C.textSecondary, lineHeight: 1.5 }}>{f.rationale}</p>
-              </div>
-            )
-          })}
+          <p style={{ ...labelCss, marginBottom: SP.md }}>Evidence — 5 factors</p>
+          {score.factors.map((f, i) => (
+            <EvidenceRow key={i} label={f.name} score={f.score} color={RISK_BAND_COLOR[computeRiskBand(f.score)]} rationale={f.rationale} />
+          ))}
         </div>
 
-        {/* Why This Score — v2 pillar breakdown */}
+        {/* Why This Score — v2 pillar breakdown, flattened: pillars are
+            grouped labels over evidence rows, not nested boxes */}
         {pillars && (
-          <div style={{ ...cardCss, padding: SP.xl, marginBottom: SP.xl }}>
-            <p style={{ ...labelCss, marginBottom: SP.xl }}>Why this score</p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: SP.xl, alignItems: 'start' }}>
-              <div style={{ textAlign: 'center' }}>
-                <ScoreRing total={Object.values(pillars).reduce((s: number, p: Pillar) => s + p.score, 0)} max={1000} />
-                <div style={{ marginTop: SP.sm, fontSize: FS.xs, color: C.textSecondary }}>Structured Score</div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.md }}>
-                {(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => {
-                  const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
-                  return (
-                    <div key={key} style={{ background: C.background, border: borderLine, borderRadius: R.data, padding: `${SP.md}px ${SP.lg}px` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SP.sm }}>
-                        <span style={{ fontSize: FS.sm, fontWeight: FW.medium, color: meta.color }}>{meta.label}</span>
-                        <span style={{ fontSize: FS.xs, color: C.textSecondary, fontVariantNumeric: 'tabular-nums' }}>{pillar.score}/{pillar.max}</span>
-                      </div>
-                      <PillarBar value={pillar.score} max={pillar.max} color={meta.color} />
-                      <div style={{ marginTop: SP.sm }}>
-                        {pillar.factors.map((f: PillarFactor) => (
-                          <div key={f.name} style={{ marginBottom: 6 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: FS.xs, color: C.textSecondary, marginBottom: 2 }}>
-                              <span>{f.name}</span>
-                              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{f.score}/{f.max}</span>
-                            </div>
-                            <PillarBar value={f.score} max={f.max} color={meta.color} />
-                            <div style={{ fontSize: 9, color: C.textMuted, marginTop: 1 }}>{f.rationale}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+          <div style={{ marginBottom: SP.xxl }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: SP.lg, marginBottom: SP.lg }}>
+              <p style={{ ...labelCss, margin: 0 }}>Structured assessment</p>
+              <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>
+                {Object.values(pillars).reduce((s: number, p: Pillar) => s + p.score, 0)} / 1000
+              </span>
             </div>
+            {(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => {
+              const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
+              return (
+                <div key={key} style={{ marginBottom: SP.lg }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: SP.sm, marginBottom: 4 }}>
+                    <span style={{ fontSize: FS.sm, fontWeight: FW.semibold, color: meta.color }}>{meta.label}</span>
+                    <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>{pillar.score}/{pillar.max}</span>
+                  </div>
+                  {pillar.factors.map((f: PillarFactor) => (
+                    <EvidenceRow key={f.name} label={f.name} score={f.score} color={meta.color} rationale={f.rationale} />
+                  ))}
+                </div>
+              )
+            })}
           </div>
         )}
 
-        {/* EU AI Act notice */}
+        {/* Audit — provenance + EU AI Act notice. Only real fields on
+            ScoreResult are shown (model_version, created_at) — the richer
+            multi-field provenance shown on /intelligence/score/[id]
+            (model_requested/responded, prompt_version, confidence) isn't
+            available on this data type without an API change, which is
+            out of scope for this pass; flagged rather than faked. */}
         <div style={{ borderTop: borderLine, paddingTop: SP.xl, marginBottom: SP.xl }}>
-          <p style={{ fontSize: FS.sm, color: C.textMuted, lineHeight: 1.6 }}>
+          <p style={{ ...labelCss, marginBottom: SP.sm }}>Audit</p>
+          <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginBottom: SP.md }}>
+            model: {score.model_version} · scored {new Date(score.created_at).toLocaleString('en-GB')}
+          </p>
+          <p style={{ fontSize: FS.sm, color: C.textMuted, lineHeight: 1.6, margin: 0 }}>
             <strong style={{ color: C.textSecondary }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: C.accent }}>hello@ethosfi.co</span> within 30 days.
           </p>
         </div>

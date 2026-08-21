@@ -10,6 +10,8 @@ import { PrecisionGauge } from '../components/PrecisionGauge'
 import { Logo } from '../components/Logo'
 import { DashboardSidebar } from '../components/DashboardSidebar'
 import { DashboardKpiRow } from '../components/DashboardKpiRow'
+import { Badge } from '../components/Badge'
+import { EvidenceRow } from '../components/EvidenceRow'
 import {
   color as C,
   fontFamily as F,
@@ -19,6 +21,7 @@ import {
   space as SP,
   borderLine,
   shadowSm,
+  shadowMd,
   motion as M,
   keyframes as KF,
   googleFontsHref,
@@ -483,20 +486,19 @@ export default function DashboardPage() {
               const isSelected = activeCase?.id === c.id
               const lsla = liveSLA(c.sla_remaining_hours)
               const slaCol = slaColor(lsla, c.sla_hours)
-              const filled = c.severity === 'critical' || c.severity === 'high'
+              const badgeTone: 'high' | 'medium' | 'low' = c.severity === 'critical' || c.severity === 'high' ? 'high' : c.severity === 'medium' ? 'medium' : 'low'
               return (
                 <div key={c.id} onClick={() => setActiveCase(c)} className="ethos-queue-item" style={{
                   padding: `${SP.md}px ${SP.md}px`, borderRadius: R.data, marginBottom: 3, cursor: 'pointer',
                   borderLeft: `2px solid ${isSelected ? sc : 'transparent'}`,
                   background: isSelected ? C.accentSubtle : 'transparent', transition: 'background .15s',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: 4 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: filled ? sc : 'transparent', border: `1.5px solid ${sc}` }} />
-                    <span style={{ ...labelCss, color: sc, letterSpacing: '0.1em' }}>{SEV_LABEL[c.severity]}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: 6 }}>
+                    <Badge tone={badgeTone}>{SEV_LABEL[c.severity]}</Badge>
                     <span style={{ ...monoCss, marginLeft: 'auto', fontSize: FS.xs, color: C.textMuted }}>{c.case_ref}</span>
                   </div>
-                  <div style={{ fontSize: FS.base, fontWeight: FW.medium, marginBottom: 4, marginLeft: 16 }}>{c.entity_name}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginLeft: 16 }}>
+                  <div style={{ fontSize: FS.base, fontWeight: FW.medium, marginBottom: 4 }}>{c.entity_name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm }}>
                     <span style={{ ...monoCss, fontSize: FS.sm, fontWeight: FW.medium, color: riskColor(c.risk_score) }}>{c.risk_score}</span>
                     <span style={{ color: C.textMuted, fontSize: FS.xs }}>·</span>
                     <span style={{ ...monoCss, fontSize: FS.xs, color: slaCol }}>SLA {fmtSLA(lsla)}</span>
@@ -514,26 +516,65 @@ export default function DashboardPage() {
             <div>
               <div style={{ ...labelCss, letterSpacing: '0.16em', marginBottom: SP.xl }}>Risk Intelligence Overview</div>
 
-              {/* Score gauges */}
-              <div style={{ display: 'flex', gap: SP.xxl, flexWrap: 'wrap', paddingBottom: SP.xl, borderBottom: borderLine, marginBottom: SP.xl }}>
-                {gaugeCases.map(c => (
-                  <div key={c.id} onClick={() => setActiveCase(c)} style={{ cursor: 'pointer' }}>
+              {/* Primary operational signal — the single case that needs attention
+                  right now, promoted to Tier-3 (shadowMd). The next 2 highest-risk
+                  cases are demoted to small inline chips beside it rather than
+                  competing at equal visual weight. */}
+              {gaugeCases.length > 0 && (
+                <div style={{ display: 'flex', gap: SP.xl, alignItems: 'stretch', paddingBottom: SP.xl, borderBottom: borderLine, marginBottom: SP.xl, flexWrap: 'wrap' }}>
+                  <div
+                    onClick={() => setActiveCase(gaugeCases[0])}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: SP.xl,
+                      background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowMd,
+                      padding: `${SP.lg}px ${SP.xl}px`, cursor: 'pointer', flex: '1 1 380px',
+                    }}
+                  >
                     <PrecisionGauge
-                      value={c.risk_score}
-                      label={SEV_LABEL[c.severity]}
-                      caption={c.entity_name}
-                      color={riskColor(c.risk_score)}
-                      size={76}
-                      strokeWidth={4}
+                      value={gaugeCases[0].risk_score}
+                      label={SEV_LABEL[gaugeCases[0].severity]}
+                      color={riskColor(gaugeCases[0].risk_score)}
+                      size={92}
+                      strokeWidth={5}
                       trackColor={C.border}
                       captionColor={C.textSecondary}
                       fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
                       ringAnimation={M.ringDraw}
                     />
-                    <div style={{ ...monoCss, textAlign: 'center', fontSize: FS.xs, color: C.textMuted, marginTop: 6 }}>{c.case_ref}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={labelCss}>Requires attention</div>
+                      <div style={{ fontSize: FS.lg, fontWeight: FW.semibold, margin: '4px 0 6px' }}>{gaugeCases[0].entity_name}</div>
+                      <div style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>{gaugeCases[0].case_ref} · {gaugeCases[0].case_type}</div>
+                    </div>
                   </div>
-                ))}
-              </div>
+
+                  {gaugeCases.slice(1, 3).map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => setActiveCase(c)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: SP.md,
+                        border: borderLine, borderRadius: R.control,
+                        padding: `${SP.sm}px ${SP.md}px`, cursor: 'pointer', flex: '0 1 200px',
+                      }}
+                    >
+                      <PrecisionGauge
+                        value={c.risk_score}
+                        color={riskColor(c.risk_score)}
+                        size={44}
+                        strokeWidth={3}
+                        trackColor={C.border}
+                        fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
+                        ringAnimation={M.ringDraw}
+                      />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: FS.sm, fontWeight: FW.medium, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.entity_name}</div>
+                        <div style={{ ...monoCss, fontSize: 10, color: C.textMuted }}>{c.case_ref}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Active signals — live feed */}
               <div style={{ marginBottom: SP.xl, paddingBottom: SP.xl, borderBottom: borderLine }}>
@@ -541,25 +582,17 @@ export default function DashboardPage() {
                   <span style={labelCss}>Active Signals</span>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.riskLow }} />
                 </div>
-                {activeSignals.map((s, i) => {
-                  const sc = SEV_COLOR[s.c.severity] || C.textMuted
-                  const isHero = i === 0
-                  const symbol = s.c.severity === 'critical' || s.c.severity === 'high' ? '▲' : '●'
-                  return (
-                    <div key={s.c.id} onClick={() => setActiveCase(s.c)} className="ethos-signal" style={{
-                      display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.sm}px ${SP.md}px`,
-                      cursor: 'pointer', borderLeft: `2px solid ${isHero ? C.accent : 'transparent'}`,
-                      background: isHero ? `${C.accentSubtle}22` : 'transparent', transition: 'background .15s',
-                    }}>
-                      <span style={{ color: isHero ? C.accent : sc, fontSize: FS.sm, width: 14, flexShrink: 0, textAlign: 'center' }}>{symbol}</span>
-                      <span style={{ fontSize: FS.base, color: C.textPrimary }}>{s.name}</span>
-                      <span style={{ color: C.textMuted, fontSize: FS.sm }}>—</span>
-                      <span style={{ fontSize: FS.base, color: C.textSecondary }}>{s.c.entity_name}</span>
-                      <span style={{ ...monoCss, marginLeft: 'auto', fontSize: FS.sm, color: isHero ? C.accent : sc }}>{s.score}</span>
-                      <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, minWidth: 64, textAlign: 'right' }}>{s.c.case_ref}</span>
-                    </div>
-                  )
-                })}
+                {activeSignals.map((s, i) => (
+                  <EvidenceRow
+                    key={s.c.id}
+                    onClick={() => setActiveCase(s.c)}
+                    label={s.name}
+                    context={`— ${s.c.entity_name} · ${s.c.case_ref}`}
+                    score={s.score}
+                    color={SEV_COLOR[s.c.severity] || C.textMuted}
+                    emphasized={i === 0}
+                  />
+                ))}
               </div>
 
               {/* Analyst load */}
@@ -594,8 +627,8 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.sm }}>
                     <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{activeCase.case_ref}</span>
-                    <span style={{ ...labelCss, color: SEV_COLOR[activeCase.severity], border: `1px solid ${SEV_COLOR[activeCase.severity]}55`, padding: '2px 8px' }}>{SEV_LABEL[activeCase.severity]}</span>
-                    <span style={{ ...labelCss, color: C.textSecondary, border: borderLine, padding: '2px 8px' }}>{STATUS_LABEL[activeCase.status]}</span>
+                    <Badge tone={activeCase.severity === 'critical' || activeCase.severity === 'high' ? 'high' : activeCase.severity === 'medium' ? 'medium' : 'low'}>{SEV_LABEL[activeCase.severity]}</Badge>
+                    <Badge tone="neutral">{STATUS_LABEL[activeCase.status]}</Badge>
                   </div>
                   <div style={{ fontFamily: F.sans, fontSize: FS.xl, marginBottom: 4 }}>{activeCase.entity_name}</div>
                   <div style={{ fontSize: FS.sm, color: C.textSecondary }}>{activeCase.case_type} · {activeCase.jurisdiction} · Opened {timeAgo(activeCase.opened_at)}</div>
@@ -634,16 +667,7 @@ export default function DashboardPage() {
               <div style={{ marginBottom: SP.xxl }}>
                 <div style={{ ...labelCss, marginBottom: SP.lg }}>Signal Breakdown</div>
                 {activeCase.signals.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', gap: SP.lg, alignItems: 'flex-start', marginBottom: SP.lg }}>
-                    <div style={{ ...monoCss, minWidth: 40, height: 40, border: `1px solid ${riskColor(s.score)}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: FS.base, fontWeight: FW.medium, color: riskColor(s.score) }}>{s.score}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: FS.base, fontWeight: FW.medium, marginBottom: 5 }}>{s.name}</div>
-                      <div style={{ height: 3, background: C.surface, overflow: 'hidden', marginBottom: 5 }}>
-                        <div style={{ height: '100%', width: `${s.score}%`, background: riskColor(s.score) }} />
-                      </div>
-                      <p style={{ margin: 0, fontSize: FS.sm, color: C.textMuted, lineHeight: 1.55 }}>{s.rationale}</p>
-                    </div>
-                  </div>
+                  <EvidenceRow key={i} label={s.name} score={s.score} color={riskColor(s.score)} rationale={s.rationale} />
                 ))}
               </div>
 
