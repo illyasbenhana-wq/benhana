@@ -5,6 +5,17 @@ import { redirect, useRouter } from 'next/navigation'
 import { getRoleFromSession, ROLE_HOME } from '../../lib/user-role'
 import { isPreviewDeployment } from '../../lib/preview-bypass'
 import { Logo } from '../components/Logo'
+import {
+  color as C,
+  fontFamily as F,
+  fontSize as FS,
+  fontWeight as FW,
+  radius as R,
+  space as SP,
+  borderLine,
+  shadowMd,
+  googleFontsHref,
+} from '../../lib/design-system/tokens-light'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,41 +61,45 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#0a0a0f',
-      color: '#e8e6df',
-      fontFamily: '"DM Sans", sans-serif',
+      background: C.background,
+      color: C.textPrimary,
+      fontFamily: F.sans,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px',
+      padding: SP.xxl,
     }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+      <link href={googleFontsHref} rel="stylesheet" />
+      <style>{`
+        .ethos-login-input:focus { border-color: ${C.accent} !important; }
+      `}</style>
 
       {/* Logo */}
-      <div style={{ marginBottom: 48 }}>
-        <Logo size="lg" textColor="#e8e6df" notchColor="#0a0a0f" />
+      <div style={{ marginBottom: SP.xxxl }}>
+        <Logo size="lg" />
       </div>
 
       {/* Card */}
       <div style={{
         width: '100%',
         maxWidth: 400,
-        background: '#0d0d14',
-        border: '1px solid #1a1a28',
-        borderRadius: 16,
-        padding: '40px 36px',
+        background: C.surface,
+        border: borderLine,
+        borderRadius: R.card,
+        boxShadow: shadowMd,
+        padding: `${SP.xxl}px ${SP.xxl}px`,
       }}>
-        <h1 style={{ margin: '0 0 8px', fontSize: 22, fontWeight: 500, fontFamily: '"DM Serif Display", serif' }}>
+        <h1 style={{ margin: `0 0 8px`, fontSize: FS.lg, fontWeight: FW.semibold, fontFamily: F.sans }}>
           Sign in
         </h1>
-        <p style={{ margin: '0 0 32px', fontSize: 13, color: '#555', lineHeight: 1.5 }}>
+        <p style={{ margin: `0 0 ${SP.xxl}px`, fontSize: FS.sm, color: C.textSecondary, lineHeight: 1.5 }}>
           Access the EthosFi compliance dashboard
         </p>
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: SP.lg }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, color: '#888', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: FS.xs, color: C.textSecondary, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Email
             </label>
             <input
@@ -93,24 +108,23 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
+              className="ethos-login-input"
               style={{
-                background: '#13131e',
-                border: '1px solid #1e1e2e',
-                borderRadius: 8,
+                background: C.background,
+                border: borderLine,
+                borderRadius: R.control,
                 padding: '11px 14px',
-                color: '#e8e6df',
-                fontSize: 14,
+                color: C.textPrimary,
+                fontSize: FS.base,
                 outline: 'none',
                 fontFamily: 'inherit',
                 transition: 'border-color 0.15s',
               }}
-              onFocus={e => (e.target.style.borderColor = '#4a9eff')}
-              onBlur={e => (e.target.style.borderColor = '#1e1e2e')}
             />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, color: '#888', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: FS.xs, color: C.textSecondary, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Password
             </label>
             <input
@@ -119,30 +133,29 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
+              className="ethos-login-input"
               style={{
-                background: '#13131e',
-                border: '1px solid #1e1e2e',
-                borderRadius: 8,
+                background: C.background,
+                border: borderLine,
+                borderRadius: R.control,
                 padding: '11px 14px',
-                color: '#e8e6df',
-                fontSize: 14,
+                color: C.textPrimary,
+                fontSize: FS.base,
                 outline: 'none',
                 fontFamily: 'inherit',
                 transition: 'border-color 0.15s',
               }}
-              onFocus={e => (e.target.style.borderColor = '#4a9eff')}
-              onBlur={e => (e.target.style.borderColor = '#1e1e2e')}
             />
           </div>
 
           {error && (
             <div style={{
-              background: '#1a0a0a',
-              border: '1px solid #3a1a1a',
-              borderRadius: 8,
+              background: `${C.riskHigh}11`,
+              border: `1px solid ${C.riskHigh}44`,
+              borderRadius: R.control,
               padding: '10px 14px',
-              fontSize: 13,
-              color: '#e24b4a',
+              fontSize: FS.sm,
+              color: C.riskHigh,
             }}>
               {error}
             </div>
@@ -153,13 +166,13 @@ export default function LoginPage() {
             disabled={loading}
             style={{
               marginTop: 8,
-              background: loading ? '#1a2a3a' : '#4a9eff',
-              color: loading ? '#555' : '#000',
+              background: loading ? C.border : C.accent,
+              color: loading ? C.textMuted : '#fff',
               border: 'none',
-              borderRadius: 8,
+              borderRadius: R.control,
               padding: '12px',
-              fontSize: 14,
-              fontWeight: 500,
+              fontSize: FS.base,
+              fontWeight: FW.medium,
               fontFamily: 'inherit',
               cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'background 0.15s, color 0.15s',
