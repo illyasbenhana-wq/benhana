@@ -9,6 +9,14 @@
  * and was discarded rather than kept as an unused stub.
  */
 
+// /score and /case are dynamic routes ([id] / [ref]) with no bare index
+// page — linking to the bare path 404s. Every item that lands on either
+// must carry a real demo id/ref (score: DEMO_VIEW's fixed id via the
+// preview-only fallback in app/score/[id]/page.tsx; case: a key from
+// INVESTIGATION_DOSSIERS in lib/investigation-demo.ts) — never the bare
+// route. Investigations/Counterparty point at different case refs
+// (INV-1047 / INV-1038) so they're not literal duplicates of each other.
+
 export type NavItem = {
   label: string
   href: string
@@ -36,16 +44,16 @@ export const navGroups: NavGroup[] = [
   {
     label: 'Risk & Compliance',
     items: [
-      { label: 'EthoScore / Risk View', href: '/score' },
-      { label: 'Investigations', href: '/case' },
-      { label: 'Counterparty', href: '/case' },
+      { label: 'EthoScore / Risk View', href: '/score/a1000000-0000-0000-0000-000000000001' },
+      { label: 'Investigations', href: '/case/INV-1047' },
+      { label: 'Counterparty', href: '/case/INV-1038' },
     ],
   },
   {
     label: 'Portfolio',
     items: [
       { label: 'Lender Book', href: '/lender/dashboard' },
-      { label: 'Client Reports', href: '/score' },
+      { label: 'Client Reports', href: '/score/a1000000-0000-0000-0000-000000000001' },
     ],
   },
   {
