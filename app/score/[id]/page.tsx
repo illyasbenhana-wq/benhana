@@ -7,7 +7,6 @@ import { computeRiskBand } from '@/lib/risk-band'
 import { isPreviewDeployment } from '@/lib/preview-bypass'
 import { Logo } from '@/app/components/Logo'
 import { DashboardSidebar } from '@/app/components/DashboardSidebar'
-import { Badge } from '@/app/components/Badge'
 import { EvidenceRow } from '@/app/components/EvidenceRow'
 import {
   color as C,
@@ -17,7 +16,6 @@ import {
   radius as R,
   space as SP,
   borderLine,
-  shadowSm,
   googleFontsHref,
 } from '@/lib/design-system/tokens-light'
 
@@ -47,10 +45,10 @@ const RISK_BAND_COLOR: Record<RiskBand, string> = {
   high: C.riskHigh,
 }
 
-const BAND_CONFIG: Record<RiskBand, { label: string; headline: string }> = {
-  low:    { label: 'Low risk',    headline: 'Great news.' },
-  medium: { label: 'Medium risk', headline: 'Good standing.' },
-  high:   { label: 'Higher risk', headline: 'We\'ve found a path.' },
+const BAND_CONFIG: Record<RiskBand, { label: string }> = {
+  low:    { label: 'low risk' },
+  medium: { label: 'medium risk' },
+  high:   { label: 'higher risk' },
 }
 
 const REC_COLOR: Record<ScoreResult['recommendation'], string> = {
@@ -207,9 +205,17 @@ export default function ScorePage() {
   const rec = score.recommendation
   const recColor = REC_COLOR[rec]
 
-  const cardCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm }
-  const labelCss: React.CSSProperties = { fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.textSecondary }
+  const labelCss: React.CSSProperties = { fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textMuted }
   const monoCss: React.CSSProperties = { fontFamily: F.mono, fontVariantNumeric: 'tabular-nums' }
+  // Prefer the structured 0-1000 conclusion (sum of the 4 pillars) — the
+  // "current primary score" per the product's own scale. Only a v1-only
+  // legacy record (no score_pillars) has nothing else to show; that case
+  // is labeled explicitly as the 0-100 legacy scale rather than silently
+  // implied to be the 1000-scale figure.
+  const totalStructured = pillars ? (Object.values(pillars) as Pillar[]).reduce((s, p) => s + p.score, 0) : null
+  const displayScore = totalStructured ?? score.etho_score
+  const displayMax = totalStructured !== null ? 1000 : 100
+  const scorePct = Math.max(0, Math.min(1, displayScore / displayMax))
 
   return (
     <>
@@ -217,7 +223,6 @@ export default function ScorePage() {
     <div id="ethofi-screen" style={{ display: 'flex', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
       <style>{`
         * { box-sizing: border-box; }
-        @keyframes countUp { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
 
         /* ── Print / PDF styles ── */
         #ethofi-pdf { display: none; }
@@ -252,69 +257,38 @@ export default function ScorePage() {
       <DashboardSidebar />
 
       <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-      <div style={{ maxWidth: 600, margin: '0 auto', padding: `${SP.xxl}px ${SP.xl}px` }}>
+      <div style={{ maxWidth: 640, margin: '0 auto', padding: `${SP.xxxl}px ${SP.xl}px ${SP.huge}px` }}>
 
         {/* Logo */}
         <div style={{ marginBottom: SP.xxxl }}>
           <Logo size="sm" />
         </div>
 
-        <p style={{ color: C.textSecondary, fontSize: FS.base, marginBottom: SP.sm }}>Hello {fullName.split(' ')[0]},</p>
-        <h1 style={{ fontFamily: F.sans, fontSize: FS.display, fontWeight: FW.semibold, letterSpacing: '-0.01em', margin: `0 0 ${SP.xxl}px`, lineHeight: 1.1 }}>
-          {band.headline}
+        {/* Investigation context — not a celebratory greeting. Establishes
+            who/what is being assessed before anything else is shown. */}
+        <p style={labelCss}>Assessment · Application {score.application_id}</p>
+        <h1 style={{ fontFamily: F.sans, fontSize: 32, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `10px 0 ${SP.huge}px`, lineHeight: 1.15 }}>
+          {fullName}
         </h1>
 
-        {/* Score + Decision — compact, Tier-2 (deliberately not the page's
-            dominant hero). A small ring paired inline with band + AI
-            recommendation, not an isolated giant number. */}
-        <div style={{ ...cardCss, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl, display: 'flex', alignItems: 'center', gap: SP.xl, flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-            <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="50" cy="50" r="42" fill="none" stroke={C.border} strokeWidth="6" />
-              <circle cx="50" cy="50" r="42" fill="none" stroke={bandColor} strokeWidth="6" strokeDasharray={`${score.etho_score * 2.64} 264`} strokeLinecap="butt" />
-            </svg>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontFamily: F.mono, fontSize: 18, fontWeight: FW.bold, color: bandColor }}>{score.etho_score}</span>
-            </div>
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: 6, flexWrap: 'wrap' }}>
-              <span style={labelCss}>EthoScore™</span>
-              <Badge tone={score.risk_band === 'low' ? 'low' : score.risk_band === 'medium' ? 'medium' : 'high'}>{band.label}</Badge>
-            </div>
-            <p style={{ margin: 0, fontSize: FS.sm, color: recColor }}>
-              {rec === 'approve' && '✓ AI recommendation: Approve — your profile meets lending criteria.'}
-              {rec === 'review' && '◎ AI recommendation: Manual review — a lender will assess your application.'}
-              {rec === 'decline' && '○ AI recommendation: Not approved at this time — see improvement tips below.'}
-            </p>
-          </div>
-        </div>
-
-        {/* Analysis — the AI's synthesis, right after the score it explains */}
-        <div style={{ marginBottom: SP.xxl }}>
-          <p style={{ ...labelCss, marginBottom: SP.md }}>Analysis</p>
-          <p style={{ margin: 0, fontSize: FS.base, lineHeight: 1.6, color: C.textSecondary }}>{score.ai_summary}</p>
-        </div>
-
-        {/* Evidence — the factors behind the score, promoted to the page's
-            main content, not an afterthought below a giant number */}
-        <div style={{ marginBottom: SP.xxl }}>
-          <p style={{ ...labelCss, marginBottom: SP.md }}>Evidence — 5 factors</p>
+        {/* Evidence — the signals, walked through first. No cards, no
+            boxes: a continuous list, generous vertical space, the
+            largest single block of content on the page by design. */}
+        <p style={labelCss}>Evidence</p>
+        <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.xl}px` }}>{score.factors.length} signals were assessed against this application.</p>
+        <div style={{ marginBottom: SP.xxxl }}>
           {score.factors.map((f, i) => (
             <EvidenceRow key={i} label={f.name} score={f.score} color={RISK_BAND_COLOR[computeRiskBand(f.score)]} rationale={f.rationale} />
           ))}
         </div>
 
-        {/* Why This Score — v2 pillar breakdown, flattened: pillars are
-            grouped labels over evidence rows, not nested boxes */}
+        {/* Factors — how the signals above resolve into the structured
+            0-1000 pillar model, when available. Pillars are grouped
+            labels over the same evidence-row treatment, not nested boxes. */}
         {pillars && (
-          <div style={{ marginBottom: SP.xxl }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: SP.lg, marginBottom: SP.lg }}>
-              <p style={{ ...labelCss, margin: 0 }}>Structured assessment</p>
-              <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>
-                {Object.values(pillars).reduce((s: number, p: Pillar) => s + p.score, 0)} / 1000
-              </span>
-            </div>
+          <div style={{ marginBottom: SP.xxxl }}>
+            <p style={labelCss}>Factors</p>
+            <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.xl}px` }}>Resolved into 4 weighted pillars.</p>
             {(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => {
               const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
               return (
@@ -331,6 +305,45 @@ export default function ScorePage() {
             })}
           </div>
         )}
+
+        {/* Analysis — the interpretive bridge between evidence and
+            conclusion. Editorial treatment (accent rule + relaxed
+            leading), not a boxed callout. */}
+        <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl, marginBottom: SP.huge }}>
+          <p style={labelCss}>Analysis</p>
+          <p style={{ margin: '8px 0 0', fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{score.ai_summary}</p>
+        </div>
+
+        {/* Conclusion — the score, earned after the evidence above. A
+            typographic figure, not a gauge widget: large serif-accented
+            number set inline with the scale it sits on, immediately
+            followed by a thin architectural tick-scale (not a colored
+            progress bar) and the decision as a plain sentence. */}
+        <div style={{ marginBottom: SP.huge }}>
+          <p style={{ ...labelCss, color: C.accent }}>Conclusion</p>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '10px 0 6px' }}>
+            <span style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium, fontSize: 64, color: bandColor, lineHeight: 1 }}>{displayScore}</span>
+            <span style={{ fontSize: FS.md, color: C.textMuted }}>/ {displayMax}</span>
+            <span style={{ fontSize: FS.base, color: C.textSecondary }}>— {band.label}</span>
+          </div>
+          {totalStructured === null && (
+            <p style={{ fontSize: FS.xs, color: C.textMuted, margin: '0 0 6px' }}>Legacy factor-weighted score (0–100 scale) — no structured pillar assessment on record for this application.</p>
+          )}
+
+          {/* Thin architectural scale — a tick mark, not a filled bar */}
+          <div style={{ position: 'relative', height: 1, background: C.border, margin: `${SP.lg}px 0 6px` }}>
+            <div style={{ position: 'absolute', top: -3, left: `${scorePct * 100}%`, width: 2, height: 7, background: bandColor, transform: 'translateX(-1px)' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.textMuted, marginBottom: SP.xl }}>
+            <span>0</span><span>{displayMax}</span>
+          </div>
+
+          <p style={{ margin: 0, fontSize: FS.base, color: recColor }}>
+            {rec === 'approve' && '✓ Decision: Approve — this profile meets lending criteria.'}
+            {rec === 'review' && '◎ Decision: Manual review — a lender will assess this application.'}
+            {rec === 'decline' && '○ Decision: Not approved at this time — see improvement guidance above.'}
+          </p>
+        </div>
 
         {/* Audit — provenance + EU AI Act notice. Only real fields on
             ScoreResult are shown (model_version, created_at) — the richer
