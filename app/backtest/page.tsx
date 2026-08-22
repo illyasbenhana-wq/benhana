@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Logo } from '../components/Logo'
 import { DashboardSidebar } from '../components/DashboardSidebar'
 import {
@@ -39,6 +39,26 @@ const OPTIONAL_FIELDS = [
   { key: 'savings_amount', label: 'Savings Amount' },
 ]
 
+// Demo-seed for reviewing the Completed results state without a real
+// CSV upload — reachable via /backtest?demo=1. Numbers are internally
+// consistent with lib/backtest-engine.ts's own math (precision =
+// tp/(tp+fp), recall = tp/(tp+fn)) and shaped exactly like a real
+// BacktestSummary, not invented ad hoc for display purposes only.
+// tp=34, fp=9, fn=11, tn=146 -> precision 34/43=0.79, recall 34/45=0.76.
+const DEMO_RESULT = {
+  summary: {
+    default_rate_by_band: { low: 0.04, medium: 0.18, high: 0.52 },
+    confusion_matrix: { tp: 34, fp: 9, fn: 11, tn: 146 },
+    precision: 0.791,
+    recall: 0.756,
+    scored_count: 200,
+    skipped_count: 8,
+    error_count: 2,
+    plain_language_summary:
+      '34 actual defaults were correctly flagged as high-risk (76% recall). 9 loans were flagged high-risk but actually repaid (79% precision). Default rate rises from 4% in the low-risk band to 52% in the high-risk band, confirming the score separates outcomes as intended across this 200-loan sample.',
+  },
+}
+
 export default function BacktestPage() {
   const [status, setStatus] = useState<RunStatus>('idle')
   const [csvText, setCsvText] = useState('')
@@ -50,6 +70,15 @@ export default function BacktestPage() {
   const [authError, setAuthError] = useState(false)
 
   const token = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('token') ?? '' : ''
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const isDemo = new URLSearchParams(window.location.search).get('demo')
+    if (isDemo) {
+      setResult(DEMO_RESULT)
+      setStatus('completed')
+    }
+  }, [])
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
