@@ -17,6 +17,7 @@ import { DashboardSidebar } from '../../components/DashboardSidebar'
 import { Badge } from '../../components/Badge'
 import { EvidenceRow } from '../../components/EvidenceRow'
 import { ScoreFigure } from '../../components/ScoreFigure'
+import { PillarCompositionBar } from '../../components/PillarCompositionBar'
 import { getDossier, TimelineEvent } from '../../../lib/investigation-demo'
 import type { CaseGraph } from '../../../lib/ontology-graph'
 import {
@@ -32,6 +33,15 @@ import {
   caseRiskColor,
   ethoScoreColor,
 } from '../../../lib/design-system/tokens-light'
+
+// Same pillar legend colors as /score/[id]'s PILLAR_LABELS — one shared
+// mapping so the same pillar always reads as the same color everywhere.
+const PILLAR_COLOR: Record<string, string> = {
+  'Trust': C.accent,
+  'Track Record': C.riskLow,
+  'Financial Health': C.riskMedium,
+  'ESG': '#7C3AED',
+}
 
 const SEV_COLOR: Record<string, string> = {
   critical: C.riskHigh,
@@ -154,36 +164,47 @@ export default function InvestigationPage() {
         .ethos-btn { border-radius: ${R.control}px; padding: 11px 16px; font-family: ${F.sans}; font-size: ${FS.base}px; font-weight: ${FW.medium}; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
       `}</style>
 
-      {/* ── Header ── */}
+      {/* ── Header — pure wayfinding, not a title bar ── */}
       <header style={{ borderBottom: borderLine, background: C.background, position: 'sticky', top: 0, zIndex: 5 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.md}px ${SP.xxl}px ${SP.sm}px` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.md}px ${SP.xxl}px` }}>
           <Link href="/dashboard" className="ethos-back" style={{ ...labelCss, color: C.textSecondary, display: 'inline-flex', alignItems: 'center', gap: 6 }}>← Back to Queue</Link>
           <span style={{ width: 1, height: 14, background: C.border }} />
           <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{dossier.caseRef}</span>
-          <span style={{ fontSize: FS.md, fontWeight: FW.semibold }}>{dossier.entityName}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `0 ${SP.xxl}px ${SP.md}px` }}>
-          <span style={{ ...labelCss, color: sc, letterSpacing: '0.14em' }}>{dossier.caseType}</span>
-          <span style={{ marginLeft: 'auto' }}><Badge tone={dossier.severity === 'critical' || dossier.severity === 'high' ? 'high' : dossier.severity === 'medium' ? 'medium' : 'low'}>{dossier.severity}</Badge></span>
-          <Badge tone="neutral">{STATUS_LABEL[dossier.status]}</Badge>
-          <span style={{ ...monoCss, fontSize: FS.sm, color: slaColor(dossier.slaRemainingHours, dossier.slaHours) }}>SLA {fmtSLA(dossier.slaRemainingHours)}</span>
         </div>
       </header>
 
+      {/* ── Identity zone — the page's real headline, full width ── */}
+      <div style={{ padding: `${SP.xxl}px ${SP.xxl}px 0` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, marginBottom: SP.sm, flexWrap: 'wrap' }}>
+          <Badge tone={dossier.severity === 'critical' || dossier.severity === 'high' ? 'high' : dossier.severity === 'medium' ? 'medium' : 'low'}>{dossier.severity}</Badge>
+          <Badge tone="neutral">{STATUS_LABEL[dossier.status]}</Badge>
+          <span style={{ ...labelCss, color: sc }}>{dossier.caseType}</span>
+        </div>
+        <h1 style={{ fontFamily: F.sans, fontSize: 34, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `0 0 ${SP.sm}px` }}>
+          {dossier.entityName.split(' ').map((word, i) => i === 0
+            ? <span key={i} style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>{word} </span>
+            : word + ' ')}
+        </h1>
+        <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, margin: 0 }}>
+          {fmtCurrency(dossier.exposureAmount)} · {dossier.jurisdiction} · {dossier.assignedTo} · SLA{' '}
+          <span style={{ color: slaColor(dossier.slaRemainingHours, dossier.slaHours) }}>{fmtSLA(dossier.slaRemainingHours)}</span>
+        </p>
+      </div>
+
       {/* ── Body: entity profile | risk timeline — no cards, asymmetric
           two-zone layout separated by whitespace, matching Score/Dashboard */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 380px) 1fr', gap: SP.xxl, padding: `${SP.xl}px ${SP.xxl}px ${SP.xxxl}px`, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 340px) 1fr', gap: SP.xxl, padding: `${SP.xxl}px ${SP.xxl}px ${SP.xxxl}px`, alignItems: 'start' }}>
 
         {/* ── Left: entity profile ── */}
         <div>
-          <div style={{ fontSize: FS.lg, fontWeight: FW.semibold, marginBottom: 6 }}>{dossier.entityName}</div>
-          <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, margin: `0 0 ${SP.xxl}px` }}>
-            {fmtCurrency(dossier.exposureAmount)} · {dossier.jurisdiction} · {dossier.assignedTo} · SLA{' '}
-            <span style={{ color: slaColor(dossier.slaRemainingHours, dossier.slaHours) }}>{fmtSLA(dossier.slaRemainingHours)}</span>
-          </p>
-
-          <p style={{ ...labelCss, color: caseRiskColor(dossier.riskScore), marginBottom: 10 }}>Case Risk</p>
-          <ScoreFigure value={dossier.riskScore} max={100} color={caseRiskColor(dossier.riskScore)} bandLabel={SEV_LABEL[dossier.severity]} size="lg" />
+          {/* Case Risk — its own tinted zone (C.surface, no border/shadow)
+              so it reads as the first thing to look at through background
+              contrast alone, matching the landing page's flat-color
+              section device rather than a bordered card. */}
+          <div style={{ background: C.surface, padding: SP.xl, margin: `0 0 ${SP.xxl}px` }}>
+            <p style={{ ...labelCss, color: caseRiskColor(dossier.riskScore), marginBottom: 10 }}>Case Risk</p>
+            <ScoreFigure value={dossier.riskScore} max={100} color={caseRiskColor(dossier.riskScore)} bandLabel={SEV_LABEL[dossier.severity]} size="lg" />
+          </div>
 
           <div style={{ borderTop: borderLine, marginTop: SP.xxl, paddingTop: SP.xxl }}>
             <p style={labelCss}>Connected Entities</p>
@@ -233,9 +254,20 @@ export default function InvestigationPage() {
               <span style={{ marginLeft: 'auto', ...monoCss, fontSize: FS.xs, color: C.textSecondary }}>PREVIEW</span>
             </div>
             <ScoreFigure value={dossier.ethoScore} max={1000} color={ethoScoreColor(dossier.ethoScore)} size="sm" />
+
+            {/* Composition bar — segment width = each pillar's fixed
+                structural ceiling (300/300/200/200), segment fill = how
+                much of that ceiling was earned. Shows the real shape of
+                the scoring model, not a naive score/1000 proportion. */}
+            <div style={{ marginTop: SP.lg }}>
+              <PillarCompositionBar
+                segments={dossier.ethoPillars.map(p => ({ label: p.name, color: PILLAR_COLOR[p.name] ?? C.textSecondary, score: p.value, max: p.max }))}
+              />
+            </div>
+
             <div style={{ marginTop: SP.lg }}>
               {dossier.ethoPillars.map(p => (
-                <EvidenceRow key={p.name} label={p.name} score={p.value} color={C.accent} rationale={p.humanNote} />
+                <EvidenceRow key={p.name} label={p.name} context={`/ ${p.max}`} score={p.value} color={PILLAR_COLOR[p.name] ?? C.textSecondary} rationale={p.humanNote} />
               ))}
             </div>
             <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>Full pillar breakdown → EthoScore panel.</p>
@@ -285,7 +317,14 @@ export default function InvestigationPage() {
             <p style={labelCss}>Signal Breakdown</p>
             <div style={{ marginTop: SP.lg }}>
               {dossier.signals.map((s, i) => (
-                <EvidenceRow key={i} label={s.name} score={s.score} color={caseRiskColor(s.score)} rationale={s.rationale} />
+                <EvidenceRow
+                  key={i}
+                  label={s.name}
+                  score={s.score}
+                  color={caseRiskColor(s.score)}
+                  rationale={s.rationale}
+                  right={<Badge tone={s.score >= 75 ? 'high' : s.score >= 50 ? 'medium' : 'low'}>{s.score >= 75 ? 'Review required' : s.score >= 50 ? 'Monitor' : 'Low priority'}</Badge>}
+                />
               ))}
             </div>
           </div>

@@ -47,7 +47,10 @@ export type ConnectedEntity = {
 }
 
 /** A single EthoScore pillar (0–1000 scale — never colored via caseRiskColor). */
-export type EthoPillar = { name: string; value: number; humanNote: string }
+// `max` is the pillar's fixed structural ceiling from the real v2 model
+// (lib/ethoscore-v2.ts: Trust 300, Track Record 300, Financial Health 200,
+// ESG 200 — summing to exactly 1000) — not derived, not per-application.
+export type EthoPillar = { name: string; value: number; max: number; humanNote: string }
 
 export type InvestigationDossier = {
   id: string
@@ -110,10 +113,10 @@ export const INVESTIGATION_DOSSIERS: Record<string, InvestigationDossier> = {
     ],
     ethoScore: 312,
     ethoPillars: [
-      { name: 'Trust', value: 210, humanNote: 'Ownership could not be positively verified' },
-      { name: 'Track Record', value: 340, humanNote: '3 years trading, 1 prior compliance query' },
-      { name: 'Financial Health', value: 520, humanNote: 'Liquidity adequate; flows inconsistent with profile' },
-      { name: 'ESG', value: 180, humanNote: 'Sanctions exposure materially lowers standing' },
+      { name: 'Trust', value: 70, max: 300, humanNote: 'Ownership could not be positively verified' },
+      { name: 'Track Record', value: 95, max: 300, humanNote: '3 years trading, 1 prior compliance query' },
+      { name: 'Financial Health', value: 100, max: 200, humanNote: 'Liquidity adequate; flows inconsistent with profile' },
+      { name: 'ESG', value: 47, max: 200, humanNote: 'Sanctions exposure materially lowers standing' },
     ],
   },
 
@@ -152,10 +155,10 @@ export const INVESTIGATION_DOSSIERS: Record<string, InvestigationDossier> = {
     ],
     ethoScore: 468,
     ethoPillars: [
-      { name: 'Trust', value: 430, humanNote: 'KYC complete; two counterparties under review' },
-      { name: 'Track Record', value: 510, humanNote: '4 years trading, no prior enforcement' },
-      { name: 'Financial Health', value: 560, humanNote: 'Stable revenue; timing of flows atypical' },
-      { name: 'ESG', value: 400, humanNote: 'No adverse media; jurisdiction risk noted' },
+      { name: 'Trust', value: 140, max: 300, humanNote: 'KYC complete; two counterparties under review' },
+      { name: 'Track Record', value: 160, max: 300, humanNote: '4 years trading, no prior enforcement' },
+      { name: 'Financial Health', value: 110, max: 200, humanNote: 'Stable revenue; timing of flows atypical' },
+      { name: 'ESG', value: 58, max: 200, humanNote: 'No adverse media; jurisdiction risk noted' },
     ],
   },
 
@@ -194,10 +197,10 @@ export const INVESTIGATION_DOSSIERS: Record<string, InvestigationDossier> = {
     ],
     ethoScore: 541,
     ethoPillars: [
-      { name: 'Trust', value: 520, humanNote: 'PEP disclosed at onboarding; EDD in progress' },
-      { name: 'Track Record', value: 610, humanNote: '7 years trading, no prior enforcement' },
-      { name: 'Financial Health', value: 640, humanNote: 'Strong balance sheet; inflows unexplained' },
-      { name: 'ESG', value: 470, humanNote: 'Governance transparency under review' },
+      { name: 'Trust', value: 150, max: 300, humanNote: 'PEP disclosed at onboarding; EDD in progress' },
+      { name: 'Track Record', value: 190, max: 300, humanNote: '7 years trading, no prior enforcement' },
+      { name: 'Financial Health', value: 130, max: 200, humanNote: 'Strong balance sheet; inflows unexplained' },
+      { name: 'ESG', value: 71, max: 200, humanNote: 'Governance transparency under review' },
     ],
   },
 
@@ -234,10 +237,10 @@ export const INVESTIGATION_DOSSIERS: Record<string, InvestigationDossier> = {
     ],
     ethoScore: 612,
     ethoPillars: [
-      { name: 'Trust', value: 560, humanNote: 'KYC refresh outstanding for new corridor' },
-      { name: 'Track Record', value: 680, humanNote: '6 years trading, clean history' },
-      { name: 'Financial Health', value: 700, humanNote: 'Healthy cash position and margins' },
-      { name: 'ESG', value: 590, humanNote: 'No adverse media identified' },
+      { name: 'Trust', value: 175, max: 300, humanNote: 'KYC refresh outstanding for new corridor' },
+      { name: 'Track Record', value: 220, max: 300, humanNote: '6 years trading, clean history' },
+      { name: 'Financial Health', value: 150, max: 200, humanNote: 'Healthy cash position and margins' },
+      { name: 'ESG', value: 67, max: 200, humanNote: 'No adverse media identified' },
     ],
   },
 
@@ -274,10 +277,10 @@ export const INVESTIGATION_DOSSIERS: Record<string, InvestigationDossier> = {
     ],
     ethoScore: 588,
     ethoPillars: [
-      { name: 'Trust', value: 540, humanNote: 'Payment structuring lowers confidence' },
-      { name: 'Track Record', value: 650, humanNote: '5 years trading, no prior enforcement' },
-      { name: 'Financial Health', value: 690, humanNote: 'Solid trading revenue' },
-      { name: 'ESG', value: 560, humanNote: 'No adverse media identified' },
+      { name: 'Trust', value: 140, max: 300, humanNote: 'Payment structuring lowers confidence' },
+      { name: 'Track Record', value: 210, max: 300, humanNote: '5 years trading, no prior enforcement' },
+      { name: 'Financial Health', value: 155, max: 200, humanNote: 'Solid trading revenue' },
+      { name: 'ESG', value: 83, max: 200, humanNote: 'No adverse media identified' },
     ],
   },
 
@@ -312,10 +315,10 @@ export const INVESTIGATION_DOSSIERS: Record<string, InvestigationDossier> = {
     ],
     ethoScore: 690,
     ethoPillars: [
-      { name: 'Trust', value: 210, humanNote: 'Corridor concentration noted; identity fully verified' },
-      { name: 'Track Record', value: 250, humanNote: '92% on-time payments across 3 active corridors' },
-      { name: 'Financial Health', value: 140, humanNote: 'Stable apparel trading revenue, $120K annualised' },
-      { name: 'ESG', value: 90, humanNote: 'Financial inclusion signal — first-time cross-border credit access' },
+      { name: 'Trust', value: 210, max: 300, humanNote: 'Corridor concentration noted; identity fully verified' },
+      { name: 'Track Record', value: 250, max: 300, humanNote: '92% on-time payments across 3 active corridors' },
+      { name: 'Financial Health', value: 140, max: 200, humanNote: 'Stable apparel trading revenue, $120K annualised' },
+      { name: 'ESG', value: 90, max: 200, humanNote: 'Financial inclusion signal — first-time cross-border credit access' },
     ],
   },
 }
