@@ -599,7 +599,7 @@ export default function DashboardPage() {
               {/* Conclusion — same score device as /score/[id]: a
                   typographic figure, not a second gauge component. */}
               <div style={{ marginBottom: SP.huge }}>
-                <p style={{ ...labelCss, color: riskColor(activeCase.risk_score), marginBottom: 10 }}>Risk score</p>
+                <p style={{ ...labelCss, color: riskColor(activeCase.risk_score), marginBottom: 10 }}>Case Risk Score</p>
                 <ScoreFigure value={activeCase.risk_score} max={100} color={riskColor(activeCase.risk_score)} bandLabel={SEV_LABEL[activeCase.severity]} size="lg" />
               </div>
 
