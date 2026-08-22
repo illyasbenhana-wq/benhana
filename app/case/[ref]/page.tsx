@@ -13,8 +13,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { PrecisionGauge } from '../../components/PrecisionGauge'
 import { DashboardSidebar } from '../../components/DashboardSidebar'
+import { Badge } from '../../components/Badge'
+import { EvidenceRow } from '../../components/EvidenceRow'
+import { ScoreFigure } from '../../components/ScoreFigure'
 import { getDossier, TimelineEvent } from '../../../lib/investigation-demo'
 import type { CaseGraph } from '../../../lib/ontology-graph'
 import {
@@ -25,11 +27,10 @@ import {
   radius as R,
   space as SP,
   borderLine,
-  shadowSm,
-  motion as M,
   keyframes as KF,
   googleFontsHref,
   caseRiskColor,
+  ethoScoreColor,
 } from '../../../lib/design-system/tokens-light'
 
 const SEV_COLOR: Record<string, string> = {
@@ -118,9 +119,6 @@ export default function InvestigationPage() {
     letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSecondary,
   }
   const monoCss: React.CSSProperties = { fontFamily: F.mono, fontVariantNumeric: 'tabular-nums' }
-  const cardCss: React.CSSProperties = {
-    background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm,
-  }
 
   if (!dossier) {
     return (
@@ -166,53 +164,30 @@ export default function InvestigationPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `0 ${SP.xxl}px ${SP.md}px` }}>
           <span style={{ ...labelCss, color: sc, letterSpacing: '0.14em' }}>{dossier.caseType}</span>
-          <span style={{ marginLeft: 'auto', ...labelCss, color: sc, border: `1px solid ${sc}55`, borderRadius: R.control, padding: '3px 10px' }}>{dossier.severity}</span>
-          <span style={{ ...labelCss, color: C.textSecondary, border: borderLine, borderRadius: R.control, padding: '3px 10px' }}>{STATUS_LABEL[dossier.status]}</span>
+          <span style={{ marginLeft: 'auto' }}><Badge tone={dossier.severity === 'critical' || dossier.severity === 'high' ? 'high' : dossier.severity === 'medium' ? 'medium' : 'low'}>{dossier.severity}</Badge></span>
+          <Badge tone="neutral">{STATUS_LABEL[dossier.status]}</Badge>
           <span style={{ ...monoCss, fontSize: FS.sm, color: slaColor(dossier.slaRemainingHours, dossier.slaHours) }}>SLA {fmtSLA(dossier.slaRemainingHours)}</span>
         </div>
       </header>
 
-      {/* ── Body: entity profile | risk timeline ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 380px) 1fr', gap: SP.xl, padding: `${SP.xl}px ${SP.xxl}px ${SP.xxxl}px`, alignItems: 'start' }}>
+      {/* ── Body: entity profile | risk timeline — no cards, asymmetric
+          two-zone layout separated by whitespace, matching Score/Dashboard */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 380px) 1fr', gap: SP.xxl, padding: `${SP.xl}px ${SP.xxl}px ${SP.xxxl}px`, alignItems: 'start' }}>
 
         {/* ── Left: entity profile ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: SP.lg }}>
+        <div>
+          <div style={{ fontSize: FS.lg, fontWeight: FW.semibold, marginBottom: 6 }}>{dossier.entityName}</div>
+          <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, margin: `0 0 ${SP.xxl}px` }}>
+            {fmtCurrency(dossier.exposureAmount)} · {dossier.jurisdiction} · {dossier.assignedTo} · SLA{' '}
+            <span style={{ color: slaColor(dossier.slaRemainingHours, dossier.slaHours) }}>{fmtSLA(dossier.slaRemainingHours)}</span>
+          </p>
 
-          {/* Entity profile card */}
-          <section style={{ ...cardCss, padding: SP.xl }}>
-            <div style={{ ...labelCss, marginBottom: SP.lg }}>Entity Profile</div>
-            <div style={{ fontSize: FS.lg, fontWeight: FW.semibold, marginBottom: SP.lg }}>{dossier.entityName}</div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: SP.lg }}>
-              <PrecisionGauge
-                value={dossier.riskScore}
-                label={SEV_LABEL[dossier.severity]}
-                color={caseRiskColor(dossier.riskScore)}
-                size={148}
-                trackColor={C.border}
-                captionColor={C.textSecondary}
-                fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
-                ringAnimation={M.ringDraw}
-              />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.sm }}>
-              {[
-                { label: 'Exposure', val: fmtCurrency(dossier.exposureAmount), mono: true },
-                { label: 'Jurisdiction', val: dossier.jurisdiction },
-                { label: 'Assigned', val: dossier.assignedTo },
-                { label: 'SLA Remaining', val: fmtSLA(dossier.slaRemainingHours), mono: true, color: slaColor(dossier.slaRemainingHours, dossier.slaHours) },
-              ].map(m => (
-                <div key={m.label} style={{ padding: `${SP.sm}px ${SP.md}px`, background: C.background, border: borderLine, borderRadius: R.data }}>
-                  <div style={{ ...labelCss, marginBottom: 4 }}>{m.label}</div>
-                  <div style={{ fontSize: FS.sm, fontWeight: FW.medium, color: (m as { color?: string }).color || C.textPrimary, fontFamily: (m as { mono?: boolean }).mono ? F.mono : F.sans }}>{m.val}</div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <p style={{ ...labelCss, color: caseRiskColor(dossier.riskScore), marginBottom: 10 }}>Case Risk</p>
+          <ScoreFigure value={dossier.riskScore} max={100} color={caseRiskColor(dossier.riskScore)} bandLabel={SEV_LABEL[dossier.severity]} size="lg" />
 
-          {/* Connected entities */}
-          <section style={{ ...cardCss, padding: SP.xl }}>
-            <div style={{ ...labelCss, marginBottom: SP.lg }}>Connected Entities</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: SP.md }}>
+          <div style={{ borderTop: borderLine, marginTop: SP.xxl, paddingTop: SP.xxl }}>
+            <p style={labelCss}>Connected Entities</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: SP.md, marginTop: SP.lg }}>
               {mergedConnections.map((e, i) => {
                 const open = !!e.linkedCaseRef
                 const note: string | undefined = 'note' in e ? (e as { note?: string }).note : undefined
@@ -231,56 +206,48 @@ export default function InvestigationPage() {
                   </div>
                 )
               })}
-            </div>
-            {graph?.person && (
-              <div style={{ marginTop: SP.lg, paddingTop: SP.lg, borderTop: borderLine, display: 'flex', alignItems: 'center', gap: SP.md }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: 'transparent', border: `1.5px solid ${C.accent}` }} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ ...labelCss, marginBottom: 2 }}>Linked Applicant</div>
-                  <div style={{ fontSize: FS.base, fontWeight: FW.medium }}>
-                    {graph.person.full_name}
-                    {graph.person.email && (
-                      <span style={{ ...monoCss, marginLeft: SP.sm, fontSize: FS.xs, color: C.textSecondary }}>{graph.person.email}</span>
-                    )}
+              {graph?.person && (
+                <div style={{ marginTop: SP.sm, paddingTop: SP.md, borderTop: borderLine, display: 'flex', alignItems: 'center', gap: SP.md }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: 'transparent', border: `1.5px solid ${C.accent}` }} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ ...labelCss, marginBottom: 2 }}>Linked Applicant</div>
+                    <div style={{ fontSize: FS.base, fontWeight: FW.medium }}>
+                      {graph.person.full_name}
+                      {graph.person.email && (
+                        <span style={{ ...monoCss, marginLeft: SP.sm, fontSize: FS.xs, color: C.textSecondary }}>{graph.person.email}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </section>
+              )}
+            </div>
+          </div>
 
-          {/* EthoScore intelligence — illustrative preview; full breakdown is Screen 3 */}
-          <section style={{ ...cardCss, padding: SP.xl }}>
+          {/* EthoScore intelligence — illustrative preview; full breakdown is
+              the EthoScore panel. Reuses ScoreFigure at the compact "sm"
+              size built for exactly this — an inline preview, not this
+              screen's main content. */}
+          <div style={{ borderTop: borderLine, marginTop: SP.xxl, paddingTop: SP.xxl }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: SP.sm, marginBottom: SP.lg }}>
               <span style={labelCss}>EthoScore Intelligence</span>
               <span style={{ marginLeft: 'auto', ...monoCss, fontSize: FS.xs, color: C.textSecondary }}>PREVIEW</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: SP.sm, marginBottom: SP.lg }}>
-              <span style={{ ...monoCss, fontSize: FS.xl, fontWeight: FW.semibold, color: C.accent }}>{dossier.ethoScore}</span>
-              <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>/ 1000</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: SP.md }}>
+            <ScoreFigure value={dossier.ethoScore} max={1000} color={ethoScoreColor(dossier.ethoScore)} size="sm" />
+            <div style={{ marginTop: SP.lg }}>
               {dossier.ethoPillars.map(p => (
-                <div key={p.name}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: SP.sm, marginBottom: 4 }}>
-                    <span style={{ fontSize: FS.sm, fontWeight: FW.medium }}>{p.name}</span>
-                    <span style={{ marginLeft: 'auto', ...monoCss, fontSize: FS.xs, color: C.textSecondary }}>{p.value}</span>
-                  </div>
-                  <div style={{ height: 4, background: C.background, border: borderLine, borderRadius: 2, overflow: 'hidden', marginBottom: 3 }}>
-                    <div style={{ height: '100%', width: `${(p.value / 1000) * 100}%`, background: C.accent }} />
-                  </div>
-                  <div style={{ fontSize: FS.xs, color: C.textMuted }}>{p.humanNote}</div>
-                </div>
+                <EvidenceRow key={p.name} label={p.name} score={p.value} color={C.accent} rationale={p.humanNote} />
               ))}
             </div>
-            <div style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginTop: SP.lg }}>FULL PILLAR BREAKDOWN → ETHOSCORE PANEL (SCREEN 3)</div>
-          </section>
+            <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>Full pillar breakdown → EthoScore panel.</p>
+          </div>
         </div>
 
         {/* ── Right: risk timeline + analyst note ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: SP.lg }}>
+        <div>
 
-          {/* Risk timeline */}
-          <section style={{ ...cardCss, padding: SP.xl }}>
+          {/* Risk timeline — kept essentially as-is (already list/rail-based,
+              not boxed-per-item); only the outer card border is removed. */}
+          <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.xl }}>
               <span style={labelCss}>Risk Timeline</span>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.riskLow }} />
@@ -311,34 +278,29 @@ export default function InvestigationPage() {
                 )
               })}
             </div>
-          </section>
+          </div>
 
           {/* Signal breakdown */}
-          <section style={{ ...cardCss, padding: SP.xl }}>
-            <div style={{ ...labelCss, marginBottom: SP.lg }}>Signal Breakdown</div>
-            {dossier.signals.map((s, i) => (
-              <div key={i} style={{ display: 'flex', gap: SP.lg, alignItems: 'flex-start', marginBottom: i === dossier.signals.length - 1 ? 0 : SP.lg }}>
-                <div style={{ ...monoCss, minWidth: 40, height: 40, border: `1px solid ${caseRiskColor(s.score)}55`, borderRadius: R.data, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: FS.base, fontWeight: FW.medium, color: caseRiskColor(s.score), flexShrink: 0 }}>{s.score}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: FS.base, fontWeight: FW.medium, marginBottom: 5 }}>{s.name}</div>
-                  <div style={{ height: 3, background: C.background, borderRadius: 2, overflow: 'hidden', marginBottom: 5 }}>
-                    <div style={{ height: '100%', width: `${s.score}%`, background: caseRiskColor(s.score) }} />
-                  </div>
-                  <p style={{ margin: 0, fontSize: FS.sm, color: C.textMuted, lineHeight: 1.55 }}>{s.rationale}</p>
-                </div>
-              </div>
-            ))}
-          </section>
+          <div style={{ borderTop: borderLine, marginTop: SP.xxl, paddingTop: SP.xxl }}>
+            <p style={labelCss}>Signal Breakdown</p>
+            <div style={{ marginTop: SP.lg }}>
+              {dossier.signals.map((s, i) => (
+                <EvidenceRow key={i} label={s.name} score={s.score} color={caseRiskColor(s.score)} rationale={s.rationale} />
+              ))}
+            </div>
+          </div>
 
-          {/* Risk intelligence summary */}
-          <section style={{ ...cardCss, padding: SP.xl }}>
-            <div style={{ ...labelCss, marginBottom: SP.md }}>Risk Intelligence</div>
-            <p style={{ margin: 0, fontSize: FS.base, lineHeight: 1.65, color: C.textSecondary }}>{dossier.aiSummary}</p>
-          </section>
+          {/* Risk intelligence summary — same accent-rule editorial
+              treatment as Score's Analysis and Dashboard's case detail */}
+          <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl, marginTop: SP.xxl }}>
+            <p style={labelCss}>Risk Intelligence</p>
+            <p style={{ margin: '8px 0 0', fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{dossier.aiSummary}</p>
+          </div>
 
-          {/* Add analyst note + actions (design-only, local state) */}
-          <section style={{ ...cardCss, padding: SP.xl }}>
-            <div style={{ ...labelCss, marginBottom: SP.md }}>Add Analyst Note</div>
+          {/* Add analyst note + actions (design-only, local state) — a
+              form, not a content card: separated by a rule, not a box. */}
+          <div style={{ borderTop: borderLine, marginTop: SP.xxl, paddingTop: SP.xxl }}>
+            <p style={{ ...labelCss, marginBottom: SP.md }}>Add Analyst Note</p>
             <textarea
               value={note}
               onChange={e => setNote(e.target.value)}
@@ -353,7 +315,7 @@ export default function InvestigationPage() {
               <button type="button" className="ethos-btn" style={{ border: borderLine, background: 'transparent', color: C.textSecondary, minWidth: 48 }} title="Open in new view">↗</button>
             </div>
             <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>DESIGN PREVIEW · ACTIONS NOT WIRED · FULL AUDIT TRAIL MAINTAINED IN PRODUCTION</p>
-          </section>
+          </div>
         </div>
       </div>
       </div>
