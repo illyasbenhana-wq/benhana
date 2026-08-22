@@ -6,12 +6,12 @@ import { getRoleFromSession, ROLE_LABEL, UserRole } from '../../lib/user-role'
 import { isPreviewDeployment } from '../../lib/preview-bypass'
 import { MerchantIntelligence } from './components/MerchantIntelligence'
 import { fatimaOkoyeComplianceCase } from '../../lib/fatima-okoye-demo'
-import { PrecisionGauge } from '../components/PrecisionGauge'
 import { Logo } from '../components/Logo'
 import { DashboardSidebar } from '../components/DashboardSidebar'
 import { DashboardKpiRow } from '../components/DashboardKpiRow'
 import { Badge } from '../components/Badge'
 import { EvidenceRow } from '../components/EvidenceRow'
+import { ScoreFigure } from '../components/ScoreFigure'
 import {
   color as C,
   fontFamily as F,
@@ -20,9 +20,6 @@ import {
   radius as R,
   space as SP,
   borderLine,
-  shadowSm,
-  shadowMd,
-  motion as M,
   keyframes as KF,
   googleFontsHref,
   caseRiskColor,
@@ -362,7 +359,6 @@ export default function DashboardPage() {
     letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSecondary,
   }
   const monoCss: React.CSSProperties = { fontFamily: F.mono, fontVariantNumeric: 'tabular-nums' }
-  const panelCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm }
 
   const activeCases = cases.filter(c => c.status !== 'cleared')
   const rankedCases = [...activeCases].sort((a, b) => b.risk_score - a.risk_score)
@@ -514,74 +510,38 @@ export default function DashboardPage() {
           {!activeCase ? (
             /* ── Risk Intelligence Overview ── */
             <div>
-              <div style={{ ...labelCss, letterSpacing: '0.16em', marginBottom: SP.xl }}>Risk Intelligence Overview</div>
+              <div style={{ ...labelCss, letterSpacing: '0.16em', marginBottom: SP.xxl }}>Risk Intelligence Overview</div>
 
-              {/* Primary operational signal — the single case that needs attention
-                  right now, promoted to Tier-3 (shadowMd). The next 2 highest-risk
-                  cases are demoted to small inline chips beside it rather than
-                  competing at equal visual weight. */}
+              {/* Primary signal — a sentence, not a card. The number moves
+                  into the Active Signals list below where it belongs as
+                  data; up here it's a statement, not a widget. */}
               {gaugeCases.length > 0 && (
-                <div style={{ display: 'flex', gap: SP.xl, alignItems: 'stretch', paddingBottom: SP.xl, borderBottom: borderLine, marginBottom: SP.xl, flexWrap: 'wrap' }}>
-                  <div
-                    onClick={() => setActiveCase(gaugeCases[0])}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: SP.xl,
-                      background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowMd,
-                      padding: `${SP.lg}px ${SP.xl}px`, cursor: 'pointer', flex: '1 1 380px',
-                    }}
-                  >
-                    <PrecisionGauge
-                      value={gaugeCases[0].risk_score}
-                      label={SEV_LABEL[gaugeCases[0].severity]}
-                      color={riskColor(gaugeCases[0].risk_score)}
-                      size={92}
-                      strokeWidth={5}
-                      trackColor={C.border}
-                      captionColor={C.textSecondary}
-                      fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
-                      ringAnimation={M.ringDraw}
-                    />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={labelCss}>Requires attention</div>
-                      <div style={{ fontSize: FS.lg, fontWeight: FW.semibold, margin: '4px 0 6px' }}>{gaugeCases[0].entity_name}</div>
-                      <div style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>{gaugeCases[0].case_ref} · {gaugeCases[0].case_type}</div>
-                    </div>
-                  </div>
-
-                  {gaugeCases.slice(1, 3).map(c => (
-                    <div
-                      key={c.id}
-                      onClick={() => setActiveCase(c)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: SP.md,
-                        border: borderLine, borderRadius: R.control,
-                        padding: `${SP.sm}px ${SP.md}px`, cursor: 'pointer', flex: '0 1 200px',
-                      }}
-                    >
-                      <PrecisionGauge
-                        value={c.risk_score}
-                        color={riskColor(c.risk_score)}
-                        size={44}
-                        strokeWidth={3}
-                        trackColor={C.border}
-                        fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
-                        ringAnimation={M.ringDraw}
-                      />
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: FS.sm, fontWeight: FW.medium, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.entity_name}</div>
-                        <div style={{ ...monoCss, fontSize: 10, color: C.textMuted }}>{c.case_ref}</div>
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ marginBottom: SP.huge }}>
+                  <p style={{ fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.semibold, letterSpacing: '-0.01em', lineHeight: 1.35, margin: 0 }}>
+                    {activeCases.length} active case{activeCases.length === 1 ? '' : 's'}.{' '}
+                    <a onClick={() => setActiveCase(gaugeCases[0])} style={{ color: riskColor(gaugeCases[0].risk_score), cursor: 'pointer', textDecoration: 'none' }}>
+                      {gaugeCases[0].entity_name}
+                    </a>{' '}
+                    carries the highest risk — flagged for {gaugeCases[0].case_type}.
+                  </p>
+                  {gaugeCases.length > 1 && (
+                    <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, margin: `${SP.md}px 0 0` }}>
+                      Also elevated:{' '}
+                      {gaugeCases.slice(1, 3).map((c, i) => (
+                        <span key={c.id}>
+                          {i > 0 && ', '}
+                          <a onClick={() => setActiveCase(c)} style={{ color: C.textSecondary, cursor: 'pointer', textDecoration: 'none' }}>{c.entity_name}</a>
+                        </span>
+                      ))}
+                    </p>
+                  )}
                 </div>
               )}
 
               {/* Active signals — live feed */}
-              <div style={{ marginBottom: SP.xl, paddingBottom: SP.xl, borderBottom: borderLine }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.md }}>
-                  <span style={labelCss}>Active Signals</span>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.riskLow }} />
-                </div>
+              <div style={{ marginBottom: SP.huge }}>
+                <p style={labelCss}>Active Signals</p>
+                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>Ranked by severity across the active caseload.</p>
                 {activeSignals.map((s, i) => (
                   <EvidenceRow
                     key={s.c.id}
@@ -596,12 +556,13 @@ export default function DashboardPage() {
               </div>
 
               {/* Analyst load */}
-              <div style={{ marginBottom: SP.xl }}>
-                <div style={{ ...labelCss, marginBottom: SP.md }}>Analyst Load</div>
+              <div style={{ marginBottom: SP.huge }}>
+                <p style={labelCss}>Analyst Load</p>
+                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>Open caseload by assigned analyst.</p>
                 {analysts.map(a => (
                   <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: SP.lg, padding: `${SP.sm}px 0` }}>
                     <span style={{ fontSize: FS.base, minWidth: 140 }}>{a.name}</span>
-                    <div style={{ flex: 1, maxWidth: 220, height: 8, background: C.surface, border: borderLine, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, maxWidth: 220, height: 3, background: C.border, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${Math.min((a.open / 8) * 100, 100)}%`, background: a.critical > 0 ? C.riskHigh : a.open >= 4 ? C.riskMedium : C.riskLow }} />
                     </div>
                     <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{a.open} {a.open === 1 ? 'case' : 'cases'}</span>
@@ -610,7 +571,8 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* Merchant intelligence — the human side of credit */}
+              {/* Merchant intelligence — the one deliberate featured panel
+                  on this page; not repeated boxing, a singular callout. */}
               <div style={{ maxWidth: 460 }}>
                 <MerchantIntelligence />
               </div>
@@ -623,49 +585,33 @@ export default function DashboardPage() {
                 <span style={labelCss}>← Back to Overview</span>
               </button>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: SP.xl, marginBottom: SP.xxl }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.sm }}>
-                    <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{activeCase.case_ref}</span>
-                    <Badge tone={activeCase.severity === 'critical' || activeCase.severity === 'high' ? 'high' : activeCase.severity === 'medium' ? 'medium' : 'low'}>{SEV_LABEL[activeCase.severity]}</Badge>
-                    <Badge tone="neutral">{STATUS_LABEL[activeCase.status]}</Badge>
-                  </div>
-                  <div style={{ fontFamily: F.sans, fontSize: FS.xl, marginBottom: 4 }}>{activeCase.entity_name}</div>
-                  <div style={{ fontSize: FS.sm, color: C.textSecondary }}>{activeCase.case_type} · {activeCase.jurisdiction} · Opened {timeAgo(activeCase.opened_at)}</div>
-                </div>
-                <PrecisionGauge
-                  value={activeCase.risk_score}
-                  label={SEV_LABEL[activeCase.severity]}
-                  color={riskColor(activeCase.risk_score)}
-                  size={128}
-                  trackColor={C.border}
-                  captionColor={C.textSecondary}
-                  fontFamilyOverride={{ mono: F.mono, sans: F.sans }}
-                  ringAnimation={M.ringDraw}
-                />
+              <div style={{ marginBottom: SP.sm }}>
+                <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{activeCase.case_ref}</span>{' '}
+                <Badge tone={activeCase.severity === 'critical' || activeCase.severity === 'high' ? 'high' : activeCase.severity === 'medium' ? 'medium' : 'low'}>{SEV_LABEL[activeCase.severity]}</Badge>{' '}
+                <Badge tone="neutral">{STATUS_LABEL[activeCase.status]}</Badge>
+              </div>
+              <div style={{ fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.semibold, marginBottom: 6 }}>{activeCase.entity_name}</div>
+              <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, margin: `0 0 ${SP.huge}px` }}>
+                {activeCase.case_type} · {activeCase.jurisdiction} · Opened {timeAgo(activeCase.opened_at)} · Exposure {fmtCurrency(activeCase.exposure_amount)} · SLA{' '}
+                <span style={{ color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours) }}>{fmtSLA(liveSLA(activeCase.sla_remaining_hours))}</span>
+              </p>
+
+              {/* Conclusion — same score device as /score/[id]: a
+                  typographic figure, not a second gauge component. */}
+              <div style={{ marginBottom: SP.huge }}>
+                <p style={{ ...labelCss, color: riskColor(activeCase.risk_score), marginBottom: 10 }}>Risk score</p>
+                <ScoreFigure value={activeCase.risk_score} max={100} color={riskColor(activeCase.risk_score)} bandLabel={SEV_LABEL[activeCase.severity]} size="lg" />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: SP.sm, marginBottom: SP.xl }}>
-                {[
-                  { label: 'Case Type', val: activeCase.case_type },
-                  { label: 'Jurisdiction', val: activeCase.jurisdiction },
-                  { label: 'Exposure', val: fmtCurrency(activeCase.exposure_amount), mono: true },
-                  { label: 'SLA Remaining', val: fmtSLA(liveSLA(activeCase.sla_remaining_hours)), color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours), mono: true },
-                ].map(m => (
-                  <div key={m.label} style={{ ...panelCss, padding: `${SP.md}px ${SP.lg}px` }}>
-                    <div style={{ ...labelCss, marginBottom: 6 }}>{m.label}</div>
-                    <div style={{ fontSize: FS.base, fontWeight: FW.medium, color: (m as { color?: string }).color || C.textPrimary, fontFamily: (m as { mono?: boolean }).mono ? F.mono : F.sans }}>{m.val}</div>
-                  </div>
-                ))}
+              {/* Analysis — same accent-rule editorial treatment as Score */}
+              <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl, marginBottom: SP.huge }}>
+                <p style={labelCss}>Analysis</p>
+                <p style={{ margin: '8px 0 0', fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{activeCase.ai_summary}</p>
               </div>
 
-              <div style={{ ...panelCss, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
-                <div style={{ ...labelCss, marginBottom: SP.md }}>Risk Intelligence</div>
-                <p style={{ margin: 0, fontSize: FS.base, lineHeight: 1.65, color: C.textSecondary }}>{activeCase.ai_summary}</p>
-              </div>
-
-              <div style={{ marginBottom: SP.xxl }}>
-                <div style={{ ...labelCss, marginBottom: SP.lg }}>Signal Breakdown</div>
+              <div style={{ marginBottom: SP.huge }}>
+                <p style={labelCss}>Signal Breakdown</p>
+                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>{activeCase.signals.length} signals contributed to this score.</p>
                 {activeCase.signals.map((s, i) => (
                   <EvidenceRow key={i} label={s.name} score={s.score} color={riskColor(s.score)} rationale={s.rationale} />
                 ))}
@@ -673,8 +619,8 @@ export default function DashboardPage() {
 
               {(activeCase.status === 'open' || activeCase.status === 'pending_info') && (
                 <div>
-                  <div style={{ ...labelCss, marginBottom: SP.md }}>Analyst Actions</div>
-                  <div style={{ display: 'flex', gap: SP.md }}>
+                  <p style={labelCss}>Analyst Actions</p>
+                  <div style={{ display: 'flex', gap: SP.md, marginTop: SP.md }}>
                     <button disabled={acting} onClick={() => action(activeCase.id, 'escalate')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: `1px solid ${C.riskHigh}55`, background: 'transparent', color: C.riskHigh, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base, fontWeight: FW.medium }}>Escalate</button>
                     <button disabled={acting} onClick={() => action(activeCase.id, 'request_info')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: borderLine, background: 'transparent', color: C.textSecondary, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base }}>Request Info</button>
                     <button disabled={acting} onClick={() => action(activeCase.id, 'clear')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: `1px solid ${C.riskLow}55`, background: 'transparent', color: C.riskLow, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base }}>Clear</button>
@@ -684,14 +630,14 @@ export default function DashboardPage() {
               )}
 
               {activeCase.status === 'escalated' && (
-                <div style={{ ...panelCss, padding: `${SP.md}px ${SP.lg}px`, borderColor: `${C.riskHigh}55`, fontSize: FS.sm, color: C.textSecondary }}>
+                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: 0 }}>
                   Status: <strong style={{ color: C.riskHigh }}>Escalated to Senior Compliance</strong>
-                </div>
+                </p>
               )}
               {activeCase.status === 'cleared' && (
-                <div style={{ ...panelCss, padding: `${SP.md}px ${SP.lg}px`, borderColor: `${C.riskLow}55`, fontSize: FS.sm, color: C.textSecondary }}>
+                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: 0 }}>
                   Status: <strong style={{ color: C.riskLow }}>Cleared — No further action required</strong>
-                </div>
+                </p>
               )}
             </div>
           )}

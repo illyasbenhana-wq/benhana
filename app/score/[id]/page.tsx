@@ -8,6 +8,7 @@ import { isPreviewDeployment } from '@/lib/preview-bypass'
 import { Logo } from '@/app/components/Logo'
 import { DashboardSidebar } from '@/app/components/DashboardSidebar'
 import { EvidenceRow } from '@/app/components/EvidenceRow'
+import { ScoreFigure } from '@/app/components/ScoreFigure'
 import {
   color as C,
   fontFamily as F,
@@ -215,7 +216,6 @@ export default function ScorePage() {
   const totalStructured = pillars ? (Object.values(pillars) as Pillar[]).reduce((s, p) => s + p.score, 0) : null
   const displayScore = totalStructured ?? score.etho_score
   const displayMax = totalStructured !== null ? 1000 : 100
-  const scorePct = Math.max(0, Math.min(1, displayScore / displayMax))
 
   return (
     <>
@@ -320,25 +320,13 @@ export default function ScorePage() {
             followed by a thin architectural tick-scale (not a colored
             progress bar) and the decision as a plain sentence. */}
         <div style={{ marginBottom: SP.huge }}>
-          <p style={{ ...labelCss, color: C.accent }}>Conclusion</p>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, margin: '10px 0 6px' }}>
-            <span style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium, fontSize: 64, color: bandColor, lineHeight: 1 }}>{displayScore}</span>
-            <span style={{ fontSize: FS.md, color: C.textMuted }}>/ {displayMax}</span>
-            <span style={{ fontSize: FS.base, color: C.textSecondary }}>— {band.label}</span>
-          </div>
+          <p style={{ ...labelCss, color: C.accent, marginBottom: 10 }}>Conclusion</p>
+          <ScoreFigure value={displayScore} max={displayMax} color={bandColor} bandLabel={band.label} size="lg" />
           {totalStructured === null && (
-            <p style={{ fontSize: FS.xs, color: C.textMuted, margin: '0 0 6px' }}>Legacy factor-weighted score (0–100 scale) — no structured pillar assessment on record for this application.</p>
+            <p style={{ fontSize: FS.xs, color: C.textMuted, margin: `6px 0 0` }}>Legacy factor-weighted score (0–100 scale) — no structured pillar assessment on record for this application.</p>
           )}
 
-          {/* Thin architectural scale — a tick mark, not a filled bar */}
-          <div style={{ position: 'relative', height: 1, background: C.border, margin: `${SP.lg}px 0 6px` }}>
-            <div style={{ position: 'absolute', top: -3, left: `${scorePct * 100}%`, width: 2, height: 7, background: bandColor, transform: 'translateX(-1px)' }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: C.textMuted, marginBottom: SP.xl }}>
-            <span>0</span><span>{displayMax}</span>
-          </div>
-
-          <p style={{ margin: 0, fontSize: FS.base, color: recColor }}>
+          <p style={{ margin: `${SP.xl}px 0 0`, fontSize: FS.base, color: recColor }}>
             {rec === 'approve' && '✓ Decision: Approve — this profile meets lending criteria.'}
             {rec === 'review' && '◎ Decision: Manual review — a lender will assess this application.'}
             {rec === 'decline' && '○ Decision: Not approved at this time — see improvement guidance above.'}
