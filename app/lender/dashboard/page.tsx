@@ -15,7 +15,6 @@ import {
   radius as R,
   space as SP,
   borderLine,
-  shadowSm,
   googleFontsHref,
 } from '../../../lib/design-system/tokens-light'
 
@@ -168,7 +167,6 @@ export default function LenderDashboard() {
     fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold,
     letterSpacing: '0.12em', textTransform: 'uppercase', color: C.textSecondary,
   }
-  const panelCss: React.CSSProperties = { background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm }
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -209,56 +207,57 @@ export default function LenderDashboard() {
             <div style={{ color: C.textMuted, fontSize: FS.sm, paddingTop: 40, textAlign: 'center' }}>Loading…</div>
           ) : (
             <>
-              {/* ── Risk Distribution ── */}
-              <div style={{ ...panelCss, padding: '22px 24px', marginBottom: SP.xl }}>
-                <div style={{ ...labelCss, marginBottom: 18 }}>Risk Distribution</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 18 }}>
-                  {(['low', 'medium', 'high'] as RiskBand[]).map(band => (
-                    <div key={band} style={{ background: C.background, borderRadius: R.control, padding: '14px 16px', borderLeft: `3px solid ${BAND_COLOR[band]}` }}>
-                      <div style={{ fontSize: 22, fontWeight: FW.medium, color: BAND_COLOR[band] }}>{riskDist[band]}</div>
-                      <div style={{ fontSize: FS.sm, color: C.textSecondary, marginTop: 3, textTransform: 'capitalize' }}>{band} risk</div>
-                      <div style={{ fontSize: FS.xs, color: C.textMuted, marginTop: 2 }}>{Math.round((riskDist[band] / riskTotal) * 100)}%</div>
-                    </div>
-                  ))}
-                </div>
-                {/* Bar */}
-                <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', gap: 2 }}>
+              {/* ── Risk Distribution — single composition bar, no card, no duplication ── */}
+              <div style={{ marginBottom: SP.xxl }}>
+                <div style={{ ...labelCss, marginBottom: 14 }}>Risk Distribution</div>
+                <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', gap: 2, marginBottom: 10 }}>
                   {(['low', 'medium', 'high'] as RiskBand[]).map(band => (
                     riskDist[band] > 0 && (
-                      <div key={band} style={{ flex: riskDist[band], background: BAND_COLOR[band], borderRadius: 3 }} />
+                      <div key={band} style={{ flex: riskDist[band], background: BAND_COLOR[band], borderRadius: 4 }} />
                     )
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: SP.xl }}>
+                  {(['low', 'medium', 'high'] as RiskBand[]).map(band => (
+                    <div key={band} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: BAND_COLOR[band], flexShrink: 0 }} />
+                      <span style={{ fontSize: FS.sm, fontWeight: FW.medium, color: C.textPrimary }}>{riskDist[band]}</span>
+                      <span style={{ fontSize: FS.xs, color: C.textMuted, textTransform: 'capitalize' }}>{band} · {Math.round((riskDist[band] / riskTotal) * 100)}%</span>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* ── Recent Applications ── */}
-              <div style={{ ...panelCss, overflow: 'hidden' }}>
-                <div style={{ padding: '18px 24px', borderBottom: borderLine, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              {/* ── Recent Applications — flat section, no card wrapper ── */}
+              <div>
+                <div style={{ paddingBottom: 14, borderBottom: borderLine, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={labelCss}>Recent Applications</div>
                   <div style={{ fontSize: FS.xs, color: C.textMuted }}>{apps.length} total</div>
                 </div>
 
                 {/* Table header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr', gap: 0, padding: '10px 24px', borderBottom: borderLine }}>
-                  {['Applicant', 'Amount', 'Purpose', 'Score', 'Risk', 'Decision'].map(h => (
-                    <div key={h} style={{ fontSize: FS.xs, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr', gap: 0, padding: '10px 4px', borderBottom: borderLine }}>
+                  {['Applicant', 'Amount', 'Purpose', 'Score', 'Decision'].map(h => (
+                    <div key={h} style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>
                   ))}
                 </div>
 
                 {/* Rows */}
                 {apps.slice(0, 20).map((app, i) => {
                   const score = app.scores
+                  const decisionColor = score ? REC_COLOR[score.recommendation] : C.textMuted
                   return (
                     <div
                       key={app.id}
                       className="row-hover"
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 1fr',
-                        padding: '14px 24px',
+                        gridTemplateColumns: '2fr 1fr 1fr 1fr 1.2fr',
+                        padding: '14px 4px 14px 14px',
                         borderBottom: i < apps.length - 1 ? borderLine : 'none',
+                        borderLeft: `2px solid ${score ? `${decisionColor}66` : 'transparent'}`,
                         background: 'transparent',
-                        transition: 'background 0.12s',
+                        transition: 'background 0.12s, border-color 0.12s',
                         alignItems: 'center',
                       }}
                     >
@@ -268,19 +267,15 @@ export default function LenderDashboard() {
                       </div>
                       <div style={{ fontSize: FS.sm }}>{fmt(app.loan_amount)}</div>
                       <div style={{ fontSize: FS.xs, color: C.textSecondary, textTransform: 'capitalize' }}>{app.loan_purpose}</div>
-                      <div style={{ fontSize: FS.base, fontWeight: FW.medium, color: score ? (score.etho_score >= 70 ? C.riskLow : score.etho_score >= 50 ? C.riskMedium : C.riskHigh) : C.textMuted }}>
-                        {score ? score.etho_score : '—'}
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontFamily: F.mono, fontSize: 18, fontWeight: FW.bold, color: score ? (score.etho_score >= 70 ? C.riskLow : score.etho_score >= 50 ? C.riskMedium : C.riskHigh) : C.textMuted }}>
+                          {score ? score.etho_score : '—'}
+                        </span>
+                        {score && <span style={{ width: 5, height: 5, borderRadius: '50%', background: BAND_COLOR[score.risk_band], flexShrink: 0 }} title={`${score.risk_band} risk`} />}
                       </div>
                       <div>
                         {score ? (
-                          <span style={{ fontSize: FS.xs, color: BAND_COLOR[score.risk_band], background: C.accentSubtle, border: `1px solid ${BAND_COLOR[score.risk_band]}40`, borderRadius: 4, padding: '2px 8px', textTransform: 'capitalize' }}>
-                            {score.risk_band}
-                          </span>
-                        ) : <span style={{ color: C.textMuted, fontSize: FS.xs }}>—</span>}
-                      </div>
-                      <div>
-                        {score ? (
-                          <span style={{ fontSize: FS.xs, color: REC_COLOR[score.recommendation], background: C.accentSubtle, border: `1px solid ${REC_COLOR[score.recommendation]}40`, borderRadius: 4, padding: '2px 8px' }}>
+                          <span style={{ fontSize: FS.xs, fontWeight: FW.medium, color: decisionColor, background: `${decisionColor}14`, border: `1px solid ${decisionColor}40`, borderRadius: 4, padding: '3px 9px' }}>
                             {REC_LABEL[score.recommendation]}
                           </span>
                         ) : <span style={{ color: C.textMuted, fontSize: FS.xs }}>Pending</span>}
@@ -290,7 +285,7 @@ export default function LenderDashboard() {
                 })}
 
                 {apps.length === 0 && (
-                  <div style={{ padding: '40px 24px', textAlign: 'center', color: C.textMuted, fontSize: FS.sm }}>
+                  <div style={{ padding: '40px 4px', textAlign: 'center', color: C.textMuted, fontSize: FS.sm }}>
                     No applications yet
                   </div>
                 )}
