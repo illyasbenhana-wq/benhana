@@ -8,7 +8,6 @@ import { MerchantIntelligence } from './components/MerchantIntelligence'
 import { fatimaOkoyeComplianceCase } from '../../lib/fatima-okoye-demo'
 import { Logo } from '../components/Logo'
 import { DashboardSidebar } from '../components/DashboardSidebar'
-import { DashboardKpiRow } from '../components/DashboardKpiRow'
 import { Badge } from '../components/Badge'
 import { EvidenceRow } from '../components/EvidenceRow'
 import { ScoreFigure } from '../components/ScoreFigure'
@@ -23,6 +22,8 @@ import {
   keyframes as KF,
   googleFontsHref,
   caseRiskColor,
+  shadowSm,
+  shadowMd,
 } from '../../lib/design-system/tokens-light'
 
 const _url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -391,6 +392,10 @@ export default function DashboardPage() {
         .ethos-logout:hover { color: ${C.riskHigh}; border-color: ${C.riskHigh}55; }
         .ethos-queue-item:hover { background: ${C.accentSubtle}; }
         .ethos-signal:hover { background: ${C.accentSubtle}; }
+        .ethos-kpi-card { transition: box-shadow .15s, transform .15s; }
+        .ethos-kpi-card:hover { box-shadow: ${shadowMd}; transform: translateY(-1px); }
+        .ethos-panel-card { transition: box-shadow .15s; }
+        .ethos-panel-card:hover { box-shadow: ${shadowMd}; }
       `}</style>
 
       <DashboardSidebar activeCaseCount={activeCases.length} roleLabel={ROLE_LABEL[userRole]} />
@@ -416,15 +421,24 @@ export default function DashboardPage() {
       </header>
 
       <div style={{ padding: `${SP.lg}px ${SP.xl}px 0` }}>
-        <DashboardKpiRow
-          title="Risk Intelligence Overview"
-          kpis={[
-            { label: 'Active Cases', value: String(activeCases.length) },
-            { label: 'Critical', value: String(criticalCount), tone: criticalCount > 0 ? 'danger' : 'default' },
-            { label: 'SLA Breaching', value: String(slaBreachingCount), tone: slaBreachingCount > 0 ? 'warning' : 'default' },
-            { label: 'Avg Risk Score', value: String(avgRiskScore), tone: avgRiskScore >= 75 ? 'danger' : avgRiskScore >= 50 ? 'warning' : 'success' },
-          ]}
-        />
+        <h1 style={{ margin: `0 0 ${SP.lg}px`, fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, color: C.textPrimary }}>Risk Intelligence Overview</h1>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: SP.md, marginBottom: SP.xl }}>
+          {[
+            { label: 'Active Cases', value: String(activeCases.length), color: C.textPrimary },
+            { label: 'Critical', value: String(criticalCount), color: criticalCount > 0 ? C.riskHigh : C.textPrimary },
+            { label: 'SLA Breaching', value: String(slaBreachingCount), color: slaBreachingCount > 0 ? C.riskMedium : C.textPrimary },
+            { label: 'Avg Risk Score', value: String(avgRiskScore), color: avgRiskScore >= 75 ? C.riskHigh : avgRiskScore >= 50 ? C.riskMedium : C.riskLow },
+          ].map(kpi => (
+            <div key={kpi.label} className="ethos-kpi-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: kpi.color }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color, flexShrink: 0 }} />
+                <span style={{ ...labelCss, color: C.textMuted }}>{kpi.label}</span>
+              </div>
+              <div style={{ fontFamily: F.mono, fontSize: 32, fontWeight: FW.bold, color: kpi.color, lineHeight: 1 }}>{kpi.value}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── Body: case queue + working area ── */}
@@ -487,7 +501,9 @@ export default function DashboardPage() {
                 <div key={c.id} onClick={() => setActiveCase(c)} className="ethos-queue-item" style={{
                   padding: `${SP.md}px ${SP.md}px`, borderRadius: R.data, marginBottom: 3, cursor: 'pointer',
                   borderLeft: `2px solid ${isSelected ? sc : 'transparent'}`,
-                  background: isSelected ? C.accentSubtle : 'transparent', transition: 'background .15s',
+                  background: isSelected ? C.surface : 'transparent',
+                  boxShadow: isSelected ? shadowSm : 'none',
+                  transition: 'background .15s, box-shadow .15s',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: 6 }}>
                     <Badge tone={badgeTone}>{SEV_LABEL[c.severity]}</Badge>
@@ -538,8 +554,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Active signals — live feed */}
-              <div style={{ marginBottom: SP.huge }}>
+              {/* Active signals — live feed, elevated card */}
+              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '20px 22px', marginBottom: SP.xl }}>
                 <p style={labelCss}>Active Signals</p>
                 <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>Ranked by severity across the active caseload.</p>
                 {activeSignals.map((s, i) => (
@@ -555,8 +571,8 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* Analyst load */}
-              <div style={{ marginBottom: SP.huge }}>
+              {/* Analyst load — elevated card */}
+              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '20px 22px', marginBottom: SP.xl }}>
                 <p style={labelCss}>Analyst Load</p>
                 <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>Open caseload by assigned analyst.</p>
                 {analysts.map(a => (
@@ -571,9 +587,8 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* Merchant intelligence — the one deliberate featured panel
-                  on this page; not repeated boxing, a singular callout. */}
-              <div style={{ maxWidth: 460 }}>
+              {/* Merchant intelligence — featured panel, elevated shadow */}
+              <div className="ethos-panel-card" style={{ maxWidth: 460, borderRadius: R.card }}>
                 <MerchantIntelligence />
               </div>
             </div>
@@ -596,20 +611,21 @@ export default function DashboardPage() {
                 <span style={{ color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours) }}>{fmtSLA(liveSLA(activeCase.sla_remaining_hours))}</span>
               </p>
 
-              {/* Conclusion — same score device as /score/[id]: a
-                  typographic figure, not a second gauge component. */}
-              <div style={{ marginBottom: SP.huge }}>
+              {/* Conclusion — elevated hero card carrying the score device */}
+              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '22px 24px', marginBottom: SP.xl }}>
                 <p style={{ ...labelCss, color: riskColor(activeCase.risk_score), marginBottom: 10 }}>Case Risk Score</p>
                 <ScoreFigure value={activeCase.risk_score} max={100} color={riskColor(activeCase.risk_score)} bandLabel={SEV_LABEL[activeCase.severity]} size="lg" />
               </div>
 
-              {/* Analysis — same accent-rule editorial treatment as Score */}
-              <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl, marginBottom: SP.huge }}>
-                <p style={labelCss}>Analysis</p>
-                <p style={{ margin: '8px 0 0', fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{activeCase.ai_summary}</p>
+              {/* Analysis — accent-rule editorial treatment inside a card */}
+              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '22px 24px', marginBottom: SP.xl }}>
+                <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl }}>
+                  <p style={labelCss}>Analysis</p>
+                  <p style={{ margin: '8px 0 0', fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{activeCase.ai_summary}</p>
+                </div>
               </div>
 
-              <div style={{ marginBottom: SP.huge }}>
+              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '22px 24px', marginBottom: SP.xl }}>
                 <p style={labelCss}>Signal Breakdown</p>
                 <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>{activeCase.signals.length} signals contributed to this score.</p>
                 {activeCase.signals.map((s, i) => (
@@ -618,7 +634,7 @@ export default function DashboardPage() {
               </div>
 
               {(activeCase.status === 'open' || activeCase.status === 'pending_info') && (
-                <div>
+                <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '22px 24px' }}>
                   <p style={labelCss}>Analyst Actions</p>
                   <div style={{ display: 'flex', gap: SP.md, marginTop: SP.md }}>
                     <button disabled={acting} onClick={() => action(activeCase.id, 'escalate')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: `1px solid ${C.riskHigh}55`, background: 'transparent', color: C.riskHigh, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base, fontWeight: FW.medium }}>Escalate</button>
