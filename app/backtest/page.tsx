@@ -109,6 +109,10 @@ export default function BacktestPage() {
   return (
     <div style={{ display: 'flex', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
       <link href={googleFontsHref} rel="stylesheet" />
+      <style>{`
+        .ethos-kpi-card { transition: box-shadow .2s ease, border-color .2s ease; }
+        .ethos-kpi-card:hover { box-shadow: 0 4px 16px -4px rgba(15,23,42,0.10); border-color: ${C.textSecondary}; }
+      `}</style>
 
       <DashboardSidebar />
 
@@ -173,7 +177,11 @@ export default function BacktestPage() {
           {/* Step 3: Running */}
           {status === 'running' && (
             <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xxl, textAlign: 'center' }}>
-              <div style={{ fontSize: FS.base, color: C.textSecondary }}>Scoring in progress...</div>
+              <div style={{ fontSize: FS.sm, color: C.accent, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: SP.lg }}>Scoring in progress</div>
+              <div style={{ width: 240, height: 2, background: C.border, borderRadius: 2, overflow: 'hidden', margin: '0 auto' }}>
+                <div style={{ height: '100%', background: C.accent, animation: 'backtestLoad 1.5s ease-in-out infinite', width: '40%' }} />
+              </div>
+              <style>{`@keyframes backtestLoad { 0%{transform:translateX(-100%)} 100%{transform:translateX(700%)} }`}</style>
             </div>
           )}
 
@@ -189,77 +197,95 @@ export default function BacktestPage() {
           {/* Step 5: Results */}
           {status === 'completed' && result && (
             <div>
-              {/* Summary Banner */}
-              <div style={{ background: `${C.riskLow}0d`, border: `1px solid ${C.riskLow}44`, borderRadius: R.card, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
-                <div style={{ fontSize: FS.sm, fontWeight: FW.medium, color: C.riskLow, marginBottom: SP.sm }}>Backtest Complete</div>
-                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: 0, lineHeight: 1.6 }}>{result.summary?.plain_language_summary}</p>
+              {/* Summary — the headline moment, Tier-3 weight */}
+              <div style={{ background: `${C.riskLow}0d`, border: `1px solid ${C.riskLow}44`, borderRadius: R.card, padding: `${SP.xl}px ${SP.xxl}px`, marginBottom: SP.xl }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.md }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.riskLow, flexShrink: 0 }} />
+                  <span style={{ fontSize: FS.base, fontWeight: FW.semibold, color: C.riskLow }}>Backtest Complete</span>
+                </div>
+                <p style={{ fontSize: FS.base, color: C.textPrimary, margin: 0, lineHeight: 1.65, maxWidth: 620 }}>{result.summary?.plain_language_summary}</p>
               </div>
 
-              {/* Metrics Grid */}
+              {/* KPI cards — 3 distinct metrics, real hierarchy per card */}
               {result.summary && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: SP.md, marginBottom: SP.lg }}>
-                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: '16px 20px' }}>
-                    <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>PRECISION</div>
-                    <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.accent }}>{Math.round(result.summary.precision * 100)}%</div>
-                    <div style={{ fontSize: FS.xs, color: C.textMuted }}>of high-risk flags were actual defaults</div>
-                  </div>
-                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: '16px 20px' }}>
-                    <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>RECALL</div>
-                    <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.riskLow }}>{Math.round(result.summary.recall * 100)}%</div>
-                    <div style={{ fontSize: FS.xs, color: C.textMuted }}>of actual defaults were caught</div>
-                  </div>
-                  <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: '16px 20px' }}>
-                    <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.sm }}>ROWS SCORED</div>
-                    <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: C.textPrimary }}>{result.summary.scored_count}</div>
-                    <div style={{ fontSize: FS.xs, color: C.textMuted }}>{result.summary.skipped_count} skipped · {result.summary.error_count} errors</div>
-                  </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: SP.md, marginBottom: SP.xl }}>
+                  {[
+                    { label: 'Precision', value: `${Math.round(result.summary.precision * 100)}%`, sub: 'of high-risk flags were actual defaults', color: C.accent },
+                    { label: 'Recall', value: `${Math.round(result.summary.recall * 100)}%`, sub: 'of actual defaults were caught', color: C.riskLow },
+                    { label: 'Rows Scored', value: String(result.summary.scored_count), sub: `${result.summary.skipped_count} skipped · ${result.summary.error_count} errors`, color: C.textPrimary },
+                  ].map(kpi => (
+                    <div key={kpi.label} className="ethos-kpi-card" style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: '18px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: SP.md }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{kpi.label}</span>
+                      </div>
+                      <div style={{ fontSize: 30, fontFamily: F.mono, fontWeight: FW.bold, color: kpi.color, lineHeight: 1, marginBottom: 6 }}>{kpi.value}</div>
+                      <div style={{ fontSize: FS.xs, color: C.textMuted }}>{kpi.sub}</div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Default Rate by Band */}
+              {/* Default Rate by Band — one coherent mini-chart: shared
+                  0-100% axis, gridlines, single title, not 3 disconnected rows */}
               {result.summary && (
-                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
-                  <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.lg, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Default Rate by Risk Band</div>
-                  {(['low', 'medium', 'high'] as const).map(band => {
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
+                  <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.xl, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Default Rate by Risk Band</div>
+                  {(['low', 'medium', 'high'] as const).map((band, i) => {
                     const rate = result.summary.default_rate_by_band[band]
                     const color = band === 'low' ? C.riskLow : band === 'medium' ? C.riskMedium : C.riskHigh
                     return (
-                      <div key={band} style={{ display: 'flex', alignItems: 'center', gap: SP.md, marginBottom: SP.sm }}>
+                      <div key={band} style={{ display: 'flex', alignItems: 'center', gap: SP.md, marginBottom: i < 2 ? SP.md : SP.sm }}>
                         <span style={{ width: 70, fontSize: FS.xs, color, fontWeight: FW.medium, textTransform: 'capitalize' }}>{band}</span>
-                        <div style={{ flex: 1, height: 8, background: C.border, borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${Math.min(rate * 100, 100)}%`, background: color, borderRadius: 4 }} />
+                        <div style={{ flex: 1, position: 'relative', height: 8, background: C.background, border: borderLine, borderRadius: 4, overflow: 'hidden' }}>
+                          {/* 25/50/75% gridlines, shared across all 3 bars */}
+                          {[25, 50, 75].map(gl => (
+                            <div key={gl} style={{ position: 'absolute', left: `${gl}%`, top: 0, bottom: 0, width: 1, background: C.border }} />
+                          ))}
+                          <div style={{ position: 'relative', height: '100%', width: `${Math.min(rate * 100, 100)}%`, background: color, borderRadius: 4 }} />
                         </div>
-                        <span style={{ width: 50, fontSize: FS.xs, color: C.textSecondary, textAlign: 'right' }}>{Math.round(rate * 100)}%</span>
+                        <span style={{ width: 50, fontSize: FS.xs, color: C.textSecondary, textAlign: 'right', fontFamily: F.mono }}>{Math.round(rate * 100)}%</span>
                       </div>
                     )
                   })}
+                  <div style={{ display: 'flex', paddingLeft: 70 + SP.md, marginTop: SP.sm }}>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', fontSize: 9, color: C.textMuted, fontFamily: F.mono }}>
+                      <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+                    </div>
+                    <span style={{ width: 50 }} />
+                  </div>
                 </div>
               )}
 
-              {/* Confusion Matrix */}
+              {/* Confusion Matrix — ONE real 2x2 matrix with shared internal
+                  borders and axis labels, not 4 independently-boxed tiles
+                  inside an outer card. */}
               {result.summary && (
-                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.lg }}>
+                <div style={{ marginBottom: SP.xl }}>
                   <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.lg, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Confusion Matrix</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.sm, maxWidth: 300 }}>
-                    <div style={{ background: `${C.riskLow}14`, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
-                      <div style={{ fontSize: FS.lg, fontWeight: FW.bold, color: C.riskLow }}>{result.summary.confusion_matrix.tp}</div>
-                      <div style={{ fontSize: 10, color: C.textMuted }}>True Positive</div>
-                      <div style={{ fontSize: 9, color: C.textMuted }}>Flagged + Defaulted</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 1fr', maxWidth: 420 }}>
+                    <div />
+                    <div style={{ textAlign: 'center', fontSize: FS.xs, color: C.textMuted, paddingBottom: SP.sm }}>Predicted Default</div>
+                    <div style={{ textAlign: 'center', fontSize: FS.xs, color: C.textMuted, paddingBottom: SP.sm }}>Predicted Repaid</div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', fontSize: FS.xs, color: C.textMuted, paddingRight: SP.sm }}>Actual Default</div>
+                    <div style={{ background: `${C.riskLow}14`, border: borderLine, borderRight: 'none', borderBottom: 'none', padding: '16px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: FS.xl, fontFamily: F.mono, fontWeight: FW.bold, color: C.riskLow }}>{result.summary.confusion_matrix.tp}</div>
+                      <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>True Positive</div>
                     </div>
-                    <div style={{ background: `${C.riskMedium}14`, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
-                      <div style={{ fontSize: FS.lg, fontWeight: FW.bold, color: C.riskMedium }}>{result.summary.confusion_matrix.fp}</div>
-                      <div style={{ fontSize: 10, color: C.textMuted }}>False Positive</div>
-                      <div style={{ fontSize: 9, color: C.textMuted }}>Flagged but Repaid</div>
+                    <div style={{ background: `${C.riskHigh}14`, border: borderLine, borderBottom: 'none', padding: '16px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: FS.xl, fontFamily: F.mono, fontWeight: FW.bold, color: C.riskHigh }}>{result.summary.confusion_matrix.fn}</div>
+                      <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>False Negative</div>
                     </div>
-                    <div style={{ background: `${C.riskHigh}14`, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
-                      <div style={{ fontSize: FS.lg, fontWeight: FW.bold, color: C.riskHigh }}>{result.summary.confusion_matrix.fn}</div>
-                      <div style={{ fontSize: 10, color: C.textMuted }}>False Negative</div>
-                      <div style={{ fontSize: 9, color: C.textMuted }}>Missed Default</div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', fontSize: FS.xs, color: C.textMuted, paddingRight: SP.sm }}>Actual Repaid</div>
+                    <div style={{ background: `${C.riskMedium}14`, border: borderLine, borderRight: 'none', padding: '16px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: FS.xl, fontFamily: F.mono, fontWeight: FW.bold, color: C.riskMedium }}>{result.summary.confusion_matrix.fp}</div>
+                      <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>False Positive</div>
                     </div>
-                    <div style={{ background: C.background, border: borderLine, borderRadius: R.control, padding: 12, textAlign: 'center' }}>
-                      <div style={{ fontSize: FS.lg, fontWeight: FW.bold, color: C.textSecondary }}>{result.summary.confusion_matrix.tn}</div>
-                      <div style={{ fontSize: 10, color: C.textMuted }}>True Negative</div>
-                      <div style={{ fontSize: 9, color: C.textMuted }}>Passed + Repaid</div>
+                    <div style={{ background: C.background, border: borderLine, padding: '16px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: FS.xl, fontFamily: F.mono, fontWeight: FW.bold, color: C.textSecondary }}>{result.summary.confusion_matrix.tn}</div>
+                      <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>True Negative</div>
                     </div>
                   </div>
                 </div>
