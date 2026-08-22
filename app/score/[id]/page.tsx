@@ -208,6 +208,17 @@ export default function ScorePage() {
 
   const labelCss: React.CSSProperties = { fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.textMuted }
   const monoCss: React.CSSProperties = { fontFamily: F.mono, fontVariantNumeric: 'tabular-nums' }
+  // Section eyebrow paired with its step number in the chain — the same
+  // numbered-sequence device the landing page uses for its pipeline
+  // (Application/EthoScore/Case/Decision), applied here to Score's own
+  // stated chain (Evidence -> Factors -> Analysis -> Conclusion ->
+  // Decision -> Audit) so both pages read as the same process language.
+  const StepLabel = ({ n, children, accent }: { n: string; children: React.ReactNode; accent?: boolean }) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+      <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>{n}</span>
+      <span style={{ ...labelCss, color: accent ? C.accent : C.textMuted }}>{children}</span>
+    </div>
+  )
   // Prefer the structured 0-1000 conclusion (sum of the 4 pillars) — the
   // "current primary score" per the product's own scale. Only a v1-only
   // legacy record (no score_pillars) has nothing else to show; that case
@@ -223,6 +234,15 @@ export default function ScorePage() {
     <div id="ethofi-screen" style={{ display: 'flex', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
       <style>{`
         * { box-sizing: border-box; }
+        @keyframes ethosFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @media (prefers-reduced-motion: no-preference) {
+          .ethos-reveal { animation: ethosFadeUp .5s ease both; }
+          .ethos-reveal-1 { animation-delay: .03s; }
+          .ethos-reveal-2 { animation-delay: .09s; }
+          .ethos-reveal-3 { animation-delay: .15s; }
+          .ethos-reveal-4 { animation-delay: .21s; }
+          .ethos-reveal-5 { animation-delay: .27s; }
+        }
 
         /* ── Print / PDF styles ── */
         #ethofi-pdf { display: none; }
@@ -257,7 +277,7 @@ export default function ScorePage() {
       <DashboardSidebar />
 
       <div style={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: `${SP.xxxl}px ${SP.xl}px ${SP.huge}px` }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: `${SP.xxxl}px ${SP.xl}px ${SP.huge}px` }}>
 
         {/* Logo */}
         <div style={{ marginBottom: SP.xxxl }}>
@@ -267,27 +287,31 @@ export default function ScorePage() {
         {/* Investigation context — not a celebratory greeting. Establishes
             who/what is being assessed before anything else is shown. */}
         <p style={labelCss}>Assessment · Application {score.application_id}</p>
-        <h1 style={{ fontFamily: F.sans, fontSize: 32, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `10px 0 ${SP.huge}px`, lineHeight: 1.15 }}>
+        <h1 style={{ fontFamily: F.sans, fontSize: 34, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `10px 0 ${SP.huge}px`, lineHeight: 1.15 }}>
           {fullName}
         </h1>
 
-        {/* Evidence — the signals, walked through first. No cards, no
-            boxes: a continuous list, generous vertical space, the
-            largest single block of content on the page by design. */}
-        <p style={labelCss}>Evidence</p>
-        <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.xl}px` }}>{score.factors.length} signals were assessed against this application.</p>
-        <div style={{ marginBottom: SP.xxxl }}>
-          {score.factors.map((f, i) => (
-            <EvidenceRow key={i} label={f.name} score={f.score} color={RISK_BAND_COLOR[computeRiskBand(f.score)]} rationale={f.rationale} />
-          ))}
+        {/* Evidence — the signals, walked through first. Real section
+            heading (matches the landing page's H2 scale), not just a
+            micro-label — this is the page's substantial content. */}
+        <div className="ethos-reveal ethos-reveal-1">
+          <StepLabel n="01" accent>Evidence</StepLabel>
+          <h2 style={{ fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `${SP.sm}px 0 ${SP.xl}px` }}>
+            {score.factors.length} signals assessed against this application
+          </h2>
+          <div style={{ marginBottom: SP.xxxl }}>
+            {score.factors.map((f, i) => (
+              <EvidenceRow key={i} label={f.name} score={f.score} color={RISK_BAND_COLOR[computeRiskBand(f.score)]} rationale={f.rationale} />
+            ))}
+          </div>
         </div>
 
         {/* Factors — how the signals above resolve into the structured
-            0-1000 pillar model, when available. Pillars are grouped
-            labels over the same evidence-row treatment, not nested boxes. */}
+            0-1000 pillar model, when available. Secondary weight
+            (eyebrow only, no H2) — detail under Evidence, not a peer to it. */}
         {pillars && (
-          <div style={{ marginBottom: SP.xxxl }}>
-            <p style={labelCss}>Factors</p>
+          <div className="ethos-reveal ethos-reveal-2" style={{ marginBottom: SP.xxxl }}>
+            <StepLabel n="02">Factors</StepLabel>
             <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.xl}px` }}>Resolved into 4 weighted pillars.</p>
             {(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => {
               const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
@@ -306,47 +330,55 @@ export default function ScorePage() {
           </div>
         )}
 
-        {/* Analysis — the interpretive bridge between evidence and
-            conclusion. Editorial treatment (accent rule + relaxed
-            leading), not a boxed callout. */}
-        <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl, marginBottom: SP.huge }}>
-          <p style={labelCss}>Analysis</p>
-          <p style={{ margin: '8px 0 0', fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{score.ai_summary}</p>
+        {/* Analysis — real H2 again (second primary section), editorial
+            accent-rule treatment. */}
+        <div className="ethos-reveal ethos-reveal-3" style={{ marginBottom: SP.huge }}>
+          <StepLabel n="03" accent>Analysis</StepLabel>
+          <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl, marginTop: SP.md }}>
+            <p style={{ margin: 0, fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{score.ai_summary}</p>
+          </div>
         </div>
 
         {/* Conclusion — the score, earned after the evidence above. A
-            typographic figure, not a gauge widget: large serif-accented
-            number set inline with the scale it sits on, immediately
-            followed by a thin architectural tick-scale (not a colored
-            progress bar) and the decision as a plain sentence. */}
-        <div style={{ marginBottom: SP.huge }}>
-          <p style={{ ...labelCss, color: C.accent, marginBottom: 10 }}>Conclusion</p>
-          <ScoreFigure value={displayScore} max={displayMax} color={bandColor} bandLabel={band.label} size="lg" />
-          {totalStructured === null && (
-            <p style={{ fontSize: FS.xs, color: C.textMuted, margin: `6px 0 0` }}>Legacy factor-weighted score (0–100 scale) — no structured pillar assessment on record for this application.</p>
-          )}
-
-          <p style={{ margin: `${SP.xl}px 0 0`, fontSize: FS.base, color: recColor }}>
-            {rec === 'approve' && '✓ Decision: Approve — this profile meets lending criteria.'}
-            {rec === 'review' && '◎ Decision: Manual review — a lender will assess this application.'}
-            {rec === 'decline' && '○ Decision: Not approved at this time — see improvement guidance above.'}
-          </p>
+            typographic figure, not a gauge widget. */}
+        <div className="ethos-reveal ethos-reveal-4" style={{ marginBottom: SP.huge }}>
+          <StepLabel n="04" accent>Conclusion</StepLabel>
+          <div style={{ marginTop: SP.md }}>
+            <ScoreFigure value={displayScore} max={displayMax} color={bandColor} bandLabel={band.label} size="lg" />
+            {totalStructured === null && (
+              <p style={{ fontSize: FS.xs, color: C.textMuted, margin: `6px 0 0` }}>Legacy factor-weighted score (0–100 scale) — no structured pillar assessment on record for this application.</p>
+            )}
+            <p style={{ margin: `${SP.xl}px 0 0`, fontSize: FS.base, color: recColor }}>
+              {rec === 'approve' && '✓ Decision: Approve — this profile meets lending criteria.'}
+              {rec === 'review' && '◎ Decision: Manual review — a lender will assess this application.'}
+              {rec === 'decline' && '○ Decision: Not approved at this time — see improvement guidance above.'}
+            </p>
+          </div>
         </div>
 
-        {/* Audit — provenance + EU AI Act notice. Only real fields on
-            ScoreResult are shown (model_version, created_at) — the richer
-            multi-field provenance shown on /intelligence/score/[id]
+        {/* Audit — the same dark technical-record surface the landing
+            page uses for its API panel: the one deliberate "instrument"
+            moment on an otherwise light page, reserved for the audit
+            trail itself. Only real fields on ScoreResult are shown
+            (model_version, created_at) — the richer multi-field
+            provenance shown on /intelligence/score/[id]
             (model_requested/responded, prompt_version, confidence) isn't
-            available on this data type without an API change, which is
-            out of scope for this pass; flagged rather than faked. */}
-        <div style={{ borderTop: borderLine, paddingTop: SP.xl, marginBottom: SP.xl }}>
-          <p style={{ ...labelCss, marginBottom: SP.sm }}>Audit</p>
-          <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginBottom: SP.md }}>
-            model: {score.model_version} · scored {new Date(score.created_at).toLocaleString('en-GB')}
-          </p>
-          <p style={{ fontSize: FS.sm, color: C.textMuted, lineHeight: 1.6, margin: 0 }}>
-            <strong style={{ color: C.textSecondary }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: C.accent }}>hello@ethosfi.co</span> within 30 days.
-          </p>
+            available on this data type without an API change, out of
+            scope for this pass; flagged rather than faked. */}
+        <div className="ethos-reveal ethos-reveal-5" style={{ marginBottom: SP.xl }}>
+          <StepLabel n="05">Audit</StepLabel>
+          <div style={{ background: C.textPrimary, borderRadius: R.control, padding: SP.xl, marginTop: SP.md }}>
+            <div style={{ ...monoCss, fontSize: 11.5, color: 'rgba(226,232,240,0.85)', marginBottom: SP.md }}>
+              <span style={{ color: '#60A5FA' }}>decision_recorded</span>
+              <span style={{ color: 'rgba(226,232,240,0.4)' }}> · score-{score.id}</span>
+              <div style={{ marginTop: 4, color: 'rgba(226,232,240,0.55)' }}>
+                model: {score.model_version} · scored: {new Date(score.created_at).toLocaleString('en-GB')}
+              </div>
+            </div>
+            <p style={{ fontSize: FS.sm, color: 'rgba(226,232,240,0.75)', lineHeight: 1.6, margin: 0, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: SP.md }}>
+              <strong style={{ color: '#F8FAFC' }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: '#60A5FA' }}>hello@ethosfi.co</span> within 30 days.
+            </p>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: SP.md }}>
