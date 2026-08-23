@@ -22,8 +22,6 @@ import {
   keyframes as KF,
   googleFontsHref,
   caseRiskColor,
-  shadowSm,
-  shadowMd,
 } from '../../lib/design-system/tokens-light'
 
 const _url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -201,6 +199,19 @@ function timeAgo(iso: string) {
   const m = Math.floor((diff % 3600000) / 60000)
   if (h > 0) return `${h}h ${m}m ago`
   return `${m}m ago`
+}
+
+// PanelCard — Fortress's real card shape: title + one-line muted
+// subtitle in a header, content below. Border only, no shadow —
+// the actual template doesn't shadow its cards.
+function PanelCard({ title, subtitle, children, maxWidth }: { title: string; subtitle?: string; children: React.ReactNode; maxWidth?: number }) {
+  return (
+    <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '18px 20px', marginBottom: SP.xl, maxWidth }}>
+      <div style={{ fontFamily: F.sans, fontSize: FS.base, fontWeight: FW.semibold, color: C.textPrimary, marginBottom: subtitle ? 2 : 14 }}>{title}</div>
+      {subtitle && <p style={{ fontSize: FS.xs, color: C.textMuted, margin: `0 0 14px` }}>{subtitle}</p>}
+      {children}
+    </div>
+  )
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -392,10 +403,6 @@ export default function DashboardPage() {
         .ethos-logout:hover { color: ${C.riskHigh}; border-color: ${C.riskHigh}55; }
         .ethos-queue-item:hover { background: ${C.accentSubtle}; }
         .ethos-signal:hover { background: ${C.accentSubtle}; }
-        .ethos-kpi-card { transition: box-shadow .15s, transform .15s; }
-        .ethos-kpi-card:hover { box-shadow: ${shadowMd}; transform: translateY(-1px); }
-        .ethos-panel-card { transition: box-shadow .15s; }
-        .ethos-panel-card:hover { box-shadow: ${shadowMd}; }
       `}</style>
 
       <DashboardSidebar activeCaseCount={activeCases.length} roleLabel={ROLE_LABEL[userRole]} />
@@ -421,23 +428,21 @@ export default function DashboardPage() {
       </header>
 
       <div style={{ padding: `${SP.lg}px ${SP.xl}px 0` }}>
-        <h1 style={{ margin: `0 0 ${SP.lg}px`, fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, color: C.textPrimary }}>Risk Intelligence Overview</h1>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: SP.md, marginBottom: SP.xl }}>
-          {[
-            { label: 'Active Cases', value: String(activeCases.length), color: C.textPrimary },
-            { label: 'Critical', value: String(criticalCount), color: criticalCount > 0 ? C.riskHigh : C.textPrimary },
-            { label: 'SLA Breaching', value: String(slaBreachingCount), color: slaBreachingCount > 0 ? C.riskMedium : C.textPrimary },
-            { label: 'Avg Risk Score', value: String(avgRiskScore), color: avgRiskScore >= 75 ? C.riskHigh : avgRiskScore >= 50 ? C.riskMedium : C.riskLow },
-          ].map(kpi => (
-            <div key={kpi.label} className="ethos-kpi-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: kpi.color }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color, flexShrink: 0 }} />
-                <span style={{ ...labelCss, color: C.textMuted }}>{kpi.label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: SP.xl }}>
+          <h1 style={{ margin: 0, fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, color: C.textPrimary }}>Risk Intelligence Overview</h1>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Active Cases', value: String(activeCases.length), color: C.textPrimary },
+              { label: 'Critical', value: String(criticalCount), color: criticalCount > 0 ? C.riskHigh : C.textPrimary },
+              { label: 'SLA Breaching', value: String(slaBreachingCount), color: slaBreachingCount > 0 ? C.riskMedium : C.textPrimary },
+              { label: 'Avg Risk Score', value: String(avgRiskScore), color: avgRiskScore >= 75 ? C.riskHigh : avgRiskScore >= 50 ? C.riskMedium : C.riskLow },
+            ].map(kpi => (
+              <div key={kpi.label} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontFamily: F.sans, fontSize: FS.xs, color: C.textMuted }}>{kpi.label}</span>
+                <span style={{ fontFamily: F.mono, fontSize: FS.sm, fontWeight: FW.bold, color: kpi.color }}>{kpi.value}</span>
               </div>
-              <div style={{ fontFamily: F.mono, fontSize: 32, fontWeight: FW.bold, color: kpi.color, lineHeight: 1 }}>{kpi.value}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
@@ -501,9 +506,7 @@ export default function DashboardPage() {
                 <div key={c.id} onClick={() => setActiveCase(c)} className="ethos-queue-item" style={{
                   padding: `${SP.md}px ${SP.md}px`, borderRadius: R.data, marginBottom: 3, cursor: 'pointer',
                   borderLeft: `2px solid ${isSelected ? sc : 'transparent'}`,
-                  background: isSelected ? C.surface : 'transparent',
-                  boxShadow: isSelected ? shadowSm : 'none',
-                  transition: 'background .15s, box-shadow .15s',
+                  background: isSelected ? C.accentSubtle : 'transparent', transition: 'background .15s',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: 6 }}>
                     <Badge tone={badgeTone}>{SEV_LABEL[c.severity]}</Badge>
@@ -554,10 +557,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Active signals — live feed, elevated card */}
-              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '20px 22px', marginBottom: SP.xl }}>
-                <p style={labelCss}>Active Signals</p>
-                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>Ranked by severity across the active caseload.</p>
+              {/* Active signals — live feed */}
+              <PanelCard title="Active Signals" subtitle="Ranked by severity across the active caseload.">
                 {activeSignals.map((s, i) => (
                   <EvidenceRow
                     key={s.c.id}
@@ -569,12 +570,10 @@ export default function DashboardPage() {
                     emphasized={i === 0}
                   />
                 ))}
-              </div>
+              </PanelCard>
 
-              {/* Analyst load — elevated card */}
-              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '20px 22px', marginBottom: SP.xl }}>
-                <p style={labelCss}>Analyst Load</p>
-                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>Open caseload by assigned analyst.</p>
+              {/* Analyst load */}
+              <PanelCard title="Analyst Load" subtitle="Open caseload by assigned analyst.">
                 {analysts.map(a => (
                   <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: SP.lg, padding: `${SP.sm}px 0` }}>
                     <span style={{ fontSize: FS.base, minWidth: 140 }}>{a.name}</span>
@@ -585,10 +584,10 @@ export default function DashboardPage() {
                     {a.critical > 0 && <span style={{ ...labelCss, color: C.riskHigh }}>{a.critical} critical</span>}
                   </div>
                 ))}
-              </div>
+              </PanelCard>
 
-              {/* Merchant intelligence — featured panel, elevated shadow */}
-              <div className="ethos-panel-card" style={{ maxWidth: 460, borderRadius: R.card }}>
+              {/* Merchant intelligence — featured panel (renders its own card) */}
+              <div style={{ maxWidth: 460 }}>
                 <MerchantIntelligence />
               </div>
             </div>
@@ -611,30 +610,29 @@ export default function DashboardPage() {
                 <span style={{ color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours) }}>{fmtSLA(liveSLA(activeCase.sla_remaining_hours))}</span>
               </p>
 
-              {/* Conclusion — elevated hero card carrying the score device */}
-              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '22px 24px', marginBottom: SP.xl }}>
+              {/* Conclusion — card carrying the score device; header color
+                  tracks risk, so this stays custom rather than PanelCard */}
+              <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '22px 24px', marginBottom: SP.xl }}>
                 <p style={{ ...labelCss, color: riskColor(activeCase.risk_score), marginBottom: 10 }}>Case Risk Score</p>
                 <ScoreFigure value={activeCase.risk_score} max={100} color={riskColor(activeCase.risk_score)} bandLabel={SEV_LABEL[activeCase.severity]} size="lg" />
               </div>
 
               {/* Analysis — accent-rule editorial treatment inside a card */}
-              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '22px 24px', marginBottom: SP.xl }}>
+              <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '22px 24px', marginBottom: SP.xl }}>
                 <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl }}>
                   <p style={labelCss}>Analysis</p>
                   <p style={{ margin: '8px 0 0', fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{activeCase.ai_summary}</p>
                 </div>
               </div>
 
-              <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '22px 24px', marginBottom: SP.xl }}>
-                <p style={labelCss}>Signal Breakdown</p>
-                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>{activeCase.signals.length} signals contributed to this score.</p>
+              <PanelCard title="Signal Breakdown" subtitle={`${activeCase.signals.length} signals contributed to this score.`}>
                 {activeCase.signals.map((s, i) => (
                   <EvidenceRow key={i} label={s.name} score={s.score} color={riskColor(s.score)} rationale={s.rationale} />
                 ))}
-              </div>
+              </PanelCard>
 
               {(activeCase.status === 'open' || activeCase.status === 'pending_info') && (
-                <div className="ethos-panel-card" style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '22px 24px' }}>
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '22px 24px' }}>
                   <p style={labelCss}>Analyst Actions</p>
                   <div style={{ display: 'flex', gap: SP.md, marginTop: SP.md }}>
                     <button disabled={acting} onClick={() => action(activeCase.id, 'escalate')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: `1px solid ${C.riskHigh}55`, background: 'transparent', color: C.riskHigh, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base, fontWeight: FW.medium }}>Escalate</button>
