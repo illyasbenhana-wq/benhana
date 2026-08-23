@@ -312,7 +312,23 @@ export default function ScorePage() {
         {pillars && (
           <div className="ethos-reveal ethos-reveal-2" style={{ marginBottom: SP.xxxl }}>
             <StepLabel n="02">Factors</StepLabel>
-            <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.xl}px` }}>Resolved into 4 weighted pillars.</p>
+            <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>Resolved into 4 weighted pillars.</p>
+            {/* Pillar-totals stat tiles — the one genuinely parallel,
+                comparable dataset on this page (4 fixed-ceiling totals),
+                given a fast-scan glance layer above the detailed
+                per-pillar factor lists below, which are unchanged. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: SP.xl }}>
+              {(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => {
+                const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
+                return (
+                  <div key={key} style={{ background: C.background, border: borderLine, borderRadius: R.control, padding: '10px 12px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: meta.color, fontWeight: FW.semibold, marginBottom: 4 }}>{meta.label}</div>
+                    <div style={{ ...monoCss, fontSize: FS.lg, fontWeight: FW.bold, color: C.textPrimary, lineHeight: 1 }}>{pillar.score}</div>
+                    <div style={{ ...monoCss, fontSize: 10, color: C.textMuted, marginTop: 2 }}>/{pillar.max}</div>
+                  </div>
+                )
+              })}
+            </div>
             {(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => {
               const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
               return (
