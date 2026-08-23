@@ -203,7 +203,10 @@ export default function InvestigationPage() {
               section device rather than a bordered card. */}
           <div style={{ background: C.surface, padding: SP.xl, margin: `0 0 ${SP.xxl}px` }}>
             <p style={{ ...labelCss, color: caseRiskColor(dossier.riskScore), marginBottom: 10 }}>Case Risk</p>
-            <ScoreFigure value={dossier.riskScore} max={100} color={caseRiskColor(dossier.riskScore)} bandLabel={SEV_LABEL[dossier.severity]} size="lg" />
+            {/* numSize override: the shared "lg" default (64px) outsized
+                this page's own H1 (34px entity name) — reduced so the
+                score reads as clearly secondary to the headline. */}
+            <ScoreFigure value={dossier.riskScore} max={100} color={caseRiskColor(dossier.riskScore)} bandLabel={SEV_LABEL[dossier.severity]} size="lg" numSize={28} />
           </div>
 
           <div style={{ borderTop: borderLine, marginTop: SP.xxl, paddingTop: SP.xxl }}>

@@ -19,15 +19,21 @@ export function ScoreFigure({
   color,
   bandLabel,
   size = 'lg',
+  numSize: numSizeOverride,
 }: {
   value: number
   max: number
   color: string
   bandLabel?: string
   size?: 'lg' | 'sm'
+  /** Optional override for the figure's font size, when a specific
+   * placement needs to sit below its default (e.g. secondary to a
+   * page's own H1) without changing the shared 'lg'/'sm' defaults
+   * used everywhere else this component appears. */
+  numSize?: number
 }) {
   const pct = Math.max(0, Math.min(1, value / max))
-  const numSize = size === 'lg' ? 64 : 36
+  const numSize = numSizeOverride ?? (size === 'lg' ? 64 : 36)
 
   return (
     <div>
