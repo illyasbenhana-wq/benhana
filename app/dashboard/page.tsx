@@ -424,7 +424,7 @@ export default function DashboardPage() {
 
       <div style={{ padding: `${SP.lg}px ${SP.xl}px 0` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: SP.xl }}>
-          <h1 style={{ margin: 0, fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, color: C.textPrimary }}>Risk Intelligence Overview</h1>
+          <h1 style={{ margin: 0, fontFamily: F.sans, fontSize: FS.lg, fontWeight: FW.bold, color: C.textPrimary }}>Risk Intelligence Overview</h1>
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             {[
               { label: 'Active Cases', value: String(activeCases.length), color: C.textPrimary },
