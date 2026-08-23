@@ -180,7 +180,7 @@ export default function InvestigationPage() {
           <Badge tone="neutral">{STATUS_LABEL[dossier.status]}</Badge>
           <span style={{ ...labelCss, color: sc }}>{dossier.caseType}</span>
         </div>
-        <h1 style={{ fontFamily: F.sans, fontSize: 34, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `0 0 ${SP.sm}px` }}>
+        <h1 style={{ fontFamily: F.sans, fontSize: 30, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `0 0 ${SP.sm}px` }}>
           {dossier.entityName.split(' ').map((word, i) => i === 0
             ? <span key={i} style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>{word} </span>
             : word + ' ')}
