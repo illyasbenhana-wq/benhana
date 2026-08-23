@@ -255,6 +255,22 @@ export default function InvestigationPage() {
             </div>
             <ScoreFigure value={dossier.ethoScore} max={1000} color={ethoScoreColor(dossier.ethoScore)} size="sm" />
 
+            {/* Pillar-totals stat tiles — same at-a-glance device as
+                /score/[id]'s Factors section, for the same 4-pillar
+                fixed-ceiling dataset. Narrower column here wraps 2x2. */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: SP.lg }}>
+              {dossier.ethoPillars.map(p => {
+                const col = PILLAR_COLOR[p.name] ?? C.textSecondary
+                return (
+                  <div key={p.name} style={{ background: C.background, border: borderLine, borderRadius: R.control, padding: '10px 12px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: col, fontWeight: FW.semibold, marginBottom: 4 }}>{p.name}</div>
+                    <div style={{ ...monoCss, fontSize: FS.lg, fontWeight: FW.bold, color: C.textPrimary, lineHeight: 1 }}>{p.value}</div>
+                    <div style={{ ...monoCss, fontSize: 10, color: C.textMuted, marginTop: 2 }}>/{p.max}</div>
+                  </div>
+                )
+              })}
+            </div>
+
             {/* Composition bar — segment width = each pillar's fixed
                 structural ceiling (300/300/200/200), segment fill = how
                 much of that ceiling was earned. Shows the real shape of
