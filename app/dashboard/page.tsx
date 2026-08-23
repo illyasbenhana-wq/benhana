@@ -374,11 +374,6 @@ export default function DashboardPage() {
 
   const activeCases = cases.filter(c => c.status !== 'cleared')
   const rankedCases = [...activeCases].sort((a, b) => b.risk_score - a.risk_score)
-  const gaugeCases = rankedCases.slice(0, 3)
-  const activeSignals = rankedCases.slice(0, 5).map(c => {
-    const top = [...c.signals].sort((x, y) => y.score - x.score)[0]
-    return { c, name: top?.name ?? c.case_type, score: top?.score ?? c.risk_score }
-  })
   const now = new Date()
   const dateStr = now
     .toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -527,64 +522,81 @@ export default function DashboardPage() {
         {/* ── Working area ── */}
         <main style={{ flex: 1, overflowY: 'auto', padding: `${SP.xl}px ${SP.xxl}px` }}>
           {!activeCase ? (
-            /* ── Risk Intelligence Overview ── */
+            /* ── Risk Intelligence Overview — dense data grid, no headline sentence ── */
             <div>
-              <div style={{ ...labelCss, letterSpacing: '0.16em', marginBottom: SP.xxl }}>Risk Intelligence Overview</div>
-
-              {/* Primary signal — a sentence, not a card. The number moves
-                  into the Active Signals list below where it belongs as
-                  data; up here it's a statement, not a widget. */}
-              {gaugeCases.length > 0 && (
-                <div style={{ marginBottom: SP.huge }}>
-                  <p style={{ fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.semibold, letterSpacing: '-0.01em', lineHeight: 1.35, margin: 0 }}>
-                    {activeCases.length} active case{activeCases.length === 1 ? '' : 's'}.{' '}
-                    <a onClick={() => setActiveCase(gaugeCases[0])} style={{ color: riskColor(gaugeCases[0].risk_score), cursor: 'pointer', textDecoration: 'none' }}>
-                      {gaugeCases[0].entity_name}
-                    </a>{' '}
-                    carries the highest risk — flagged for {gaugeCases[0].case_type}.
-                  </p>
-                  {gaugeCases.length > 1 && (
-                    <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, margin: `${SP.md}px 0 0` }}>
-                      Also elevated:{' '}
-                      {gaugeCases.slice(1, 3).map((c, i) => (
-                        <span key={c.id}>
-                          {i > 0 && ', '}
-                          <a onClick={() => setActiveCase(c)} style={{ color: C.textSecondary, cursor: 'pointer', textDecoration: 'none' }}>{c.entity_name}</a>
-                        </span>
-                      ))}
-                    </p>
-                  )}
+              {/* Case table — dense data grid, Fortress Trade-Blotter shape */}
+              <PanelCard title="Active Cases" subtitle={`${activeCases.length} cases requiring attention, ranked by risk score.`}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr 0.9fr 1fr 1fr', gap: 0, padding: '8px 0', borderBottom: borderLine }}>
+                  {['Entity', 'Case Type', 'Risk', 'SLA', 'Status'].map(h => (
+                    <div key={h} style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>
+                  ))}
                 </div>
-              )}
-
-              {/* Active signals — live feed */}
-              <PanelCard title="Active Signals" subtitle="Ranked by severity across the active caseload.">
-                {activeSignals.map((s, i) => (
-                  <EvidenceRow
-                    key={s.c.id}
-                    onClick={() => setActiveCase(s.c)}
-                    label={s.name}
-                    context={`— ${s.c.entity_name} · ${s.c.case_ref}`}
-                    score={s.score}
-                    color={SEV_COLOR[s.c.severity] || C.textMuted}
-                    emphasized={i === 0}
-                  />
-                ))}
-              </PanelCard>
-
-              {/* Analyst load */}
-              <PanelCard title="Analyst Load" subtitle="Open caseload by assigned analyst.">
-                {analysts.map(a => (
-                  <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: SP.lg, padding: `${SP.sm}px 0` }}>
-                    <span style={{ fontSize: FS.base, minWidth: 140 }}>{a.name}</span>
-                    <div style={{ flex: 1, maxWidth: 220, height: 3, background: C.border, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min((a.open / 8) * 100, 100)}%`, background: a.critical > 0 ? C.riskHigh : a.open >= 4 ? C.riskMedium : C.riskLow }} />
+                {rankedCases.slice(0, 8).map((c, i) => {
+                  const lsla = liveSLA(c.sla_remaining_hours)
+                  const badgeTone: 'high' | 'medium' | 'low' = c.severity === 'critical' || c.severity === 'high' ? 'high' : c.severity === 'medium' ? 'medium' : 'low'
+                  return (
+                    <div
+                      key={c.id}
+                      className="ethos-signal"
+                      onClick={() => setActiveCase(c)}
+                      style={{
+                        display: 'grid', gridTemplateColumns: '2fr 1.3fr 0.9fr 1fr 1fr',
+                        padding: '11px 6px', borderBottom: i < 7 ? borderLine : 'none',
+                        cursor: 'pointer', alignItems: 'center',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: FS.sm, fontWeight: FW.medium }}>{c.entity_name}</div>
+                        <div style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginTop: 1 }}>{c.case_ref}</div>
+                      </div>
+                      <div style={{ fontSize: FS.xs, color: C.textSecondary }}>{c.case_type}</div>
+                      <div style={{ ...monoCss, fontSize: FS.sm, fontWeight: FW.medium, color: riskColor(c.risk_score) }}>{c.risk_score}</div>
+                      <div style={{ ...monoCss, fontSize: FS.xs, color: slaColor(lsla, c.sla_hours) }}>{fmtSLA(lsla)}</div>
+                      <div><Badge tone={badgeTone}>{SEV_LABEL[c.severity]}</Badge></div>
                     </div>
-                    <span style={{ ...monoCss, fontSize: FS.sm, color: C.textSecondary }}>{a.open} {a.open === 1 ? 'case' : 'cases'}</span>
-                    {a.critical > 0 && <span style={{ ...labelCss, color: C.riskHigh }}>{a.critical} critical</span>}
-                  </div>
-                ))}
+                  )
+                })}
               </PanelCard>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.xl }}>
+                {/* Severity breakdown — segmented bar, chart-equivalent */}
+                <PanelCard title="Severity Breakdown" subtitle="Active cases by severity tier.">
+                  <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', gap: 2, marginBottom: 12 }}>
+                    {(['critical', 'high', 'medium', 'low'] as const).map(sev => {
+                      const n = activeCases.filter(c => c.severity === sev).length
+                      return n > 0 && <div key={sev} style={{ flex: n, background: SEV_COLOR[sev], borderRadius: 4 }} />
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: SP.lg }}>
+                    {(['critical', 'high', 'medium', 'low'] as const).map(sev => {
+                      const n = activeCases.filter(c => c.severity === sev).length
+                      return (
+                        <div key={sev} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: SEV_COLOR[sev], flexShrink: 0 }} />
+                          <span style={{ fontSize: FS.sm, fontWeight: FW.medium, color: C.textPrimary }}>{n}</span>
+                          <span style={{ fontSize: FS.xs, color: C.textMuted }}>{SEV_LABEL[sev]}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </PanelCard>
+
+                {/* Analyst load — compact stat tiles */}
+                <PanelCard title="Analyst Load" subtitle="Open caseload by assigned analyst.">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {analysts.map(a => (
+                      <div key={a.name} style={{ background: C.background, border: borderLine, borderRadius: R.control, padding: '10px 12px' }}>
+                        <div style={{ fontSize: FS.xs, color: C.textSecondary, marginBottom: 4 }}>{a.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                          <span style={{ ...monoCss, fontSize: FS.lg, fontWeight: FW.bold, color: C.textPrimary }}>{a.open}</span>
+                          <span style={{ fontSize: 10, color: C.textMuted }}>open</span>
+                        </div>
+                        {a.critical > 0 && <div style={{ fontSize: 10, color: C.riskHigh, marginTop: 2 }}>{a.critical} critical</div>}
+                      </div>
+                    ))}
+                  </div>
+                </PanelCard>
+              </div>
 
               {/* Merchant intelligence — featured panel (renders its own card) */}
               <div style={{ maxWidth: 460 }}>
