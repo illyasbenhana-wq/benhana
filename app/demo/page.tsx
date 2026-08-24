@@ -117,7 +117,7 @@ export default function DemoPage() {
           {/* Applicant Summary */}
           <div style={{ marginBottom: SP.xxxl }}>
             <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.sm }}>Sample Application</div>
-            <h1 style={{ fontFamily: F.sans, fontSize: FS.lg, fontWeight: FW.bold, margin: `0 0 8px` }}>{applicant.name}</h1>
+            <h1 style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.bold, margin: `0 0 8px` }}>{applicant.name}</h1>
             <p style={{ color: C.textSecondary, fontSize: FS.base, margin: 0 }}>
               {applicant.employment} &middot; £{applicant.income.toLocaleString()}/mo &middot; Requesting £{applicant.loan_amount.toLocaleString()} for {applicant.loan_purpose} over {applicant.loan_term_months} months
             </p>
@@ -131,7 +131,7 @@ export default function DemoPage() {
                 ScoreFigure's use everywhere else in the app. */}
             <div style={{ marginBottom: SP.xl }}>
               <ScoreFigure
-                value={ss.total} max={1000} numSize={20}
+                value={ss.total} max={1000}
                 color={ss.normalized >= 70 ? C.riskLow : ss.normalized >= 45 ? C.riskMedium : C.riskHigh}
                 bandLabel="Structured EthoScore"
               />

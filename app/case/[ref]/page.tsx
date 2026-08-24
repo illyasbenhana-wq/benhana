@@ -180,7 +180,7 @@ export default function InvestigationPage() {
           <Badge tone="neutral">{STATUS_LABEL[dossier.status]}</Badge>
           <span style={{ ...labelCss, color: sc }}>{dossier.caseType}</span>
         </div>
-        <h1 style={{ fontFamily: F.sans, fontSize: 30, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `0 0 ${SP.sm}px` }}>
+        <h1 style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `0 0 ${SP.sm}px` }}>
           {dossier.entityName.split(' ').map((word, i) => i === 0
             ? <span key={i} style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>{word} </span>
             : word + ' ')}
@@ -203,10 +203,7 @@ export default function InvestigationPage() {
               section device rather than a bordered card. */}
           <div style={{ background: C.surface, padding: SP.xl, margin: `0 0 ${SP.xxl}px` }}>
             <p style={{ ...labelCss, color: caseRiskColor(dossier.riskScore), marginBottom: 10 }}>Case Risk</p>
-            {/* numSize override: the shared "lg" default (64px) outsized
-                this page's own H1 (34px entity name) — reduced so the
-                score reads as clearly secondary to the headline. */}
-            <ScoreFigure value={dossier.riskScore} max={100} color={caseRiskColor(dossier.riskScore)} bandLabel={SEV_LABEL[dossier.severity]} size="lg" numSize={28} />
+            <ScoreFigure value={dossier.riskScore} max={100} color={caseRiskColor(dossier.riskScore)} bandLabel={SEV_LABEL[dossier.severity]} size="lg" />
           </div>
 
           <div style={{ borderTop: borderLine, marginTop: SP.xxl, paddingTop: SP.xxl }}>

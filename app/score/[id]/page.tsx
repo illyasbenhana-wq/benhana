@@ -287,7 +287,7 @@ export default function ScorePage() {
         {/* Investigation context — not a celebratory greeting. Establishes
             who/what is being assessed before anything else is shown. */}
         <p style={labelCss}>Assessment · Application {score.application_id}</p>
-        <h1 style={{ fontFamily: F.sans, fontSize: 34, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `10px 0 ${SP.huge}px`, lineHeight: 1.15 }}>
+        <h1 style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `10px 0 ${SP.huge}px`, lineHeight: 1.15 }}>
           {fullName}
         </h1>
 

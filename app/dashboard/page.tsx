@@ -616,7 +616,7 @@ export default function DashboardPage() {
                 <Badge tone={activeCase.severity === 'critical' || activeCase.severity === 'high' ? 'high' : activeCase.severity === 'medium' ? 'medium' : 'low'}>{SEV_LABEL[activeCase.severity]}</Badge>{' '}
                 <Badge tone="neutral">{STATUS_LABEL[activeCase.status]}</Badge>
               </div>
-              <div style={{ fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.semibold, marginBottom: 6 }}>{activeCase.entity_name}</div>
+              <div style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.semibold, marginBottom: 6 }}>{activeCase.entity_name}</div>
               <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, margin: `0 0 ${SP.huge}px` }}>
                 {activeCase.case_type} · {activeCase.jurisdiction} · Opened {timeAgo(activeCase.opened_at)} · Exposure {fmtCurrency(activeCase.exposure_amount)} · SLA{' '}
                 <span style={{ color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours) }}>{fmtSLA(liveSLA(activeCase.sla_remaining_hours))}</span>

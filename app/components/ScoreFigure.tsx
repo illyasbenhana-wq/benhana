@@ -33,7 +33,12 @@ export function ScoreFigure({
   numSize?: number
 }) {
   const pct = Math.max(0, Math.min(1, value / max))
-  const numSize = numSizeOverride ?? (size === 'lg' ? 64 : 36)
+  // Kept modest, not oversized: 'lg' stays the single largest number on
+  // any page that uses it (bigger than the 24px headline-name scale and
+  // the 28px section-heading scale) without repeating the old 64px/34px
+  // dominant-headline problem. 'sm' preserves a similar proportional
+  // relationship to 'lg' as before (was 64:36, now 32:20).
+  const numSize = numSizeOverride ?? (size === 'lg' ? 32 : 20)
 
   return (
     <div>
