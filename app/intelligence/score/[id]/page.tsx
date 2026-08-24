@@ -1,12 +1,49 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { C, F, SP, cardCss, labelCss, googleFontsHref } from './components/styles'
-import { ScoreGauge } from './components/ScoreGauge'
-import { ProvenanceBar } from './components/ProvenanceBar'
-import { PillarTable, pillarsFromFable5Assessment, type PillarDatum } from './components/PillarTable'
-import { CounterfactualPanel } from './components/CounterfactualPanel'
-import { ExplainabilityBadge, deriveExplainabilityStatus } from './components/ExplainabilityBadge'
+import { C, F, FS, FW, SP, monoCss, labelCss, mapRiskBandToLevel, riskLevelColor, googleFontsHref } from './components/styles'
+import { pillarsFromFable5Assessment, type PillarDatum } from './components/PillarTable'
+import { FactorList } from './components/FactorList'
+import { deriveExplainabilityStatus, type ExplainabilityStatus } from './components/ExplainabilityBadge'
+import { Badge } from '@/app/components/Badge'
+import { ScoreFigure } from '@/app/components/ScoreFigure'
+import { EvidenceRow } from '@/app/components/EvidenceRow'
+import { PillarCompositionBar } from '@/app/components/PillarCompositionBar'
+
+// Explainability status -> Badge tone + label. Same low/medium/high/neutral
+// mapping ExplainabilityBadge used locally, now driving the shared Badge.
+const EXPLAINABILITY_CONFIG: Record<ExplainabilityStatus, { label: string; tone: 'low' | 'medium' | 'high' | 'neutral'; detail: string }> = {
+  explainable: { label: 'Explainable — AI Act Ready', tone: 'low', detail: 'A Fable 5 assessment was parsed from raw_response: pillar rationale, key factors, and grounded counterfactuals available.' },
+  fallback: { label: 'Explainable — Degraded', tone: 'medium', detail: 'A validation fallback occurred during scoring. Provenance recorded, but review before relying on this record.' },
+  structured: { label: 'Structured — No Narrative', tone: 'medium', detail: 'Deterministic pillar scores (score_pillars) are available, but no Fable 5 narrative assessment or counterfactual guidance exists for this record.' },
+  legacy: { label: 'Legacy — Narrative Only', tone: 'neutral', detail: 'Scored under prompt v1. No structured pillar breakdown or counterfactual guidance.' },
+}
+
+// Same numbered eyebrow device as /score/[id]'s StepLabel — kept local to
+// this page (that component isn't shared across routes elsewhere either).
+function StepLabel({ n, children, accent }: { n: string; children: React.ReactNode; accent?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+      <span style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted }}>{n}</span>
+      <span style={{ ...labelCss, color: accent ? C.accent : C.textMuted }}>{children}</span>
+    </div>
+  )
+}
+
+const CONFIDENCE_LEVEL: Record<'high' | 'medium' | 'low', 'low' | 'medium' | 'high'> = {
+  high: 'low',   // high confidence -> green
+  medium: 'medium',
+  low: 'high',   // low confidence -> red
+}
+
+const BAND_LABEL: Record<string, string> = {
+  very_low: 'Very Low Risk',
+  low: 'Low Risk',
+  moderate: 'Moderate Risk',
+  medium: 'Medium Risk',
+  elevated: 'Elevated Risk',
+  high: 'High Risk',
+}
 
 interface ScoreRow {
   id: string
@@ -83,10 +120,6 @@ function parsePanelData(application: ApplicationRow, score: ScoreRow): PanelData
   }
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p style={{ ...labelCss, marginBottom: SP.md }}>{children}</p>
-}
-
 export default function IntelligenceScorePage() {
   const params = useParams()
   const id = params?.id as string
@@ -147,6 +180,12 @@ export default function IntelligenceScorePage() {
     score_pillars: score.score_pillars,
     fable5PillarsParsed,
   })
+  const explCfg = EXPLAINABILITY_CONFIG[explainability]
+  const bandLevel = mapRiskBandToLevel(score.risk_band)
+  const bandColor = riskLevelColor(bandLevel)
+  const confColor = score.confidence_overall ? riskLevelColor(CONFIDENCE_LEVEL[score.confidence_overall]) : riskLevelColor('neutral')
+
+  const nameWords = application.full_name.split(' ')
 
   return (
     <div style={{ minHeight: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans }}>
@@ -154,57 +193,107 @@ export default function IntelligenceScorePage() {
 
       <div style={{ maxWidth: 880, margin: '0 auto', padding: `${SP.xxl}px ${SP.xl}px` }}>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: SP.xl }}>
+        {/* Header — same identity-moment treatment as Case's H1 */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: SP.xxl, gap: SP.lg, flexWrap: 'wrap' }}>
           <div>
-            <p style={{ fontFamily: F.mono, fontSize: 11, color: C.textMuted, marginBottom: SP.xs }}>
+            <p style={{ ...monoCss, fontSize: 11, color: C.textMuted, marginBottom: SP.xs }}>
               APPLICATION {application.id}
             </p>
-            <h1 style={{ fontFamily: F.sans, fontSize: 28, fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>{application.full_name}</h1>
+            <h1 style={{ fontFamily: F.sans, fontSize: 28, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: 0 }}>
+              {nameWords.map((word, i) => i === 0
+                ? <span key={i} style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>{word} </span>
+                : word + ' ')}
+            </h1>
           </div>
-          <ExplainabilityBadge status={explainability} />
+          <Badge tone={explCfg.tone} title={explCfg.detail}>{explCfg.label}</Badge>
         </div>
 
-        {/* Score + provenance */}
-        <div style={{ ...cardCss, padding: SP.xl, marginBottom: SP.xl }}>
-          <div style={{ marginBottom: SP.lg }}>
-            <ScoreGauge score={gaugeScore} max={gaugeMax} riskBand={score.risk_band} />
+        {/* 01 — Conclusion: typographic score figure, not a gauge */}
+        <div style={{ marginBottom: SP.xxxl }}>
+          <StepLabel n="01" accent>Conclusion</StepLabel>
+          <div style={{ marginTop: SP.md }}>
+            <ScoreFigure value={gaugeScore} max={gaugeMax} color={bandColor} bandLabel={BAND_LABEL[score.risk_band] ?? score.risk_band} size="lg" />
           </div>
-          <ProvenanceBar
-            data={{
-              model_requested: score.model_requested,
-              model_responded: score.model_responded,
-              prompt_version: score.prompt_version,
-              created_at: score.created_at,
-              confidence_overall: score.confidence_overall,
-            }}
-          />
+
+          {/* Audit — same dark technical-record panel as Score's Audit
+              section; this page's provenance data is the same kind of
+              record (model/version/timestamp), not a summary card. */}
+          <div style={{ background: C.textPrimary, borderRadius: 8, padding: SP.xl, marginTop: SP.xl }}>
+            <div style={{ ...monoCss, fontSize: 11.5, color: 'rgba(226,232,240,0.85)', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: SP.md }}>
+              <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>model requested: </span>{score.model_requested ?? 'n/a'}</div>
+              <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>model responded: </span>{score.model_responded ?? 'n/a'}</div>
+              <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>prompt version: </span>{score.prompt_version ?? 'n/a'}</div>
+              <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>scored at (UTC): </span>{score.created_at}</div>
+            </div>
+            <div style={{ marginTop: SP.md, paddingTop: SP.md, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: confColor, flexShrink: 0 }} />
+              <span style={{ fontSize: FS.sm, color: confColor, fontWeight: FW.semibold }}>
+                {score.confidence_overall ? `${score.confidence_overall.toUpperCase()} CONFIDENCE` : 'CONFIDENCE N/A'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Pillar breakdown */}
-        {pillars.length > 0 ? (
-          <div style={{ marginBottom: SP.xl }}>
-            <SectionLabel>4-Pillar Breakdown</SectionLabel>
-            <PillarTable pillars={pillars} />
-          </div>
-        ) : (
-          <div style={{ ...cardCss, padding: SP.lg, marginBottom: SP.xl }}>
-            <SectionLabel>4-Pillar Breakdown</SectionLabel>
-            <p style={{ fontFamily: F.sans, fontSize: 13, lineHeight: 1.55, color: C.textMuted }}>
+        {/* 02 — Factors: composition bar + EvidenceRow per pillar */}
+        <div style={{ marginBottom: SP.xxxl }}>
+          <StepLabel n="02">Factors</StepLabel>
+          {pillars.length > 0 ? (
+            <>
+              <div style={{ marginTop: SP.lg, marginBottom: SP.xl }}>
+                <PillarCompositionBar segments={pillars.map(p => ({ label: p.label, color: bandColor, score: p.score, max: p.max }))} />
+              </div>
+              {pillars.map(p => {
+                const confTone = CONFIDENCE_LEVEL[p.confidence]
+                return (
+                  <div key={p.key} style={{ marginBottom: SP.sm }}>
+                    <EvidenceRow
+                      label={p.label}
+                      score={p.score}
+                      color={riskLevelColor(confTone === 'low' ? 'low' : confTone === 'medium' ? 'medium' : 'high')}
+                      rationale={p.rationale}
+                      right={<Badge tone={confTone}>{p.confidence} confidence</Badge>}
+                    />
+                    {p.key_factors.length > 0 && (
+                      <div style={{ paddingLeft: 44, marginTop: 4 }}>
+                        <FactorList factors={p.key_factors} />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </>
+          ) : (
+            <p style={{ fontFamily: F.sans, fontSize: FS.sm, lineHeight: 1.55, color: C.textMuted, marginTop: SP.md }}>
               No structured pillar assessment available for this score (scored under prompt v1).
             </p>
-          </div>
-        )}
-
-        {/* Counterfactuals */}
-        <div style={{ marginBottom: SP.xl }}>
-          <CounterfactualPanel counterfactuals={counterfactuals} />
+          )}
         </div>
 
-        {/* AI summary, for reference */}
-        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: SP.lg }}>
-          <SectionLabel>AI Summary</SectionLabel>
-          <p style={{ fontFamily: F.sans, fontSize: 13, lineHeight: 1.55, color: C.textSecondary }}>{score.ai_summary}</p>
+        {/* 03 — Analysis: accent-rule editorial block */}
+        <div style={{ marginBottom: SP.xxxl }}>
+          <StepLabel n="03" accent>Analysis</StepLabel>
+          <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl, marginTop: SP.md }}>
+            <p style={{ margin: 0, fontSize: FS.base, lineHeight: 1.75, color: C.textPrimary }}>{score.ai_summary}</p>
+          </div>
+        </div>
+
+        {/* 04 — Guidance: accent-rule block, numbered list retained verbatim */}
+        <div>
+          <StepLabel n="04">Guidance</StepLabel>
+          <div style={{ borderLeft: `2px solid ${C.border}`, paddingLeft: SP.xl, marginTop: SP.md }}>
+            {counterfactuals.length === 0 ? (
+              <p style={{ fontFamily: F.sans, fontSize: FS.sm, color: C.textMuted, margin: 0 }}>None recorded for this assessment.</p>
+            ) : (
+              <ol style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                {counterfactuals.map((text, i) => (
+                  <li key={i} style={{ display: 'flex', gap: SP.md, padding: `${SP.sm}px 0`, borderTop: i > 0 ? `1px solid ${C.border}` : 'none' }}>
+                    <span style={{ ...monoCss, fontSize: FS.sm, color: C.textMuted, flexShrink: 0, width: 16 }}>{i + 1}.</span>
+                    <span style={{ fontFamily: F.sans, fontSize: FS.sm, lineHeight: 1.55, color: C.textSecondary }}>{text}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         </div>
       </div>
     </div>
