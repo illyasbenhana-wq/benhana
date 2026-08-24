@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
+import { isPreviewDeployment } from '@/lib/preview-bypass'
 import { C, F, FS, FW, SP, monoCss, labelCss, mapRiskBandToLevel, riskLevelColor, googleFontsHref } from './components/styles'
 import { pillarsFromFable5Assessment, type PillarDatum } from './components/PillarTable'
 import { FactorList } from './components/FactorList'
@@ -120,6 +121,49 @@ function parsePanelData(application: ApplicationRow, score: ScoreRow): PanelData
   }
 }
 
+// Preview-only demo fallback — lets a reviewer reach a fully populated
+// /intelligence/score/[id] via a direct link without a real
+// INTELLIGENCE_ACCESS_TOKEN or a real DB-backed score. Never used
+// outside isPreviewDeployment(). Mirrors /score/[id]'s DEMO_VIEW pattern.
+const DEMO_PANEL_DATA: PanelData = {
+  application: { id: 'demo-app', full_name: 'Amara Diallo' },
+  score: {
+    id: 'demo-score', application_id: 'demo-app', etho_score: 780, risk_band: 'low',
+    ai_summary: 'Amara shows 22 months of consistent on-time rent payments and a stable gig-income trend across three platforms. Loan-to-income ratio is well within range, and savings buffer covers 4+ months of expenses. Strong candidate for approval.',
+    created_at: '2026-08-20T14:32:00.000Z',
+    score_pillars: {},
+    prompt_version: '2.0.0-fable5',
+    model_requested: 'claude-fable-5', model_responded: 'claude-fable-5',
+    confidence_overall: 'high',
+    raw_response: null,
+  },
+  pillars: [
+    { key: 'trust', label: 'Trust', score: 245, max: 300, confidence: 'high', rationale: 'Identity and address cross-verified via two independent sources; no adverse network associations found.', key_factors: [
+      { factor: 'Identity Verification', direction: 'positive', justification: 'Government ID and address verified via two independent sources.' },
+      { factor: 'Network Signals', direction: 'neutral', justification: 'No adverse network associations found.' },
+    ] },
+    { key: 'track_record', label: 'Track Record', score: 260, max: 300, confidence: 'high', rationale: '22 consecutive on-time rent payments with zero disputes on file.', key_factors: [
+      { factor: 'Payment History', direction: 'positive', justification: '22 months on-time, zero defaults.' },
+      { factor: 'Dispute Rate', direction: 'positive', justification: 'No disputes on file.' },
+    ] },
+    { key: 'financial_health', label: 'Financial Health', score: 138, max: 200, confidence: 'medium', rationale: 'Gig income trending upward with a healthy savings buffer relative to expenses.', key_factors: [
+      { factor: 'Income Trend', direction: 'positive', justification: 'Gig income up 12% over 6 months.' },
+      { factor: 'Savings Ratio', direction: 'neutral', justification: '4.2 months of expenses in reserve.' },
+    ] },
+    { key: 'esg_alignment', label: 'ESG Alignment', score: 137, max: 200, confidence: 'medium', rationale: 'First-time credit access via alternative data, with full data-use consent on record.', key_factors: [
+      { factor: 'Financial Inclusion', direction: 'positive', justification: 'First-time credit access via alternative data.' },
+      { factor: 'Data Consent', direction: 'positive', justification: 'Full consent granted, no restricted data used.' },
+    ] },
+  ],
+  counterfactuals: [
+    'To improve this score, the applicant could: extend gig-income history on a fourth platform to strengthen the Financial Health pillar.',
+    'To improve this score, the applicant could: increase savings buffer to 6+ months of expenses.',
+  ],
+  gaugeScore: 780,
+  gaugeMax: 1000,
+  fable5PillarsParsed: true,
+}
+
 export default function IntelligenceScorePage() {
   const params = useParams()
   const id = params?.id as string
@@ -142,12 +186,14 @@ export default function IntelligenceScorePage() {
           headers: { 'X-Intelligence-Token': token },
         })
         if (!res.ok) {
+          if (isPreviewDeployment()) { if (!cancelled) setData(DEMO_PANEL_DATA); return }
           if (!cancelled) setError(res.status === 404 ? 'No score found for this application.' : `Request failed (${res.status})`)
           return
         }
         const json = await res.json()
         if (!cancelled) setData(parsePanelData(json.application, json.score))
       } catch (e) {
+        if (isPreviewDeployment()) { if (!cancelled) setData(DEMO_PANEL_DATA); return }
         if (!cancelled) setError(e instanceof Error ? e.message : 'Request failed')
       } finally {
         if (!cancelled) setLoading(false)
