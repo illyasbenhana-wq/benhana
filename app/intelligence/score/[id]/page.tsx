@@ -14,9 +14,9 @@ import { PillarCompositionBar } from '@/app/components/PillarCompositionBar'
 // Explainability status -> Badge tone + label. Same low/medium/high/neutral
 // mapping ExplainabilityBadge used locally, now driving the shared Badge.
 const EXPLAINABILITY_CONFIG: Record<ExplainabilityStatus, { label: string; tone: 'low' | 'medium' | 'high' | 'neutral'; detail: string }> = {
-  explainable: { label: 'Explainable — AI Act Ready', tone: 'low', detail: 'A Fable 5 assessment was parsed from raw_response: pillar rationale, key factors, and grounded counterfactuals available.' },
+  explainable: { label: 'Explainable — AI Act Ready', tone: 'low', detail: 'A structured engine assessment was parsed: pillar rationale, key factors, and grounded counterfactuals available.' },
   fallback: { label: 'Explainable — Degraded', tone: 'medium', detail: 'A validation fallback occurred during scoring. Provenance recorded, but review before relying on this record.' },
-  structured: { label: 'Structured — No Narrative', tone: 'medium', detail: 'Deterministic pillar scores (score_pillars) are available, but no Fable 5 narrative assessment or counterfactual guidance exists for this record.' },
+  structured: { label: 'Structured — No Narrative', tone: 'medium', detail: 'Deterministic pillar scores are available, but no structured narrative assessment or counterfactual guidance exists for this record.' },
   legacy: { label: 'Legacy — Narrative Only', tone: 'neutral', detail: 'Scored under prompt v1. No structured pillar breakdown or counterfactual guidance.' },
 }
 
@@ -132,8 +132,8 @@ const DEMO_PANEL_DATA: PanelData = {
     ai_summary: 'Amara shows 22 months of consistent on-time rent payments and a stable gig-income trend across three platforms. Loan-to-income ratio is well within range, and savings buffer covers 4+ months of expenses. Strong candidate for approval.',
     created_at: '2026-08-20T14:32:00.000Z',
     score_pillars: {},
-    prompt_version: '2.0.0-fable5',
-    model_requested: 'claude-fable-5', model_responded: 'claude-fable-5',
+    prompt_version: '2.0.0-structured',
+    model_requested: 'ethoscore-engine-v2', model_responded: 'ethoscore-engine-v2',
     confidence_overall: 'high',
     raw_response: null,
   },
@@ -265,10 +265,13 @@ export default function IntelligenceScorePage() {
               section; this page's provenance data is the same kind of
               record (model/version/timestamp), not a summary card. */}
           <div style={{ background: C.textPrimary, borderRadius: 8, padding: SP.xl, marginTop: SP.xl }}>
+            {/* Never render score.model_requested / model_responded / raw
+                prompt_version here — those carry the underlying AI
+                vendor/model identifier (e.g. "claude-fable-5"), which must
+                never surface in user-facing UI. Show only the generic
+                internal engine label. */}
             <div style={{ ...monoCss, fontSize: 11.5, color: 'rgba(226,232,240,0.85)', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: SP.md }}>
-              <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>model requested: </span>{score.model_requested ?? 'n/a'}</div>
-              <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>model responded: </span>{score.model_responded ?? 'n/a'}</div>
-              <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>prompt version: </span>{score.prompt_version ?? 'n/a'}</div>
+              <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>engine: </span>EthoScore Engine v2</div>
               <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>scored at (UTC): </span>{score.created_at}</div>
             </div>
             <div style={{ marginTop: SP.md, paddingTop: SP.md, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}>

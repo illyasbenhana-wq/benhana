@@ -20,7 +20,7 @@ const STATUS_CONFIG: Record<ExplainabilityStatus, { label: string; risk: RiskLev
   explainable: {
     label: 'Explainable — AI Act Ready',
     risk: 'low',
-    detail: 'A Fable 5 assessment was parsed from raw_response: pillar rationale, key factors, and grounded counterfactuals available.',
+    detail: 'A structured engine assessment was parsed: pillar rationale, key factors, and grounded counterfactuals available.',
   },
   fallback: {
     label: 'Explainable — Degraded',
@@ -30,7 +30,7 @@ const STATUS_CONFIG: Record<ExplainabilityStatus, { label: string; risk: RiskLev
   structured: {
     label: 'Structured — No Narrative',
     risk: 'medium',
-    detail: 'Deterministic pillar scores (score_pillars) are available, but no Fable 5 narrative assessment or counterfactual guidance exists for this record.',
+    detail: 'Deterministic pillar scores (score_pillars) are available, but no structured narrative assessment or counterfactual guidance exists for this record.',
   },
   legacy: {
     label: 'Legacy — Narrative Only',

@@ -50,9 +50,10 @@ export function ProvenanceBar({ data }: { data: ProvenanceData }) {
         borderRadius: R.control,
       }}
     >
-      <Field label="Model Requested" value={data.model_requested ?? 'n/a'} />
-      <Field label="Model Responded" value={data.model_responded ?? 'n/a'} />
-      <Field label="Prompt Version" value={data.prompt_version ?? 'n/a'} />
+      {/* Never render data.model_requested / model_responded / raw
+          prompt_version — those carry the underlying AI vendor/model
+          identifier, which must never surface in user-facing UI. */}
+      <Field label="Engine" value="EthoScore Engine v2" />
       <Field label="Scored At (UTC)" value={data.created_at} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginLeft: 'auto' }}>
