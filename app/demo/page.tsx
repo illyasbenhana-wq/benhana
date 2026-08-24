@@ -2,6 +2,9 @@
 import { useEffect, useState } from 'react'
 import { Logo } from '../components/Logo'
 import { DashboardSidebar } from '../components/DashboardSidebar'
+import { EvidenceRow } from '../components/EvidenceRow'
+import { ScoreFigure } from '../components/ScoreFigure'
+import { PillarCompositionBar } from '../components/PillarCompositionBar'
 import {
   color as C,
   fontFamily as F,
@@ -40,23 +43,6 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
   return (
     <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: 'hidden' }}>
       <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3, transition: 'width 0.8s ease' }} />
-    </div>
-  )
-}
-
-function ScoreRing({ total, max }: { total: number; max: number }) {
-  const pct = Math.round((total / max) * 100)
-  const color = pct >= 70 ? C.riskLow : pct >= 45 ? C.riskMedium : C.riskHigh
-  return (
-    <div style={{ position: 'relative', width: 140, height: 140, margin: '0 auto' }}>
-      <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="50" cy="50" r="42" fill="none" stroke={C.border} strokeWidth="8" />
-        <circle cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="8" strokeDasharray={`${pct * 2.64} 264`} strokeLinecap="round" />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 36, fontWeight: FW.bold, color, fontFamily: F.sans }}>{total}</div>
-        <div style={{ fontSize: FS.xs, color: C.textMuted }}>/ {max}</div>
-      </div>
     </div>
   )
 }
@@ -131,7 +117,7 @@ export default function DemoPage() {
           {/* Applicant Summary */}
           <div style={{ marginBottom: SP.xxxl }}>
             <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.sm }}>Sample Application</div>
-            <h1 style={{ fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, margin: `0 0 8px` }}>{applicant.name}</h1>
+            <h1 style={{ fontFamily: F.sans, fontSize: FS.lg, fontWeight: FW.bold, margin: `0 0 8px` }}>{applicant.name}</h1>
             <p style={{ color: C.textSecondary, fontSize: FS.base, margin: 0 }}>
               {applicant.employment} &middot; £{applicant.income.toLocaleString()}/mo &middot; Requesting £{applicant.loan_amount.toLocaleString()} for {applicant.loan_purpose} over {applicant.loan_term_months} months
             </p>
@@ -141,40 +127,36 @@ export default function DemoPage() {
           <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xxl, marginBottom: SP.lg }}>
             <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.xl }}>Why This Score</div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: SP.xxl, alignItems: 'start' }}>
-              {/* Score Ring */}
-              <div style={{ textAlign: 'center' }}>
-                <ScoreRing total={ss.total} max={1000} />
-                <div style={{ marginTop: SP.md, fontSize: FS.xs, color: C.textSecondary }}>Structured EthoScore</div>
-              </div>
+            {/* Score — typographic figure, not a gauge; consistent with
+                ScoreFigure's use everywhere else in the app. */}
+            <div style={{ marginBottom: SP.xl }}>
+              <ScoreFigure
+                value={ss.total} max={1000} numSize={20}
+                color={ss.normalized >= 70 ? C.riskLow : ss.normalized >= 45 ? C.riskMedium : C.riskHigh}
+                bandLabel="Structured EthoScore"
+              />
+            </div>
 
-              {/* Pillars */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.lg }}>
-                {pillarEntries.map(([key, pillar]) => {
-                  const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
-                  return (
-                    <div key={key} style={{ background: C.background, border: borderLine, borderRadius: R.data, padding: '16px 20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SP.md }}>
-                        <span style={{ fontSize: FS.sm, fontWeight: FW.medium, color: meta.color }}>{meta.label}</span>
-                        <span style={{ fontSize: FS.sm, color: C.textSecondary }}>{pillar.score} / {pillar.max}</span>
-                      </div>
-                      <Bar value={pillar.score} max={pillar.max} color={meta.color} />
-                      <div style={{ marginTop: SP.md }}>
-                        {pillar.factors.map(f => (
-                          <div key={f.name} style={{ marginBottom: SP.sm }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: FS.xs, color: C.textSecondary, marginBottom: 3 }}>
-                              <span>{f.name}</span>
-                              <span>{f.score}/{f.max}</span>
-                            </div>
-                            <Bar value={f.score} max={f.max} color={meta.color} />
-                            <div style={{ fontSize: 10, color: C.textMuted, marginTop: 2 }}>{f.rationale}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+            {/* Pillars — composition bar + EvidenceRow list, same devices
+                as Score/Case, replacing the nested card-in-card layout. */}
+            <PillarCompositionBar
+              segments={pillarEntries.map(([key, pillar]) => ({
+                label: PILLAR_LABELS[key]?.label ?? key,
+                color: PILLAR_LABELS[key]?.color ?? C.textSecondary,
+                score: pillar.score, max: pillar.max,
+              }))}
+            />
+            <div style={{ marginTop: SP.lg }}>
+              {pillarEntries.map(([key, pillar]) => {
+                const meta = PILLAR_LABELS[key] ?? { label: key, color: C.textSecondary }
+                return (
+                  <div key={key} style={{ marginBottom: SP.sm }}>
+                    {pillar.factors.map(f => (
+                      <EvidenceRow key={f.name} label={f.name} context={`— ${meta.label}`} score={f.score} color={meta.color} rationale={f.rationale} />
+                    ))}
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -274,7 +256,7 @@ export default function DemoPage() {
                 <div style={{ fontSize: FS.sm, color: C.textSecondary }}>vs {bm.peer_cohort.size} similar applicants (same employment type, similar loan size)</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: FS.xl, fontFamily: F.sans, fontWeight: FW.bold, color: bm.percentile >= 60 ? C.riskLow : bm.percentile >= 40 ? C.riskMedium : C.riskHigh }}>
+                <div style={{ fontSize: FS.lg, fontFamily: F.sans, fontWeight: FW.bold, color: bm.percentile >= 60 ? C.riskLow : bm.percentile >= 40 ? C.riskMedium : C.riskHigh }}>
                   {bm.percentile}<span style={{ fontSize: FS.sm, color: C.textMuted }}>th</span>
                 </div>
                 <div style={{ fontSize: FS.xs, color: C.textMuted }}>percentile</div>

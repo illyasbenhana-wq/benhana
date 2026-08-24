@@ -245,7 +245,7 @@ export default function IntelligenceScorePage() {
             <p style={{ ...monoCss, fontSize: 11, color: C.textMuted, marginBottom: SP.xs }}>
               APPLICATION {application.id}
             </p>
-            <h1 style={{ fontFamily: F.sans, fontSize: 28, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: 0 }}>
+            <h1 style={{ fontFamily: F.sans, fontSize: FS.lg, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: 0 }}>
               {nameWords.map((word, i) => i === 0
                 ? <span key={i} style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>{word} </span>
                 : word + ' ')}
@@ -258,7 +258,7 @@ export default function IntelligenceScorePage() {
         <div style={{ marginBottom: SP.xxxl }}>
           <StepLabel n="01" accent>Conclusion</StepLabel>
           <div style={{ marginTop: SP.md }}>
-            <ScoreFigure value={gaugeScore} max={gaugeMax} color={bandColor} bandLabel={BAND_LABEL[score.risk_band] ?? score.risk_band} size="lg" />
+            <ScoreFigure value={gaugeScore} max={gaugeMax} color={bandColor} bandLabel={BAND_LABEL[score.risk_band] ?? score.risk_band} size="lg" numSize={20} />
           </div>
 
           {/* Audit — same dark technical-record panel as Score's Audit
