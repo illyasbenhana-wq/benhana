@@ -387,8 +387,12 @@ export default function ScorePage() {
             <div style={{ ...monoCss, fontSize: 11.5, color: 'rgba(226,232,240,0.85)', marginBottom: SP.md }}>
               <span style={{ color: '#60A5FA' }}>decision_recorded</span>
               <span style={{ color: 'rgba(226,232,240,0.4)' }}> · score-{score.id}</span>
+              {/* Never render score.model_version directly — for a real
+                  (non-demo) score, the backend sets this field to the raw
+                  AI model identifier (see lib/scoring-engine.ts), which
+                  must never surface in user-facing UI. */}
               <div style={{ marginTop: 4, color: 'rgba(226,232,240,0.55)' }}>
-                model: {score.model_version} · scored: {new Date(score.created_at).toLocaleString('en-GB')}
+                engine: EthoScore Engine v2 · scored: {new Date(score.created_at).toLocaleString('en-GB')}
               </div>
             </div>
             <p style={{ fontSize: FS.sm, color: 'rgba(226,232,240,0.75)', lineHeight: 1.6, margin: 0, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: SP.md }}>
@@ -491,7 +495,7 @@ export default function ScorePage() {
 
         {/* EU AI Act */}
         <div className="pdf-compliance">
-          <strong>EU AI Act Compliance Notice (Article 22).</strong> This credit assessment was produced by an automated AI system (EthosFi AI, model: {score.model_version}). You have the right to request human review of this decision within 30 days of issue. To exercise this right, contact <strong>hello@ethosfi.co</strong> with your Application ID. You may also request a plain-language explanation of the factors that influenced this score.
+          <strong>EU AI Act Compliance Notice (Article 22).</strong> This credit assessment was produced by an automated AI system (EthosFi AI, engine: EthoScore Engine v2). You have the right to request human review of this decision within 30 days of issue. To exercise this right, contact <strong>hello@ethosfi.co</strong> with your Application ID. You may also request a plain-language explanation of the factors that influenced this score.
         </div>
 
         {/* Footer */}
