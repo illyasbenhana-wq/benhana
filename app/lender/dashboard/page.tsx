@@ -186,16 +186,23 @@ export default function LenderDashboard() {
 
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden' }}>
 
-        {/* ── Top bar ── */}
+        {/* ── Top bar — same two-row shell as /dashboard: identity row +
+            status strip, so both screens read as the same product. ── */}
         <header style={{ borderBottom: borderLine, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.md}px ${SP.xl}px` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `${SP.md}px ${SP.xl}px ${SP.sm}px` }}>
             <Logo size="sm" />
+            <span style={{ fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', fontSize: FS.xs, color: C.textMuted }}>· INTELLIGENCE INFRASTRUCTURE</span>
             <span style={{ marginLeft: 'auto', ...labelCss, color: C.textSecondary }}>Northbridge Credit Union</span>
             <span style={{ width: 1, height: 14, background: C.border }} />
             <span style={{ fontSize: FS.sm, color: C.textPrimary }}>{ROLE_LABEL[userRole]}</span>
             <button type="button" onClick={handleLogout} className="sign-out" style={{ background: 'none', border: borderLine, borderRadius: R.control, padding: '4px 10px', color: C.textMuted, fontSize: FS.xs, cursor: 'pointer', fontFamily: F.sans, transition: 'color .15s, border-color .15s' }}>
               Sign out
             </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: SP.md, padding: `0 ${SP.xl}px ${SP.md}px` }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.riskLow, flexShrink: 0 }} />
+            <span style={{ ...labelCss, color: C.textPrimary, letterSpacing: '0.16em' }}>Intelligence Layer Active</span>
+            <span style={{ fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', fontSize: FS.xs, color: C.riskLow, letterSpacing: '0.1em' }}>LIVE</span>
           </div>
         </header>
 

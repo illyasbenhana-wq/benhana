@@ -369,6 +369,25 @@ export default function InvestigationPage() {
               <button type="button" className="ethos-btn" style={{ flex: 1, border: borderLine, background: 'transparent', color: C.textSecondary }}>Request Info</button>
               <button type="button" className="ethos-btn" style={{ border: borderLine, background: 'transparent', color: C.textSecondary, minWidth: 48 }} title="Open in new view">↗</button>
             </div>
+          </div>
+
+          {/* Audit — same dark technical-record panel as Score/Dashboard's
+              Audit sections, using data this dossier already has. Case
+              didn't have an "instrument moment" device before. */}
+          <div style={{ marginTop: SP.xxl }}>
+            <p style={labelCss}>Audit</p>
+            <div style={{ background: C.textPrimary, borderRadius: R.control, padding: SP.xl, marginTop: SP.md }}>
+              <div style={{ ...monoCss, fontSize: 11.5, color: 'rgba(226,232,240,0.85)', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: SP.md }}>
+                <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>case: </span>{dossier.caseRef}</div>
+                <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>analyst: </span>{dossier.assignedTo}</div>
+                <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>jurisdiction: </span>{dossier.jurisdiction}</div>
+                <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>opened: </span>{new Date(dossier.openedAt).toLocaleString('en-GB')}</div>
+              </div>
+              <div style={{ marginTop: SP.md, paddingTop: SP.md, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: sc, flexShrink: 0 }} />
+                <span style={{ fontSize: FS.sm, color: sc, fontWeight: FW.semibold }}>{dossier.severity.toUpperCase()} · {STATUS_LABEL[dossier.status].toUpperCase()}</span>
+              </div>
+            </div>
             <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>DESIGN PREVIEW · ACTIONS NOT WIRED · FULL AUDIT TRAIL MAINTAINED IN PRODUCTION</p>
           </div>
         </div>

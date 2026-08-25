@@ -1,6 +1,7 @@
 import { C, F, SP, riskLevelColor } from './styles'
 import type { PillarKeyFactor } from './PillarTable'
 
+
 const DIRECTION_GLYPH: Record<PillarKeyFactor['direction'], string> = {
   positive: '▲',
   negative: '▼',

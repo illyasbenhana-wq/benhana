@@ -13,7 +13,6 @@ import {
   radius as R,
   space as SP,
   borderLine,
-  shadowSm,
   googleFontsHref,
 } from '../../lib/design-system/tokens-light'
 
@@ -124,7 +123,7 @@ export default function DemoPage() {
           </div>
 
           {/* Section 1: Why This Score */}
-          <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xxl, marginBottom: SP.lg }}>
+          <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, marginBottom: SP.lg }}>
             <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.xl }}>Why This Score</div>
 
             {/* Score — typographic figure, not a gauge; consistent with
@@ -164,7 +163,7 @@ export default function DemoPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.lg, marginBottom: SP.lg }}>
 
             {/* Section 2: Risk Snapshot */}
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xl }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xl }}>
               <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.lg }}>Portfolio Risk Snapshot</div>
               {rs ? (
                 <>
@@ -224,7 +223,7 @@ export default function DemoPage() {
             </div>
 
             {/* Section 3: Anomalies */}
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xl }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xl }}>
               <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.lg }}>Anomaly Detection</div>
               {anomalies.length > 0 ? (
                 anomalies.slice(0, 3).map((a, i) => {
@@ -249,7 +248,7 @@ export default function DemoPage() {
           </div>
 
           {/* Section 4: Peer Comparison */}
-          <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: `${SP.xl}px ${SP.xxl}px`, marginBottom: SP.xxxl }}>
+          <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: `${SP.xl}px ${SP.xxl}px`, marginBottom: SP.xxxl }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SP.xl }}>
               <div>
                 <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Peer Comparison</div>

@@ -13,7 +13,6 @@ import {
   radius as R,
   space as SP,
   borderLine,
-  shadowMd,
   googleFontsHref,
 } from '../../lib/design-system/tokens-light'
 
@@ -87,7 +86,6 @@ export default function LoginPage() {
         background: C.surface,
         border: borderLine,
         borderRadius: R.card,
-        boxShadow: shadowMd,
         padding: `${SP.xxl}px ${SP.xxl}px`,
       }}>
         <h1 style={{ margin: `0 0 8px`, fontSize: FS.lg, fontWeight: FW.semibold, fontFamily: F.sans }}>

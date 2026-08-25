@@ -10,7 +10,6 @@ import {
   radius as R,
   space as SP,
   borderLine,
-  shadowSm,
   googleFontsHref,
 } from '../../lib/design-system/tokens-light'
 
@@ -165,7 +164,7 @@ export default function ApplyPage() {
           <div style={{ marginBottom: SP.sm }}>
             <StepLabel n={`0${step}`} accent>{['Your details', 'Financial picture', 'Loan request'][step - 1]}</StepLabel>
           </div>
-          <h1 style={{ fontFamily: F.sans, fontSize: 32, fontWeight: FW.semibold, letterSpacing: '-0.01em', margin: 0, lineHeight: 1.2 }}>
+          <h1 style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.semibold, letterSpacing: '-0.01em', margin: 0, lineHeight: 1.2 }}>
             {['Tell us about yourself', 'Your financial picture', 'What do you need?'][step - 1]}
           </h1>
           <p style={{ color: C.textSecondary, fontSize: FS.base, marginTop: SP.sm }}>
@@ -252,13 +251,13 @@ export default function ApplyPage() {
             {/* Live computed figures the applicant needs to register — KPI-style stat pair, not a soft callout */}
             {form.loan_amount && form.monthly_income && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.md, marginBottom: SP.xl }}>
-                <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '16px 18px' }}>
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '16px 18px' }}>
                   <div style={{ ...labelCss, marginBottom: 8 }}>Est. Monthly Payment</div>
                   <div style={{ fontFamily: F.mono, fontSize: 24, fontWeight: FW.bold, color: C.accent, lineHeight: 1 }}>
                     £{Math.round(Number(form.loan_amount) / Number(form.loan_term_months))}
                   </div>
                 </div>
-                <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '16px 18px' }}>
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '16px 18px' }}>
                   <div style={{ ...labelCss, marginBottom: 8 }}>Of Annual Income</div>
                   <div style={{ fontFamily: F.mono, fontSize: 24, fontWeight: FW.bold, color: C.accent, lineHeight: 1 }}>
                     {((Number(form.loan_amount) / (Number(form.monthly_income) * 12)) * 100).toFixed(0)}%
@@ -268,7 +267,7 @@ export default function ApplyPage() {
             )}
 
             {/* Legal/compliance consent — deliberately boxed, distinct and unmissable */}
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: '18px 20px', marginBottom: SP.xl }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '18px 20px', marginBottom: SP.xl }}>
               <label style={{ display: 'flex', gap: SP.md, cursor: 'pointer', marginBottom: SP.md }}>
                 <input type="checkbox" checked={form.consent_data_use} onChange={e => set('consent_data_use', e.target.checked)} style={{ width: 'auto' }} />
                 <span style={{ fontSize: FS.sm, color: C.textSecondary, lineHeight: 1.5 }}>I consent to EthosFi processing my financial data to generate a credit score.</span>

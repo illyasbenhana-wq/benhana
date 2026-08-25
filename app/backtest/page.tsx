@@ -10,7 +10,6 @@ import {
   radius as R,
   space as SP,
   borderLine,
-  shadowSm,
   googleFontsHref,
 } from '../../lib/design-system/tokens-light'
 
@@ -138,10 +137,6 @@ export default function BacktestPage() {
   return (
     <div style={{ display: 'flex', height: '100vh', background: C.background, color: C.textPrimary, fontFamily: F.sans, overflow: 'hidden' }}>
       <link href={googleFontsHref} rel="stylesheet" />
-      <style>{`
-        .ethos-kpi-card { transition: box-shadow .2s ease, border-color .2s ease; }
-        .ethos-kpi-card:hover { box-shadow: 0 4px 16px -4px rgba(15,23,42,0.10); border-color: ${C.textSecondary}; }
-      `}</style>
 
       <DashboardSidebar />
 
@@ -152,12 +147,12 @@ export default function BacktestPage() {
         </div>
 
         <div style={{ maxWidth: 900, margin: '0 auto', padding: `${SP.xxl}px ${SP.xl}px` }}>
-          <h1 style={{ fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, margin: `0 0 8px` }}>Historical Portfolio Backtest</h1>
+          <h1 style={{ fontFamily: F.sans, fontSize: FS.lg, fontWeight: FW.bold, margin: `0 0 8px` }}>Historical Portfolio Backtest</h1>
           <p style={{ color: C.textSecondary, fontSize: FS.sm, marginBottom: SP.xxl }}>Upload a CSV of historical loans → EthoScore v2 scores each row → performance report against actual outcomes.</p>
 
           {/* Step 1: Upload */}
           {status === 'idle' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xxl, textAlign: 'center' }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center' }}>
               <div style={{ fontSize: FS.sm, color: C.textSecondary, marginBottom: SP.lg }}>Upload a CSV file with historical loan data</div>
               <input type="file" accept=".csv" onChange={handleFileUpload} style={{ color: C.textSecondary, fontSize: FS.sm }} />
               <div style={{ fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>Expected: one row per loan, with columns for borrower info, loan details, and repayment outcome</div>
@@ -166,7 +161,7 @@ export default function BacktestPage() {
 
           {/* Step 2: Field Mapping */}
           {status === 'mapping' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xl }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xl }}>
               <div style={{ fontSize: FS.sm, fontWeight: FW.medium, marginBottom: 4 }}>Map Your Columns</div>
               <p style={{ fontSize: FS.xs, color: C.textSecondary, marginBottom: SP.xl }}>We auto-detected {csvHeaders.length} columns. Verify the mapping below.</p>
 
@@ -205,7 +200,7 @@ export default function BacktestPage() {
 
           {/* Step 3: Running */}
           {status === 'running' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, boxShadow: shadowSm, padding: SP.xxl, textAlign: 'center' }}>
+            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center' }}>
               <div style={{ fontSize: FS.sm, color: C.accent, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: SP.lg }}>Scoring in progress</div>
               <div style={{ width: 240, height: 2, background: C.border, borderRadius: 2, overflow: 'hidden', margin: '0 auto' }}>
                 <div style={{ height: '100%', background: C.accent, animation: 'backtestLoad 1.5s ease-in-out infinite', width: '40%' }} />
@@ -243,7 +238,7 @@ export default function BacktestPage() {
                     { label: 'Recall', value: `${Math.round(result.summary.recall * 100)}%`, sub: 'of actual defaults were caught', color: C.riskLow },
                     { label: 'Rows Scored', value: String(result.summary.scored_count), sub: `${result.summary.skipped_count} skipped · ${result.summary.error_count} errors`, color: C.textPrimary },
                   ].map(kpi => (
-                    <div key={kpi.label} className="ethos-kpi-card" style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: '18px 20px' }}>
+                    <div key={kpi.label} style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: '18px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: SP.md }}>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: kpi.color, flexShrink: 0 }} />
                         <span style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{kpi.label}</span>
@@ -258,7 +253,7 @@ export default function BacktestPage() {
               {/* Default Rate by Band — one coherent mini-chart: shared
                   0-100% axis, gridlines, single title, not 3 disconnected rows */}
               {result.summary && (
-                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, boxShadow: shadowSm, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
+                <div style={{ background: C.surface, border: borderLine, borderRadius: R.data, padding: `${SP.lg}px ${SP.xl}px`, marginBottom: SP.xl }}>
                   <div style={{ fontSize: FS.xs, color: C.textMuted, marginBottom: SP.xl, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Default Rate by Risk Band</div>
                   {(['low', 'medium', 'high'] as const).map((band, i) => {
                     const rate = result.summary.default_rate_by_band[band]

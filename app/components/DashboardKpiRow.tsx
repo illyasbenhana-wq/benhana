@@ -19,7 +19,7 @@ const TONE_COLOR: Record<NonNullable<Kpi['tone']>, string> = {
 export function DashboardKpiRow({ title, kpis }: { title: string; kpis: Kpi[] }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-      <h1 style={{ margin: 0, fontFamily: F.sans, fontSize: FS.xl, fontWeight: FW.bold, color: C.textPrimary }}>{title}</h1>
+      <h1 style={{ margin: 0, fontFamily: F.sans, fontSize: FS.lg, fontWeight: FW.bold, color: C.textPrimary }}>{title}</h1>
       <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
         {kpis.map(k => (
           <div key={k.label} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
