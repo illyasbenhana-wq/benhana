@@ -204,10 +204,17 @@ function timeAgo(iso: string) {
 // PanelCard — Fortress's real card shape: title + one-line muted
 // subtitle in a header, content below. Border only, no shadow —
 // the actual template doesn't shadow its cards.
-function PanelCard({ title, subtitle, children, maxWidth }: { title: string; subtitle?: string; children: React.ReactNode; maxWidth?: number }) {
+function PanelCard({ title, subtitle, children, maxWidth, accent }: { title: string; subtitle?: string; children: React.ReactNode; maxWidth?: number; accent?: boolean }) {
   return (
     <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '18px 20px', marginBottom: SP.xl, maxWidth }}>
-      <div style={{ fontFamily: F.sans, fontSize: FS.base, fontWeight: FW.semibold, color: C.textPrimary, marginBottom: subtitle ? 2 : 14 }}>{title}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: subtitle ? 2 : 14 }}>
+        {/* Blue brand-accent marker on the page's primary panel — table-
+            heavy screens otherwise carry no blue at all (everything else
+            is neutral + semantic risk color), losing the brand thread
+            every narrative screen carries via StepLabel's accent color. */}
+        {accent && <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.accent, flexShrink: 0 }} />}
+        <div style={{ fontFamily: F.sans, fontSize: FS.base, fontWeight: FW.semibold, color: C.textPrimary }}>{title}</div>
+      </div>
       {subtitle && <p style={{ fontSize: FS.xs, color: C.textMuted, margin: `0 0 14px` }}>{subtitle}</p>}
       {children}
     </div>
@@ -536,7 +543,7 @@ export default function DashboardPage() {
             /* ── Risk Intelligence Overview — dense data grid, no headline sentence ── */
             <div>
               {/* Case table — dense data grid, Fortress Trade-Blotter shape */}
-              <PanelCard title="Active Cases" subtitle={`${activeCases.length} cases requiring attention, ranked by risk score.`}>
+              <PanelCard title="Active Cases" subtitle={`${activeCases.length} cases requiring attention, ranked by risk score.`} accent>
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.3fr 0.9fr 1fr 1fr', gap: 0, padding: '8px 0', borderBottom: borderLine }}>
                   {['Entity', 'Case Type', 'Risk', 'SLA', 'Status'].map(h => (
                     <div key={h} style={{ fontSize: 10, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>

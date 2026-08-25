@@ -238,7 +238,13 @@ export default function LenderDashboard() {
               {/* ── Recent Applications — flat section, no card wrapper ── */}
               <div>
                 <div style={{ paddingBottom: 14, borderBottom: borderLine, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={labelCss}>Recent Applications</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {/* Blue brand-accent marker on the page's primary
+                        section — this whole page was otherwise neutral +
+                        semantic-only, carrying no brand-blue thread. */}
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.accent, flexShrink: 0 }} />
+                    <div style={labelCss}>Recent Applications</div>
+                  </div>
                   <div style={{ fontSize: FS.xs, color: C.textMuted }}>{apps.length} total</div>
                 </div>
 
