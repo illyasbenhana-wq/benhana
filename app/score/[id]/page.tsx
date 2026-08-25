@@ -9,6 +9,8 @@ import { Logo } from '@/app/components/Logo'
 import { DashboardSidebar } from '@/app/components/DashboardSidebar'
 import { EvidenceRow } from '@/app/components/EvidenceRow'
 import { ScoreFigure } from '@/app/components/ScoreFigure'
+import { Badge } from '@/app/components/Badge'
+import { PillarCompositionBar } from '@/app/components/PillarCompositionBar'
 import {
   color as C,
   fontFamily as F,
@@ -56,6 +58,18 @@ const REC_COLOR: Record<ScoreResult['recommendation'], string> = {
   approve: C.riskLow,
   review: C.riskMedium,
   decline: C.riskHigh,
+}
+
+const REC_BADGE_TONE: Record<ScoreResult['recommendation'], 'low' | 'medium' | 'high'> = {
+  approve: 'low',
+  review: 'medium',
+  decline: 'high',
+}
+
+const REC_BADGE_LABEL: Record<ScoreResult['recommendation'], string> = {
+  approve: 'Approved',
+  review: 'Manual Review',
+  decline: 'Not Approved',
 }
 
 type ScoreView = {
@@ -285,11 +299,21 @@ export default function ScorePage() {
         </div>
 
         {/* Investigation context — not a celebratory greeting. Establishes
-            who/what is being assessed before anything else is shown. */}
-        <p style={labelCss}>Assessment · Application {score.application_id}</p>
-        <h1 style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: `10px 0 ${SP.huge}px`, lineHeight: 1.15 }}>
-          {fullName}
-        </h1>
+            who/what is being assessed before anything else is shown.
+            Decision Badge sits with the identity moment, not buried at
+            the bottom — an instant confidence signal, matching the
+            explainability-badge treatment on /intelligence/score/[id]. */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: SP.lg, flexWrap: 'wrap', marginBottom: SP.huge }}>
+          <div>
+            <p style={{ ...labelCss, marginBottom: 0 }}>Assessment · Application {score.application_id}</p>
+            <h1 style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.bold, letterSpacing: '-0.01em', margin: '10px 0 0', lineHeight: 1.15 }}>
+              {fullName.split(' ').map((word, i) => i === 0
+                ? <span key={i} style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>{word} </span>
+                : word + ' ')}
+            </h1>
+          </div>
+          <Badge tone={REC_BADGE_TONE[rec]}>{REC_BADGE_LABEL[rec]}</Badge>
+        </div>
 
         {/* Evidence — the signals, walked through first. Real section
             heading (matches the landing page's H2 scale), not just a
@@ -313,6 +337,18 @@ export default function ScorePage() {
           <div className="ethos-reveal ethos-reveal-2" style={{ marginBottom: SP.xxxl }}>
             <StepLabel n="02">Factors</StepLabel>
             <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>Resolved into 4 weighted pillars.</p>
+            {/* Composition bar — same proportional-structure device used
+                on Case and /intelligence/score/[id], added here for
+                consistency (Score previously only had the stat tiles). */}
+            <div style={{ marginBottom: SP.lg }}>
+              <PillarCompositionBar
+                segments={(Object.entries(pillars) as [string, Pillar][]).map(([key, pillar]) => ({
+                  label: PILLAR_LABELS[key]?.label ?? key,
+                  color: PILLAR_LABELS[key]?.color ?? C.textSecondary,
+                  score: pillar.score, max: pillar.max,
+                }))}
+              />
+            </div>
             {/* Pillar-totals stat tiles — the one genuinely parallel,
                 comparable dataset on this page (4 fixed-ceiling totals),
                 given a fast-scan glance layer above the detailed
@@ -395,7 +431,14 @@ export default function ScorePage() {
                 engine: EthoScore Engine v2 · scored: {new Date(score.created_at).toLocaleString('en-GB')}
               </div>
             </div>
-            <p style={{ fontSize: FS.sm, color: 'rgba(226,232,240,0.75)', lineHeight: 1.6, margin: 0, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: SP.md }}>
+            {/* Decision status row — same dot+label instrument pattern as
+                /intelligence/score/[id]'s confidence row, using the
+                decision data this page already has. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingBottom: SP.md, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: recColor, flexShrink: 0 }} />
+              <span style={{ fontSize: FS.sm, color: recColor, fontWeight: FW.semibold }}>{REC_BADGE_LABEL[rec].toUpperCase()}</span>
+            </div>
+            <p style={{ fontSize: FS.sm, color: 'rgba(226,232,240,0.75)', lineHeight: 1.6, margin: 0, paddingTop: SP.md }}>
               <strong style={{ color: '#F8FAFC' }}>EU AI Act compliance.</strong> This assessment was made by an AI system. Under Article 22, you have the right to request human review of this decision. Contact <span style={{ color: '#60A5FA' }}>hello@ethosfi.co</span> within 30 days.
             </p>
           </div>
