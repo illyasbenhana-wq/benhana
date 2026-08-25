@@ -46,6 +46,17 @@ function Bar({ value, max, color }: { value: number; max: number; color: string 
   )
 }
 
+// Same numbered eyebrow device as Score/Case/Backtest's StepLabel — so
+// the demo walkthrough reads as one narrative, not four disconnected cards.
+function StepLabel({ n, children, accent }: { n: string; children: React.ReactNode; accent?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+      <span style={{ fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', fontSize: FS.xs, color: C.textMuted }}>{n}</span>
+      <span style={{ fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent ? C.accent : C.textSecondary }}>{children}</span>
+    </div>
+  )
+}
+
 export default function DemoPage() {
   const [data, setData] = useState<DemoData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -113,22 +124,28 @@ export default function DemoPage() {
 
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: `${SP.xxl}px ${SP.xl}px` }}>
 
-          {/* Applicant Summary */}
+          {/* Applicant Summary — Fraunces-italic identity accent, same
+              treatment as Score/Case/intelligence's identity moment. */}
           <div style={{ marginBottom: SP.xxxl }}>
             <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.sm }}>Sample Application</div>
-            <h1 style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.bold, margin: `0 0 8px` }}>{applicant.name}</h1>
+            <h1 style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.bold, margin: `0 0 8px` }}>
+              {applicant.name.split(' ').map((word, i) => i === 0
+                ? <span key={i} style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>{word} </span>
+                : word + ' ')}
+            </h1>
             <p style={{ color: C.textSecondary, fontSize: FS.base, margin: 0 }}>
               {applicant.employment} &middot; £{applicant.income.toLocaleString()}/mo &middot; Requesting £{applicant.loan_amount.toLocaleString()} for {applicant.loan_purpose} over {applicant.loan_term_months} months
             </p>
           </div>
 
-          {/* Section 1: Why This Score */}
-          <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, marginBottom: SP.lg }}>
-            <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.xl }}>Why This Score</div>
+          {/* 01 — Why This Score: flat evidence-led zone, no card wrapper —
+              same treatment as Score/Case's Evidence and Factors sections. */}
+          <div style={{ marginBottom: SP.xxxl }}>
+            <StepLabel n="01" accent>Why This Score</StepLabel>
 
             {/* Score — typographic figure, not a gauge; consistent with
                 ScoreFigure's use everywhere else in the app. */}
-            <div style={{ marginBottom: SP.xl }}>
+            <div style={{ margin: `${SP.lg}px 0 ${SP.xl}px` }}>
               <ScoreFigure
                 value={ss.total} max={1000}
                 color={ss.normalized >= 70 ? C.riskLow : ss.normalized >= 45 ? C.riskMedium : C.riskHigh}
@@ -159,10 +176,14 @@ export default function DemoPage() {
             </div>
           </div>
 
-          {/* Row: Risk Snapshot + Anomalies */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.lg, marginBottom: SP.lg }}>
+          {/* 02/03 — Risk Snapshot + Anomalies: a genuine side-by-side
+              comparison of two independent widgets, where a card boundary
+              is actually useful (unlike the flat zone above). */}
+          <div style={{ marginBottom: SP.xxxl }}>
+            <StepLabel n="02">Portfolio Context</StepLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.lg, marginTop: SP.lg }}>
 
-            {/* Section 2: Risk Snapshot */}
+            {/* Risk Snapshot */}
             <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xl }}>
               <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: SP.lg }}>Portfolio Risk Snapshot</div>
               {rs ? (
@@ -245,15 +266,15 @@ export default function DemoPage() {
                 </div>
               )}
             </div>
+            </div>
           </div>
 
-          {/* Section 4: Peer Comparison */}
-          <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: `${SP.xl}px ${SP.xxl}px`, marginBottom: SP.xxxl }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: SP.xl }}>
-              <div>
-                <div style={{ fontSize: FS.xs, color: C.textMuted, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Peer Comparison</div>
-                <div style={{ fontSize: FS.sm, color: C.textSecondary }}>vs {bm.peer_cohort.size} similar applicants (same employment type, similar loan size)</div>
-              </div>
+          {/* 03 — Peer Comparison */}
+          <div style={{ marginBottom: SP.xxxl }}>
+            <StepLabel n="03">Peer Comparison</StepLabel>
+            <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>vs {bm.peer_cohort.size} similar applicants (same employment type, similar loan size)</p>
+          <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: `${SP.xl}px ${SP.xxl}px` }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: SP.xl }}>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: FS.lg, fontFamily: F.sans, fontWeight: FW.bold, color: bm.percentile >= 60 ? C.riskLow : bm.percentile >= 40 ? C.riskMedium : C.riskHigh }}>
                   {bm.percentile}<span style={{ fontSize: FS.sm, color: C.textMuted }}>th</span>
@@ -295,6 +316,7 @@ export default function DemoPage() {
                 </div>
               </div>
             )}
+          </div>
           </div>
 
           {/* Footer */}

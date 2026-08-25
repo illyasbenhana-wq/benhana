@@ -58,6 +58,18 @@ const DEMO_RESULT = {
   },
 }
 
+const STEP_INDEX: Record<RunStatus, number> = { idle: 1, mapping: 2, running: 3, completed: 4, error: 3 }
+const STEP_LABELS = ['Upload', 'Map Columns', 'Score', 'Results']
+
+function StepLabel({ n, children, accent }: { n: string; children: React.ReactNode; accent?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+      <span style={{ fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', fontSize: FS.xs, color: C.textMuted }}>{n}</span>
+      <span style={{ fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent ? C.accent : C.textSecondary }}>{children}</span>
+    </div>
+  )
+}
+
 export default function BacktestPage() {
   const [status, setStatus] = useState<RunStatus>('idle')
   const [csvText, setCsvText] = useState('')
@@ -148,22 +160,43 @@ export default function BacktestPage() {
 
         <div style={{ maxWidth: 900, margin: '0 auto', padding: `${SP.xxl}px ${SP.xl}px` }}>
           <h1 style={{ fontFamily: F.sans, fontSize: FS.lg, fontWeight: FW.bold, margin: `0 0 8px` }}>Historical Portfolio Backtest</h1>
-          <p style={{ color: C.textSecondary, fontSize: FS.sm, marginBottom: SP.xxl }}>Upload a CSV of historical loans → EthoScore v2 scores each row → performance report against actual outcomes.</p>
+          <p style={{ color: C.textSecondary, fontSize: FS.sm, marginBottom: SP.xl }}>Upload a CSV of historical loans → EthoScore v2 scores each row → performance report against actual outcomes.</p>
+
+          {/* Process strip — same numbered narrative rhythm as Score/Apply,
+              so this reads as one process, not a series of disconnected
+              form screens. */}
+          <div style={{ display: 'flex', gap: SP.xl, marginBottom: SP.xxxl, paddingBottom: SP.lg, borderBottom: borderLine }}>
+            {STEP_LABELS.map((label, i) => {
+              const n = i + 1
+              const current = STEP_INDEX[status] === n
+              const done = STEP_INDEX[status] > n
+              return (
+                <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 8, opacity: current ? 1 : done ? 0.7 : 0.4 }}>
+                  <span style={{ fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', fontSize: FS.xs, color: current ? C.accent : C.textMuted }}>0{n}</span>
+                  <span style={{ fontSize: FS.xs, fontWeight: current ? FW.semibold : FW.regular, letterSpacing: '0.06em', textTransform: 'uppercase', color: current ? C.textPrimary : C.textMuted }}>{label}</span>
+                </div>
+              )
+            })}
+          </div>
 
           {/* Step 1: Upload */}
           {status === 'idle' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center' }}>
-              <div style={{ fontSize: FS.sm, color: C.textSecondary, marginBottom: SP.lg }}>Upload a CSV file with historical loan data</div>
-              <input type="file" accept=".csv" onChange={handleFileUpload} style={{ color: C.textSecondary, fontSize: FS.sm }} />
-              <div style={{ fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>Expected: one row per loan, with columns for borrower info, loan details, and repayment outcome</div>
+            <div>
+              <StepLabel n="01" accent>Upload</StepLabel>
+              <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center', marginTop: SP.md }}>
+                <div style={{ fontSize: FS.sm, color: C.textSecondary, marginBottom: SP.lg }}>Upload a CSV file with historical loan data</div>
+                <input type="file" accept=".csv" onChange={handleFileUpload} style={{ color: C.textSecondary, fontSize: FS.sm }} />
+                <div style={{ fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>Expected: one row per loan, with columns for borrower info, loan details, and repayment outcome</div>
+              </div>
             </div>
           )}
 
           {/* Step 2: Field Mapping */}
           {status === 'mapping' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xl }}>
-              <div style={{ fontSize: FS.sm, fontWeight: FW.medium, marginBottom: 4 }}>Map Your Columns</div>
-              <p style={{ fontSize: FS.xs, color: C.textSecondary, marginBottom: SP.xl }}>We auto-detected {csvHeaders.length} columns. Verify the mapping below.</p>
+            <div>
+              <StepLabel n="02" accent>Map Columns</StepLabel>
+              <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.lg}px` }}>We auto-detected {csvHeaders.length} columns. Verify the mapping below.</p>
+              <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xl }}>
 
               <div style={{ marginBottom: SP.lg }}>
                 <label style={{ fontSize: FS.xs, color: C.textSecondary }}>Run Name (optional)</label>
@@ -195,32 +228,41 @@ export default function BacktestPage() {
               <button onClick={runBacktest} style={{ marginTop: SP.xl, padding: '12px 32px', borderRadius: R.control, background: C.accent, color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: FS.base, fontWeight: FW.medium }}>
                 Run Backtest
               </button>
+              </div>
             </div>
           )}
 
           {/* Step 3: Running */}
           {status === 'running' && (
-            <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center' }}>
+            <div>
+              <StepLabel n="03" accent>Score</StepLabel>
+              <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center', marginTop: SP.md }}>
               <div style={{ fontSize: FS.sm, color: C.accent, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: SP.lg }}>Scoring in progress</div>
               <div style={{ width: 240, height: 2, background: C.border, borderRadius: 2, overflow: 'hidden', margin: '0 auto' }}>
                 <div style={{ height: '100%', background: C.accent, animation: 'backtestLoad 1.5s ease-in-out infinite', width: '40%' }} />
               </div>
               <style>{`@keyframes backtestLoad { 0%{transform:translateX(-100%)} 100%{transform:translateX(700%)} }`}</style>
+              </div>
             </div>
           )}
 
           {/* Step 4: Error */}
           {status === 'error' && (
-            <div style={{ background: `${C.riskHigh}0d`, border: `1px solid ${C.riskHigh}44`, borderRadius: R.card, padding: SP.xl }}>
-              <div style={{ fontSize: FS.base, fontWeight: FW.medium, color: C.riskHigh, marginBottom: SP.sm }}>Backtest Failed</div>
-              <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: 0 }}>{error}</p>
-              <button onClick={() => setStatus('mapping')} style={{ marginTop: SP.lg, padding: '8px 20px', borderRadius: R.control, background: C.surface, border: borderLine, color: C.textSecondary, cursor: 'pointer', fontSize: FS.xs }}>Try Again</button>
+            <div>
+              <StepLabel n="03" accent>Score</StepLabel>
+              <div style={{ background: `${C.riskHigh}0d`, border: `1px solid ${C.riskHigh}44`, borderRadius: R.card, padding: SP.xl, marginTop: SP.md }}>
+                <div style={{ fontSize: FS.base, fontWeight: FW.medium, color: C.riskHigh, marginBottom: SP.sm }}>Backtest Failed</div>
+                <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: 0 }}>{error}</p>
+                <button onClick={() => setStatus('mapping')} style={{ marginTop: SP.lg, padding: '8px 20px', borderRadius: R.control, background: C.surface, border: borderLine, color: C.textSecondary, cursor: 'pointer', fontSize: FS.xs }}>Try Again</button>
+              </div>
             </div>
           )}
 
           {/* Step 5: Results */}
           {status === 'completed' && result && (
             <div>
+              <StepLabel n="04" accent>Results</StepLabel>
+              <div style={{ marginTop: SP.md }} />
               {/* Summary — the headline moment, Tier-3 weight */}
               <div style={{ background: `${C.riskLow}0d`, border: `1px solid ${C.riskLow}44`, borderRadius: R.card, padding: `${SP.xl}px ${SP.xxl}px`, marginBottom: SP.xl }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: SP.sm, marginBottom: SP.md }}>
