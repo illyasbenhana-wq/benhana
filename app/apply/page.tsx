@@ -84,6 +84,17 @@ export default function ApplyPage() {
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }))
 
+  // Live count of alternative-data signals actually recorded so far —
+  // makes the intake feel like an evidence dossier being assembled, not
+  // a blind multi-step form. Purely derived from existing field state,
+  // no new data or logic.
+  const SIGNAL_FIELDS: (keyof typeof form)[] = [
+    'full_name', 'monthly_income', 'employment_type', 'rent_months_paid',
+    'rent_monthly_amount', 'gig_monthly_avg', 'savings_amount', 'loan_amount', 'loan_purpose',
+  ]
+  const signalsRecorded = SIGNAL_FIELDS.filter(k => { const v = form[k]; return Array.isArray(v) ? v.length > 0 : !!v }).length
+    + (form.gig_platforms.length > 0 ? 1 : 0)
+
   const toggleGig = (p: string) => {
     set('gig_platforms', form.gig_platforms.includes(p)
       ? form.gig_platforms.filter(x => x !== p)
@@ -155,10 +166,18 @@ export default function ApplyPage() {
             <Logo size="md" />
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginBottom: SP.xl }}>
-            {[1, 2, 3].map(i => (
-              <div key={i} className="progress-dot" style={{ background: i <= step ? C.accent : C.border, width: i === step ? 24 : 8 }} />
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: SP.xl }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="progress-dot" style={{ background: i <= step ? C.accent : C.border, width: i === step ? 24 : 8 }} />
+              ))}
+            </div>
+            {/* Evidence-dossier framing — this intake is building the case
+                the EthoScore engine will assess, not just collecting form
+                fields for their own sake. */}
+            {signalsRecorded > 0 && (
+              <span style={{ fontFamily: F.mono, fontSize: FS.xs, color: C.textMuted }}>{signalsRecorded} of 10 signals recorded</span>
+            )}
           </div>
 
           <div style={{ marginBottom: SP.sm }}>

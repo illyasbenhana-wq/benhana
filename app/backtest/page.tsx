@@ -183,10 +183,33 @@ export default function BacktestPage() {
           {status === 'idle' && (
             <div>
               <StepLabel n="01" accent>Upload</StepLabel>
-              <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: SP.xxl, textAlign: 'center', marginTop: SP.md }}>
-                <div style={{ fontSize: FS.sm, color: C.textSecondary, marginBottom: SP.lg }}>Upload a CSV file with historical loan data</div>
-                <input type="file" accept=".csv" onChange={handleFileUpload} style={{ color: C.textSecondary, fontSize: FS.sm }} />
-                <div style={{ fontSize: FS.xs, color: C.textMuted, marginTop: SP.md }}>Expected: one row per loan, with columns for borrower info, loan details, and repayment outcome</div>
+              <p style={{ fontSize: FS.sm, color: C.textSecondary, margin: `8px 0 ${SP.xl}px`, maxWidth: 480 }}>
+                Upload a historical portfolio to validate EthoScore v2 against real outcomes — the engine scores every row exactly as it would a live application, then measures precision and recall against what actually happened.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: SP.xl, alignItems: 'start' }}>
+                <div>
+                  <label htmlFor="backtest-csv-upload" style={{
+                    display: 'block', border: `1px dashed ${C.border}`, borderRadius: R.card,
+                    padding: `${SP.xxl}px ${SP.xl}px`, textAlign: 'center', cursor: 'pointer',
+                  }}>
+                    <div style={{ fontSize: FS.sm, color: C.textSecondary, marginBottom: SP.md }}>Select a CSV file</div>
+                    <input id="backtest-csv-upload" type="file" accept=".csv" onChange={handleFileUpload} style={{ color: C.textSecondary, fontSize: FS.sm }} />
+                  </label>
+                </div>
+
+                {/* Technical instrument panel — same dark record surface as
+                    landing's API panel and Score's Audit section, reserved
+                    for the one "this is a serious analytical tool" moment
+                    on this page, rather than a generic form helper text. */}
+                <div style={{ background: C.textPrimary, borderRadius: R.control, padding: SP.lg }}>
+                  <div style={{ fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', fontSize: 10.5, color: 'rgba(226,232,240,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: SP.sm }}>Expected schema</div>
+                  <div style={{ fontFamily: F.mono, fontSize: 11, color: 'rgba(226,232,240,0.85)', lineHeight: 1.9 }}>
+                    <div>one row <span style={{ color: 'rgba(226,232,240,0.4)' }}>=</span> one historical loan</div>
+                    <div><span style={{ color: '#60A5FA' }}>required</span> borrower, loan, outcome fields</div>
+                    <div><span style={{ color: 'rgba(226,232,240,0.4)' }}>optional</span> employment, rent, gig, savings</div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
