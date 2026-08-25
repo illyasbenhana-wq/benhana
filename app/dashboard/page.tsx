@@ -214,6 +214,17 @@ function PanelCard({ title, subtitle, children, maxWidth }: { title: string; sub
   )
 }
 
+// Same numbered eyebrow device as Score/Case's StepLabel — kept local
+// here too (not shared cross-route elsewhere in the codebase either).
+function StepLabel({ n, children, accent }: { n: string; children: React.ReactNode; accent?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+      <span style={{ fontFamily: F.mono, fontVariantNumeric: 'tabular-nums', fontSize: FS.xs, color: C.textMuted }}>{n}</span>
+      <span style={{ fontFamily: F.sans, fontSize: FS.micro, fontWeight: FW.semibold, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent ? C.accent : C.textSecondary }}>{children}</span>
+    </div>
+  )
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -616,35 +627,63 @@ export default function DashboardPage() {
                 <Badge tone={activeCase.severity === 'critical' || activeCase.severity === 'high' ? 'high' : activeCase.severity === 'medium' ? 'medium' : 'low'}>{SEV_LABEL[activeCase.severity]}</Badge>{' '}
                 <Badge tone="neutral">{STATUS_LABEL[activeCase.status]}</Badge>
               </div>
-              <div style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.semibold, marginBottom: 6 }}>{activeCase.entity_name}</div>
+              <div style={{ fontFamily: F.sans, fontSize: 24, fontWeight: FW.semibold, marginBottom: 6 }}>
+                {activeCase.entity_name.split(' ').map((word, i) => i === 0
+                  ? <span key={i} style={{ fontFamily: F.display, fontStyle: 'italic', fontWeight: FW.medium }}>{word} </span>
+                  : word + ' ')}
+              </div>
               <p style={{ ...monoCss, fontSize: FS.xs, color: C.textMuted, margin: `0 0 ${SP.huge}px` }}>
                 {activeCase.case_type} · {activeCase.jurisdiction} · Opened {timeAgo(activeCase.opened_at)} · Exposure {fmtCurrency(activeCase.exposure_amount)} · SLA{' '}
                 <span style={{ color: slaColor(liveSLA(activeCase.sla_remaining_hours), activeCase.sla_hours) }}>{fmtSLA(liveSLA(activeCase.sla_remaining_hours))}</span>
               </p>
 
-              {/* Conclusion — card carrying the score device; header color
-                  tracks risk, so this stays custom rather than PanelCard */}
-              <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '22px 24px', marginBottom: SP.xl }}>
-                <p style={{ ...labelCss, color: riskColor(activeCase.risk_score), marginBottom: 10 }}>Case Risk Score</p>
-                <ScoreFigure value={activeCase.risk_score} max={100} color={riskColor(activeCase.risk_score)} bandLabel={SEV_LABEL[activeCase.severity]} size="lg" />
-              </div>
-
-              {/* Analysis — accent-rule editorial treatment inside a card */}
-              <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '22px 24px', marginBottom: SP.xl }}>
-                <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl }}>
-                  <p style={labelCss}>Analysis</p>
-                  <p style={{ margin: '8px 0 0', fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{activeCase.ai_summary}</p>
+              {/* 01 — Evidence, led first — same narrative order as Score
+                  (Evidence -> Analysis -> Conclusion -> Audit). */}
+              <div style={{ marginBottom: SP.xxxl }}>
+                <StepLabel n="01" accent>Evidence</StepLabel>
+                <div style={{ marginTop: SP.md }}>
+                  {activeCase.signals.map((s, i) => (
+                    <EvidenceRow key={i} label={s.name} score={s.score} color={riskColor(s.score)} rationale={s.rationale} />
+                  ))}
                 </div>
               </div>
 
-              <PanelCard title="Signal Breakdown" subtitle={`${activeCase.signals.length} signals contributed to this score.`}>
-                {activeCase.signals.map((s, i) => (
-                  <EvidenceRow key={i} label={s.name} score={s.score} color={riskColor(s.score)} rationale={s.rationale} />
-                ))}
-              </PanelCard>
+              {/* 02 — Analysis: accent-rule editorial treatment */}
+              <div style={{ marginBottom: SP.xxxl }}>
+                <StepLabel n="02" accent>Analysis</StepLabel>
+                <div style={{ borderLeft: `2px solid ${C.accent}`, paddingLeft: SP.xl, marginTop: SP.md }}>
+                  <p style={{ margin: 0, fontSize: FS.md, lineHeight: 1.75, color: C.textPrimary }}>{activeCase.ai_summary}</p>
+                </div>
+              </div>
+
+              {/* 03 — Conclusion: the score, earned after the evidence above */}
+              <div style={{ marginBottom: SP.xxxl }}>
+                <StepLabel n="03" accent>Conclusion</StepLabel>
+                <div style={{ marginTop: SP.md }}>
+                  <ScoreFigure value={activeCase.risk_score} max={100} color={riskColor(activeCase.risk_score)} bandLabel={SEV_LABEL[activeCase.severity]} size="lg" />
+                </div>
+              </div>
+
+              {/* 04 — Audit: same dark technical-record panel as Score's
+                  Audit section, using data this page already has. */}
+              <div style={{ marginBottom: SP.xl }}>
+                <StepLabel n="04">Audit</StepLabel>
+                <div style={{ background: C.textPrimary, borderRadius: R.control, padding: SP.xl, marginTop: SP.md }}>
+                  <div style={{ ...monoCss, fontSize: 11.5, color: 'rgba(226,232,240,0.85)', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: SP.md }}>
+                    <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>case: </span>{activeCase.case_ref}</div>
+                    <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>analyst: </span>{activeCase.assigned_to}</div>
+                    <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>opened: </span>{timeAgo(activeCase.opened_at)}</div>
+                    <div><span style={{ color: 'rgba(226,232,240,0.5)' }}>exposure: </span>{fmtCurrency(activeCase.exposure_amount)}</div>
+                  </div>
+                  <div style={{ marginTop: SP.md, paddingTop: SP.md, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: SEV_COLOR[activeCase.severity], flexShrink: 0 }} />
+                    <span style={{ fontSize: FS.sm, color: SEV_COLOR[activeCase.severity], fontWeight: FW.semibold }}>{SEV_LABEL[activeCase.severity].toUpperCase()} · {STATUS_LABEL[activeCase.status].toUpperCase()}</span>
+                  </div>
+                </div>
+              </div>
 
               {(activeCase.status === 'open' || activeCase.status === 'pending_info') && (
-                <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '22px 24px' }}>
+                <div>
                   <p style={labelCss}>Analyst Actions</p>
                   <div style={{ display: 'flex', gap: SP.md, marginTop: SP.md }}>
                     <button disabled={acting} onClick={() => action(activeCase.id, 'escalate')} style={{ flex: 1, padding: '13px', borderRadius: R.control, border: `1px solid ${C.riskHigh}55`, background: 'transparent', color: C.riskHigh, cursor: 'pointer', fontFamily: F.sans, fontSize: FS.base, fontWeight: FW.medium }}>Escalate</button>
