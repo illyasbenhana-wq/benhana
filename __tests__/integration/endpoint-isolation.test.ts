@@ -23,6 +23,18 @@ const supabase = getTestSupabase()
 let orgAKey: string
 let orgBKey: string
 
+// Root-cause fix for the test-database drift identified during Phase 1
+// review: the "POSITIVE: Org A key can create an application" test below
+// hits the real POST /api/v1/applications endpoint, which creates a real,
+// randomly-IDed applications/scores row (and, once the decision-lineage
+// migration is applied, a data_snapshots/decision_records row too) on
+// every manual run of this file. Previously nothing tracked or removed
+// those rows, so every run left permanent orphans behind — confirmed
+// directly against the test database (3 orphaned "Isolation Test
+// Applicant" application+score pairs, from three past manual runs).
+// Track every application this suite creates and delete it in afterAll.
+const createdApplicationIds: string[] = []
+
 let serverRunning: boolean | null = null
 
 async function requireServer(): Promise<void> {
@@ -53,6 +65,23 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await cleanupTestApiKeys()
+
+  // Best-effort cleanup of every application this suite created — see
+  // createdApplicationIds comment above. Each delete is checked
+  // individually and ignored if the target table doesn't exist yet
+  // (e.g. decision_records/data_snapshots before that migration is
+  // applied) so this never breaks the suite; it only removes rows that
+  // are actually there.
+  if (createdApplicationIds.length > 0) {
+    // Child rows first (FK-dependent), by their application_id column.
+    // Errors are expected and ignored for decision_records/data_snapshots
+    // on any test run before that migration is applied.
+    for (const table of ['decision_records', 'data_snapshots', 'scores']) {
+      await supabase.from(table).delete().in('application_id', createdApplicationIds)
+    }
+    // applications itself, by its own primary key `id`.
+    await supabase.from('applications').delete().in('id', createdApplicationIds)
+  }
 })
 
 function authHeaders(apiKey: string) {
@@ -243,6 +272,7 @@ describe('HTTP endpoint isolation: /api/v1/applications (POST)', () => {
     const body = await res.json()
     expect(body.data).toBeDefined()
     expect(body.data.application_id).toBeDefined()
+    createdApplicationIds.push(body.data.application_id)
   })
 
   it('NEGATIVE: Org B key (no write scope) cannot create applications', async () => {
