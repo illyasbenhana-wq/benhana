@@ -175,17 +175,6 @@ export async function POST(req: NextRequest) {
       log.warn('EthoScore v2 computation failed (non-fatal)', { route: 'score', error: err instanceof Error ? err.message : String(err) })
     }
 
-    // Step 5: Save audit record (EU AI Act compliance)
-    await recordAuditEvent({
-      applicationId,
-      inputSnapshot: form as unknown as Record<string, unknown>,
-      modelVersion: result.model_version,
-      promptVersion,
-      aiProvider,
-      rawPrompt,
-      rawResponse,
-    })
-
     // Step 6: Save final score + decision to Supabase
     let scoreId = 'demo'
     if (supabase) {
@@ -246,6 +235,35 @@ export async function POST(req: NextRequest) {
       if (calibrationColumnsMissing) {
         alertCalibrationColumnsMissing({ scoreId, errorCode: calibrationErrorCode })
       }
+
+      // Decision-lineage record (Phase 1 of the decision-intelligence data
+      // layer): the durable, historically-stable snapshot of what was known
+      // and decided at scoring time. Best-effort — recordAuditEvent() never
+      // throws, so a failure here can never lose the score we already saved.
+      await recordAuditEvent({
+        applicationId,
+        orgId,
+        source: 'apply_flow',
+        inputSnapshot: form as unknown as Record<string, unknown>,
+        scoreId,
+        scoreVersion: v2 ? 'v2' : 'v1',
+        modelVersion: result.model_version,
+        promptVersion,
+        modelRequested,
+        modelResponded,
+        aiProvider,
+        rawPrompt,
+        rawResponse,
+        ethoScore: result.etho_score,
+        riskBand: result.risk_band,
+        recommendation: result.recommendation,
+        signals: result.factors,
+        scorePillars: v2?.pillars ?? null,
+        decision: decision.requiresHumanReview ? 'review' : decision.approved ? 'approved' : 'declined',
+        reasonCodes: decision.reasonCodes,
+        confidence: decision.confidence,
+        requiresHumanReview: decision.requiresHumanReview,
+      })
 
       // Workflow transition: pending → scored
       const txResult = await transition({

@@ -75,3 +75,11 @@ export function alertEthoscoreAssessedEventFailed(ctx: { scoreId: string; error?
     error: ctx.error,
   })
 }
+
+export function alertDecisionRecordPersistFailed(ctx: { applicationId: string; error?: string }) {
+  warnToSentry('decision_records not persisted — migration not applied, or write failed?', {
+    table: 'decision_records',
+    applicationId: ctx.applicationId,
+    error: ctx.error,
+  })
+}

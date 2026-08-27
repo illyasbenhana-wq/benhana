@@ -101,17 +101,6 @@ export async function POST(req: NextRequest) {
       riskFactors: result.factors,
     })
 
-    // 4. Audit record
-    await recordAuditEvent({
-      applicationId: application.id,
-      inputSnapshot: form as unknown as Record<string, unknown>,
-      modelVersion: result.model_version,
-      promptVersion: 'v1',
-      aiProvider,
-      rawPrompt,
-      rawResponse,
-    })
-
     // 5. Save score
     const { data: score, error: scoreErr } = await supabase
       .from('scores')
@@ -133,6 +122,35 @@ export async function POST(req: NextRequest) {
     if (scoreErr) {
       return NextResponse.json({ error: { code: 'SCORE_SAVE_FAILED', message: scoreErr.message } }, { status: 500 })
     }
+
+    // Decision-lineage record (Phase 1) — best-effort, never throws, never
+    // blocks the response. This route doesn't compute EthoScore v2 pillars,
+    // so scoreVersion is always 'v1' and scorePillars is always null here,
+    // matching this route's existing v1-only behavior.
+    await recordAuditEvent({
+      applicationId: application.id,
+      orgId: auth.context.orgId,
+      source: 'partner_api',
+      inputSnapshot: form as unknown as Record<string, unknown>,
+      scoreId: score.id,
+      scoreVersion: 'v1',
+      modelVersion: result.model_version,
+      promptVersion: 'v1',
+      modelRequested: null,
+      modelResponded: null,
+      aiProvider,
+      rawPrompt,
+      rawResponse,
+      ethoScore: result.etho_score,
+      riskBand: result.risk_band,
+      recommendation: result.recommendation,
+      signals: result.factors,
+      scorePillars: null,
+      decision: decision.requiresHumanReview ? 'review' : decision.approved ? 'approved' : 'declined',
+      reasonCodes: decision.reasonCodes,
+      confidence: decision.confidence,
+      requiresHumanReview: decision.requiresHumanReview,
+    })
 
     // 6. Workflow transition
     await transition({

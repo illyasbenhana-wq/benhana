@@ -5,7 +5,7 @@ vi.mock('@sentry/nextjs', () => ({
   captureMessage: mockCaptureMessage,
 }))
 
-import { log, alertCalibrationColumnsMissing, alertEthoscoreAssessedEventFailed } from '../lib/logger'
+import { log, alertCalibrationColumnsMissing, alertEthoscoreAssessedEventFailed, alertDecisionRecordPersistFailed } from '../lib/logger'
 
 describe('log.warnToSentry / degraded-path alerts', () => {
   const originalDsn = process.env.SENTRY_DSN
@@ -71,6 +71,22 @@ describe('log.warnToSentry / degraded-path alerts', () => {
         eventType: 'ethoscore_assessed',
         scoreId: 'score-456',
         error: 'Failed to log workflow event: some db error',
+      },
+    })
+  })
+
+  it('alertDecisionRecordPersistFailed fires a warning-level Sentry event scoped to applicationId/error/table — no application data', () => {
+    alertDecisionRecordPersistFailed({ applicationId: 'app-789', error: 'relation "decision_records" does not exist' })
+
+    expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
+    const [message, options] = mockCaptureMessage.mock.calls[0]
+    expect(message).toMatch(/decision_records not persisted/i)
+    expect(options).toEqual({
+      level: 'warning',
+      extra: {
+        table: 'decision_records',
+        applicationId: 'app-789',
+        error: 'relation "decision_records" does not exist',
       },
     })
   })
