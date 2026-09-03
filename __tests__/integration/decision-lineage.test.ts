@@ -285,4 +285,61 @@ describe('Decision lineage (Phase 1) integration', () => {
       expect(data!.id).toBe(id)
     })
   })
+
+  // ─── Core tenant tables: restricted-role (anon key) enforcement ──────────
+  // Prior audits classified this as "RLS presence VERIFIED, restricted-role
+  // ENFORCEMENT not run" for the original applications/scores/cases tables
+  // (unlike data_snapshots/decision_records above, which already had this
+  // coverage). This closes that gap using the same mechanism already
+  // established in this file — no new test infrastructure. EthoFi's own
+  // application code never queries these tables with anything but the
+  // service-role key (see app/api/score/route.ts's getSupabase()), so
+  // there is no separate "logged-in tenant user" JWT/auth mechanism in
+  // this repository to test a positive-access (authenticated, correct
+  // tenant) case with — only the anon-key negative case is verifiable
+  // with what actually exists here. That is reported explicitly, not
+  // silently treated as fully covered.
+  describe('core tenant tables: anon key is blocked (RLS enforcement, not just presence)', () => {
+    it('anon key cannot read applications', async () => {
+      const anon = getTestAnonClient()
+      const { data, error } = await anon.from('applications').select('id').limit(1)
+      expect(error !== null || (data ?? []).length === 0).toBe(true)
+    })
+
+    it('anon key cannot read scores', async () => {
+      const anon = getTestAnonClient()
+      const { data, error } = await anon.from('scores').select('id').limit(1)
+      expect(error !== null || (data ?? []).length === 0).toBe(true)
+    })
+
+    it('anon key cannot read cases', async () => {
+      const anon = getTestAnonClient()
+      const { data, error } = await anon.from('cases').select('id').limit(1)
+      expect(error !== null || (data ?? []).length === 0).toBe(true)
+    })
+
+    it('anon key cannot read organizations', async () => {
+      const anon = getTestAnonClient()
+      const { data, error } = await anon.from('organizations').select('id').limit(1)
+      expect(error !== null || (data ?? []).length === 0).toBe(true)
+    })
+
+    it('anon key cannot insert into applications', async () => {
+      const anon = getTestAnonClient()
+      const { error } = await anon.from('applications').insert({
+        organization_id: ORG_A_ID, status: 'pending', full_name: 'RLS Probe — should be rejected',
+        email: 'rls-probe@example.com', monthly_income: 1, employment_type: 'employed',
+        months_at_current_job: 1, rent_months_paid: 0, rent_monthly_amount: 0, gig_platforms: [],
+        gig_monthly_avg: 0, savings_amount: 0, loan_amount: 1, loan_purpose: 'test', loan_term_months: 1,
+        consent_data_use: true, consent_ai_decision: true,
+      })
+      expect(error).not.toBeNull()
+    })
+
+    it('service-role key is completely unaffected by RLS on applications (sanity check)', async () => {
+      const { data, error } = await supabase.from('applications').select('id').eq('id', ORG_A_APP_IDS[0]).single()
+      expect(error).toBeNull()
+      expect(data!.id).toBe(ORG_A_APP_IDS[0])
+    })
+  })
 })

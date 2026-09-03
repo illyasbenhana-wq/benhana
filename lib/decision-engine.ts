@@ -1,5 +1,17 @@
 import { RiskBand, ScoreFactor } from '@/types'
 
+// Stable identifier for the exact threshold rule makeDecision() below
+// implements. Persisted per-decision (decision_records.decision_rule_id,
+// resolved against the decision_rules table by this string — see
+// supabase/migrations/20260903000002_atomic_decision_package.sql) so a
+// historical decision can be explained without depending on today's
+// source code matching what actually ran at decision time. If these
+// thresholds ever change, this constant MUST change too, and a new
+// decision_rules row must be added (never edit the existing one — see
+// that migration's own "insert-only, never renamed" convention, the
+// same principle already applied to decision_records itself).
+export const DECISION_RULE_VERSION = 'threshold-70-50-v1'
+
 export interface DecisionInput {
   ethoScore: number
   riskBand: RiskBand

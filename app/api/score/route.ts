@@ -2,20 +2,44 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { scoreApplication, computeRiskBand, buildEthoscoreAssessedPayload } from '../../../lib/scoring-engine'
 import { extractRiskSignals } from '../../../lib/risk-factors'
-import { makeDecision } from '../../../lib/decision-engine'
-import { recordAuditEvent } from '../../../lib/audit-engine'
+import { makeDecision, DECISION_RULE_VERSION } from '../../../lib/decision-engine'
+import { commitDecisionPackage } from '../../../lib/audit-engine'
 import { resolveApiContext } from '../../../lib/api-guard'
 import { getDefaultOrgId } from '../../../lib/org-context'
 import { transition, recordEvent } from '../../../lib/workflow-engine'
 import { computeEthoScoreV2 } from '../../../lib/ethoscore-v2'
+import { PROMPT_VERSION as FABLE5_PROMPT_VERSION } from '../../../lib/prompts/ethoscore-llm-v2'
 import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../types'
-import { log, alertCalibrationColumnsMissing, alertEthoscoreAssessedEventFailed } from '../../../lib/logger'
+import { log, alertEthoscoreAssessedEventFailed, alertScoringRequestFailed } from '../../../lib/logger'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_KEY
   if (!url || !key) return null
   return createClient(url, key)
+}
+
+// Marks an application explicitly 'failed' with a reason, instead of
+// leaving it silently at 'pending'. Itself best-effort/non-throwing —
+// this is diagnostic bookkeeping for an already-failing request; if it
+// can't be written, the original failure is still what gets returned to
+// the caller, not this one.
+async function markApplicationFailed(
+  supabase: any,
+  applicationId: string,
+  reason: string
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('applications')
+      .update({ status: 'failed', failure_reason: reason.slice(0, 2000) })
+      .eq('id', applicationId)
+    if (error) {
+      log.error('failed to mark application as failed', { route: 'score', applicationId, error: error.message })
+    }
+  } catch (err) {
+    log.error('markApplicationFailed threw', { route: 'score', applicationId, error: err instanceof Error ? err.message : String(err) })
+  }
 }
 
 // Mock score for when ANTHROPIC_API_KEY is not available
@@ -140,14 +164,35 @@ export async function POST(req: NextRequest) {
       applicationId = application.id
     }
 
-    // Step 2: Call AI scoring (Claude) or mock fallback
+    // Step 2: Call AI scoring (Claude) or mock fallback.
+    // A failure here (Anthropic error, malformed response exhausting
+    // retry/fallback, model/prompt governance mismatch) previously left
+    // `applicationId` at status: 'pending' forever, with no explanation
+    // anywhere in the database — an orphaned record indistinguishable
+    // from "still being scored." Now marked explicitly, so an operator
+    // (or a future automated check) can find and explain it, instead of
+    // it being silently invisible. See Production Readiness & Decision
+    // Integrity Audit, §6/§11/P0.
     let scoreData: any
     const aiProvider = process.env.ANTHROPIC_API_KEY ? 'claude' : 'fallback'
-    if (process.env.ANTHROPIC_API_KEY) {
-      scoreData = await scoreApplication(form)
-    } else {
-      log.warn('ANTHROPIC_API_KEY not set, using mock score', { route: 'score' })
-      scoreData = getMockScore()
+    try {
+      if (process.env.ANTHROPIC_API_KEY) {
+        scoreData = await scoreApplication(form)
+      } else {
+        log.warn('ANTHROPIC_API_KEY not set, using mock score', { route: 'score' })
+        scoreData = getMockScore()
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      log.error('scoring failed', { route: 'score', applicationId, error: errMsg })
+      if (supabase && applicationId !== 'demo') {
+        await markApplicationFailed(supabase, applicationId, `scoring: ${errMsg}`)
+      }
+      alertScoringRequestFailed({ applicationId, stage: 'scoring', error: errMsg })
+      return NextResponse.json(
+        { error: { code: 'SCORING_FAILED', message: 'Scoring failed and could not be completed.' }, application_id: applicationId },
+        { status: 502 }
+      )
     }
     const { result, rawPrompt, rawResponse, promptVersion, modelRequested, modelResponded, confidenceOverall, validationFallback } = scoreData
 
@@ -175,97 +220,77 @@ export async function POST(req: NextRequest) {
       log.warn('EthoScore v2 computation failed (non-fatal)', { route: 'score', error: err instanceof Error ? err.message : String(err) })
     }
 
-    // Step 6: Save final score + decision to Supabase
+    // Step 6: Atomically persist the complete Decision Package (scores +
+    // model_versions + data_snapshots + decision_records +
+    // provenance_records) in a single database transaction — see
+    // lib/audit-engine.ts's commitDecisionPackage() and
+    // supabase/migrations/20260903000002_atomic_decision_package.sql.
+    //
+    // Production Closure (P0): this used to be five separate, sequential
+    // writes where anything past the first could fail silently while the
+    // API still returned 200. Now it is one call. If it fails, NOTHING
+    // was persisted (the whole transaction rolled back — no orphaned
+    // `scores` row, no partial lineage) and the request fails loudly: the
+    // application is marked 'failed' and the caller gets an explicit
+    // error, never a misleading success.
     let scoreId = 'demo'
     if (supabase) {
-      const baseScoreFields = {
-        organization_id: orgId,
-        application_id: applicationId,
-        etho_score: result.etho_score,
-        risk_band: result.risk_band,
-        recommendation: decision.requiresHumanReview ? 'review' : decision.approved ? 'approve' : 'decline',
-        ai_summary: result.ai_summary,
-        factors: result.factors,
-        model_version: result.model_version,
-        raw_prompt: rawPrompt,
-        raw_response: rawResponse,
-        score_version: v2 ? 'v2' : 'v1',
-        score_pillars: v2?.pillars ?? null,
-      }
-      const calibrationFields = {
-        prompt_version: promptVersion,
-        model_requested: modelRequested,
-        model_responded: modelResponded,
-        confidence_overall: confidenceOverall,
-      }
+      // score_version must describe which scoring approach actually
+      // produced result.etho_score (i.e. whether the LLM was called with
+      // the v2/fable5 prompt, whose response's own pillar breakdown
+      // mathematically explains the score), NOT merely "did the
+      // separate, always-run deterministic lib/ethoscore-v2.ts
+      // calculation succeed." Those are two unrelated engines (see
+      // CLAUDE.md, "Two unrelated v2 modules") whose outputs are
+      // deliberately never merged — score_pillars is always the
+      // deterministic engine's independent assessment.
+      const scoreVersion = promptVersion === FABLE5_PROMPT_VERSION ? 'v2' : 'v1'
+      const authoritativeRecommendation = decision.requiresHumanReview ? 'review' : decision.approved ? 'approve' : 'decline'
 
-      let { data: score, error: scoreError } = await supabase
-        .from('scores')
-        .insert({ ...baseScoreFields, ...calibrationFields })
-        .select()
-        .single()
+      const packageResult = await commitDecisionPackage(
+        {
+          applicationId,
+          orgId,
+          source: 'apply_flow',
+          inputSnapshot: form as unknown as Record<string, unknown>,
+          scoreVersion,
+          promptVersion,
+          modelRequested,
+          modelResponded,
+          modelVersionLabel: result.model_version,
+          rawPrompt,
+          rawResponse,
+          confidenceOverall,
+          ethoScore: result.etho_score,
+          riskBand: result.risk_band,
+          aiSummary: result.ai_summary,
+          factors: result.factors,
+          recommendation: authoritativeRecommendation,
+          scorePillars: v2?.pillars ?? null,
+          decision: decision.requiresHumanReview ? 'review' : decision.approved ? 'approved' : 'declined',
+          reasonCodes: decision.reasonCodes,
+          confidence: decision.confidence,
+          requiresHumanReview: decision.requiresHumanReview,
+        },
+        DECISION_RULE_VERSION
+      )
 
-      // 42703 = undefined_column (direct Postgres), PGRST204 = PostgREST
-      // schema-cache miss for an unknown column. Both mean
-      // supabase/migrations/20260702000000_add_ethoscore_v2_calibration_fields.sql
-      // hasn't been applied to this database yet — degrade gracefully and
-      // save the score without the new fields rather than losing it.
-      let calibrationColumnsMissing = false
-      let calibrationErrorCode: string | undefined
-      if (scoreError && (scoreError.code === '42703' || scoreError.code === 'PGRST204')) {
-        calibrationColumnsMissing = true
-        calibrationErrorCode = scoreError.code
-        log.warn('scores insert failed on calibration columns — migration not applied yet, retrying without them', {
-          route: 'score',
-          error: scoreError.message,
-        })
-        ;({ data: score, error: scoreError } = await supabase
-          .from('scores')
-          .insert(baseScoreFields)
-          .select()
-          .single())
-      }
-
-      if (scoreError) throw scoreError
-      scoreId = score.id
-
-      // This is NOT just a benign log — it's a silent EU AI Act traceability
-      // gap (the saved score has no prompt_version/model_responded), so it
-      // must surface somewhere a human will see it, not just server logs.
-      if (calibrationColumnsMissing) {
-        alertCalibrationColumnsMissing({ scoreId, errorCode: calibrationErrorCode })
+      if (packageResult.success === false) {
+        log.error('decision package commit failed — no score persisted', { route: 'score', applicationId, error: packageResult.error })
+        await markApplicationFailed(supabase, applicationId, `decision_package: ${packageResult.error}`)
+        alertScoringRequestFailed({ applicationId, stage: 'decision_package', error: packageResult.error })
+        return NextResponse.json(
+          { error: { code: 'DECISION_PACKAGE_FAILED', message: 'Scoring succeeded but the decision could not be durably persisted. No score was recorded.' }, application_id: applicationId },
+          { status: 502 }
+        )
       }
 
-      // Decision-lineage record (Phase 1 of the decision-intelligence data
-      // layer): the durable, historically-stable snapshot of what was known
-      // and decided at scoring time. Best-effort — recordAuditEvent() never
-      // throws, so a failure here can never lose the score we already saved.
-      await recordAuditEvent({
-        applicationId,
-        orgId,
-        source: 'apply_flow',
-        inputSnapshot: form as unknown as Record<string, unknown>,
-        scoreId,
-        scoreVersion: v2 ? 'v2' : 'v1',
-        modelVersion: result.model_version,
-        promptVersion,
-        modelRequested,
-        modelResponded,
-        aiProvider,
-        rawPrompt,
-        rawResponse,
-        ethoScore: result.etho_score,
-        riskBand: result.risk_band,
-        recommendation: result.recommendation,
-        signals: result.factors,
-        scorePillars: v2?.pillars ?? null,
-        decision: decision.requiresHumanReview ? 'review' : decision.approved ? 'approved' : 'declined',
-        reasonCodes: decision.reasonCodes,
-        confidence: decision.confidence,
-        requiresHumanReview: decision.requiresHumanReview,
-      })
+      scoreId = packageResult.scoreId
 
-      // Workflow transition: pending → scored
+      // Workflow transition: pending → scored. Downstream of the
+      // durable commit above, as required — a failure here can never
+      // cause a missing score/lineage, only a missing workflow-state
+      // side effect (already best-effort, unchanged from before).
       const txResult = await transition({
         entityType: 'application',
         entityId: applicationId,
@@ -322,7 +347,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Step 7: Return response
+    // Step 7: Return response.
+    //
+    // Production Closure (P2): `ai_assessment.recommendation` is the
+    // model's own self-declared recommendation — it is NOT the EthoFi
+    // decision and can disagree with it. `decision` (below, and its
+    // alias `ethosfi_decision`) is the only authoritative output,
+    // produced exclusively by lib/decision-engine.ts's makeDecision().
+    // Both fields are kept — the model's own reasoning is useful context
+    // — but `model_assessment`/`ethosfi_decision` make the distinction
+    // explicit and unambiguous for any new integration, without removing
+    // the original field names existing consumers already read.
     return NextResponse.json({
       application_id: applicationId,
       score_id: scoreId,
@@ -334,6 +369,16 @@ export async function POST(req: NextRequest) {
         summary: result.ai_summary,
         factors: result.factors,
         model_version: result.model_version,
+      },
+      // Explicit, unambiguous alias of ai_assessment — this is model
+      // output, NOT the EthoFi decision.
+      model_assessment: {
+        is_authoritative: false,
+        score: result.etho_score,
+        risk_band: result.risk_band,
+        recommendation: result.recommendation,
+        summary: result.ai_summary,
+        factors: result.factors,
       },
       structured_score: v2 ? {
         total: v2.total,
@@ -348,6 +393,17 @@ export async function POST(req: NextRequest) {
       factors: result.factors,
       model_version: result.model_version,
       decision: {
+        approved: decision.approved,
+        confidence: decision.confidence,
+        requires_human_review: decision.requiresHumanReview,
+        reason_codes: decision.reasonCodes,
+      },
+      // Explicit, unambiguous alias of `decision` — this, and only this,
+      // is the actual EthoFi decision (lib/decision-engine.ts's
+      // makeDecision(), rule version DECISION_RULE_VERSION).
+      ethosfi_decision: {
+        is_authoritative: true,
+        decision_rule_version: DECISION_RULE_VERSION,
         approved: decision.approved,
         confidence: decision.confidence,
         requires_human_review: decision.requiresHumanReview,

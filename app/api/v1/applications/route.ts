@@ -3,10 +3,11 @@ import { createClient } from '@supabase/supabase-js'
 import { requirePartnerAuth } from '../../../../lib/partner-auth'
 import { scoreApplication, computeRiskBand } from '../../../../lib/scoring-engine'
 import { extractRiskSignals } from '../../../../lib/risk-factors'
-import { makeDecision } from '../../../../lib/decision-engine'
-import { recordAuditEvent } from '../../../../lib/audit-engine'
+import { makeDecision, DECISION_RULE_VERSION } from '../../../../lib/decision-engine'
+import { commitDecisionPackage } from '../../../../lib/audit-engine'
 import { transition } from '../../../../lib/workflow-engine'
 import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../../types'
+import { log, alertScoringRequestFailed } from '../../../../lib/logger'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -80,12 +81,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'INSERT_FAILED', message: appErr?.message ?? 'Failed to create application' } }, { status: 500 })
     }
 
-    // 2. AI scoring
+    // 2. AI scoring. A failure here previously left `application` at
+    // status: 'pending' forever with no explanation — now marked
+    // explicitly 'failed' (see app/api/score/route.ts's markApplicationFailed
+    // for the internal route's identical fix).
+    let scoreData: any
     const aiProvider = process.env.ANTHROPIC_API_KEY ? 'claude' : 'fallback'
-    const scoreData = process.env.ANTHROPIC_API_KEY
-      ? await scoreApplication(form)
-      : getMockScore()
+    try {
+      scoreData = process.env.ANTHROPIC_API_KEY
+        ? await scoreApplication(form)
+        : getMockScore()
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      log.error('v1 scoring failed', { route: 'v1/applications', applicationId: application.id, error: errMsg })
+      await supabase.from('applications').update({ status: 'failed', failure_reason: `scoring: ${errMsg}`.slice(0, 2000) }).eq('id', application.id)
+      alertScoringRequestFailed({ applicationId: application.id, stage: 'scoring', error: errMsg })
+      return NextResponse.json(
+        { error: { code: 'SCORING_FAILED', message: 'Scoring failed and could not be completed.' } },
+        { status: 502 }
+      )
+    }
     const { result, rawPrompt, rawResponse } = scoreData
+    const promptVersion: string = scoreData.promptVersion ?? 'v1'
+    const modelRequested: string | null = scoreData.modelRequested ?? null
+    const modelResponded: string | null = scoreData.modelResponded ?? null
+    const confidenceOverall: string | null = scoreData.confidenceOverall ?? null
 
     // 3. Risk signals + decision
     const riskSignals = extractRiskSignals({
@@ -101,58 +121,54 @@ export async function POST(req: NextRequest) {
       riskFactors: result.factors,
     })
 
-    // 5. Save score
-    const { data: score, error: scoreErr } = await supabase
-      .from('scores')
-      .insert({
-        organization_id: auth.context.orgId,
-        application_id: application.id,
-        etho_score: result.etho_score,
-        risk_band: result.risk_band,
-        recommendation: decision.requiresHumanReview ? 'review' : decision.approved ? 'approve' : 'decline',
-        ai_summary: result.ai_summary,
+    // 5. Atomically persist the complete Decision Package. Same
+    // guarantee as app/api/score/route.ts: either everything (scores +
+    // model_versions + data_snapshots + decision_records +
+    // provenance_records) commits together, or nothing does, and the
+    // request fails loudly instead of returning a score with silently
+    // missing evidence. This route doesn't compute EthoScore v2 pillars,
+    // so scoreVersion is always 'v1' and scorePillars is always null
+    // here, matching this route's existing v1-only behavior.
+    const authoritativeRecommendation = decision.requiresHumanReview ? 'review' : decision.approved ? 'approve' : 'decline'
+    const packageResult = await commitDecisionPackage(
+      {
+        applicationId: application.id,
+        orgId: auth.context.orgId,
+        source: 'partner_api',
+        inputSnapshot: form as unknown as Record<string, unknown>,
+        scoreVersion: 'v1',
+        promptVersion,
+        modelRequested,
+        modelResponded,
+        modelVersionLabel: result.model_version,
+        rawPrompt,
+        rawResponse,
+        confidenceOverall,
+        ethoScore: result.etho_score,
+        riskBand: result.risk_band,
+        aiSummary: result.ai_summary,
         factors: result.factors,
-        model_version: result.model_version,
-        raw_prompt: rawPrompt,
-        raw_response: rawResponse,
-      })
-      .select()
-      .single()
+        recommendation: authoritativeRecommendation,
+        scorePillars: null,
+        decision: decision.requiresHumanReview ? 'review' : decision.approved ? 'approved' : 'declined',
+        reasonCodes: decision.reasonCodes,
+        confidence: decision.confidence,
+        requiresHumanReview: decision.requiresHumanReview,
+      },
+      DECISION_RULE_VERSION
+    )
 
-    if (scoreErr) {
-      return NextResponse.json({ error: { code: 'SCORE_SAVE_FAILED', message: scoreErr.message } }, { status: 500 })
+    if (packageResult.success === false) {
+      log.error('v1 decision package commit failed — no score persisted', { route: 'v1/applications', applicationId: application.id, error: packageResult.error })
+      await supabase.from('applications').update({ status: 'failed', failure_reason: `decision_package: ${packageResult.error}`.slice(0, 2000) }).eq('id', application.id)
+      alertScoringRequestFailed({ applicationId: application.id, stage: 'decision_package', error: packageResult.error })
+      return NextResponse.json(
+        { error: { code: 'DECISION_PACKAGE_FAILED', message: 'Scoring succeeded but the decision could not be durably persisted. No score was recorded.' } },
+        { status: 502 }
+      )
     }
 
-    // Decision-lineage record (Phase 1) — best-effort, never throws, never
-    // blocks the response. This route doesn't compute EthoScore v2 pillars,
-    // so scoreVersion is always 'v1' and scorePillars is always null here,
-    // matching this route's existing v1-only behavior.
-    await recordAuditEvent({
-      applicationId: application.id,
-      orgId: auth.context.orgId,
-      source: 'partner_api',
-      inputSnapshot: form as unknown as Record<string, unknown>,
-      scoreId: score.id,
-      scoreVersion: 'v1',
-      modelVersion: result.model_version,
-      promptVersion: 'v1',
-      modelRequested: null,
-      modelResponded: null,
-      aiProvider,
-      rawPrompt,
-      rawResponse,
-      ethoScore: result.etho_score,
-      riskBand: result.risk_band,
-      recommendation: result.recommendation,
-      signals: result.factors,
-      scorePillars: null,
-      decision: decision.requiresHumanReview ? 'review' : decision.approved ? 'approved' : 'declined',
-      reasonCodes: decision.reasonCodes,
-      confidence: decision.confidence,
-      requiresHumanReview: decision.requiresHumanReview,
-    })
-
-    // 6. Workflow transition
+    // 6. Workflow transition — downstream of the durable commit, best-effort.
     await transition({
       entityType: 'application',
       entityId: application.id,
@@ -160,14 +176,14 @@ export async function POST(req: NextRequest) {
       toState: 'scored',
       actorId: `api_key:${auth.context.keyId}`,
       orgId: auth.context.orgId,
-      metadata: { scoreId: score.id, ethoScore: result.etho_score, riskBand: result.risk_band },
+      metadata: { scoreId: packageResult.scoreId, ethoScore: result.etho_score, riskBand: result.risk_band },
     })
 
     // 7. Response
     return NextResponse.json({
       data: {
         application_id: application.id,
-        score_id: score.id,
+        score_id: packageResult.scoreId,
         etho_score: result.etho_score,
         risk_band: result.risk_band,
         recommendation: result.recommendation,
@@ -179,12 +195,24 @@ export async function POST(req: NextRequest) {
           requires_human_review: decision.requiresHumanReview,
           reason_codes: decision.reasonCodes,
         },
+        // Explicit, unambiguous alias — see app/api/score/route.ts's
+        // identical addition. `decision` above is model-adjacent but
+        // authoritative already in this route; ethosfi_decision makes
+        // that unambiguous for any new integration.
+        ethosfi_decision: {
+          is_authoritative: true,
+          decision_rule_version: DECISION_RULE_VERSION,
+          approved: decision.approved,
+          confidence: decision.confidence,
+          requires_human_review: decision.requiresHumanReview,
+          reason_codes: decision.reasonCodes,
+        },
         risk_signals: riskSignals,
       },
       meta: { model_version: result.model_version, api_version: 'v1' },
     })
   } catch (err) {
-    const { log } = require('../../../../lib/logger'); log.error('v1 scoring pipeline failed', { route: 'v1/applications', error: err instanceof Error ? err.message : String(err) })
+    log.error('v1 scoring pipeline failed', { route: 'v1/applications', error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: { code: 'INTERNAL_ERROR', message: 'Scoring failed' } }, { status: 500 })
   }
 }

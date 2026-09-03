@@ -239,6 +239,149 @@ describe('scoreApplication — request shape', () => {
   })
 })
 
+describe('scoreApplication — Fable5 output validation (P0-1/P0-2)', () => {
+  beforeEach(() => {
+    mockCreate.mockReset()
+  })
+
+  function fable5Json(overrides: Record<string, unknown> = {}, pillarOverrides: Record<string, unknown> = {}) {
+    const base = JSON.parse(VALID_FABLE5_JSON)
+    Object.assign(base, overrides)
+    Object.assign(base.pillars, pillarOverrides)
+    return JSON.stringify(base)
+  }
+
+  it('valid Fable5 response is accepted unchanged (no retry)', async () => {
+    mockCreate.mockResolvedValueOnce(textResponse('claude-fable-5', VALID_FABLE5_JSON))
+
+    const { result, validationFallback } = await scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })
+
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+    expect(validationFallback).toBe(false)
+    expect(result.etho_score).toBe(82)
+  })
+
+  it('rejects a response missing a pillar and exercises retry/fallback', async () => {
+    const missingPillar = JSON.parse(VALID_FABLE5_JSON)
+    delete missingPillar.pillars.esg_alignment
+    mockCreate
+      .mockResolvedValueOnce(textResponse('claude-fable-5', JSON.stringify(missingPillar)))
+      .mockResolvedValueOnce(textResponse('claude-fable-5', JSON.stringify(missingPillar)))
+      .mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_FABLE5_JSON))
+
+    const { result, validationFallback, modelResponded } = await scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })
+
+    expect(mockCreate).toHaveBeenCalledTimes(3)
+    expect(validationFallback).toBe(true)
+    expect(modelResponded).toBe(DEFAULT_MODEL)
+    expect(result.etho_score).toBe(82)
+  })
+
+  it('rejects a pillar score of the wrong type (string instead of number)', async () => {
+    const badType = fable5Json({}, { trust: { score: '270', confidence: 'high', rationale: 'Verified.', key_factors: [] } })
+    mockCreate
+      .mockResolvedValueOnce(textResponse('claude-fable-5', badType))
+      .mockResolvedValueOnce(textResponse('claude-fable-5', badType))
+      .mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_FABLE5_JSON))
+
+    const { validationFallback } = await scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })
+
+    expect(mockCreate).toHaveBeenCalledTimes(3)
+    expect(validationFallback).toBe(true)
+  })
+
+  it('rejects a pillar rationale of the wrong type (missing/empty string)', async () => {
+    const badRationale = fable5Json({}, { trust: { score: 270, confidence: 'high', rationale: '', key_factors: [] } })
+    mockCreate
+      .mockResolvedValueOnce(textResponse('claude-fable-5', badRationale))
+      .mockResolvedValueOnce(textResponse('claude-fable-5', badRationale))
+      .mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_FABLE5_JSON))
+
+    const { validationFallback } = await scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })
+
+    expect(mockCreate).toHaveBeenCalledTimes(3)
+    expect(validationFallback).toBe(true)
+  })
+
+  it('rejects a pillar score above its declared range', async () => {
+    // trust max is 300; sum would also be inconsistent, but the range
+    // check must fire regardless of sum consistency.
+    const aboveRange = fable5Json({ etho_score: 850 }, { trust: { score: 450, confidence: 'high', rationale: 'Verified.', key_factors: [] } })
+    mockCreate
+      .mockResolvedValueOnce(textResponse('claude-fable-5', aboveRange))
+      .mockResolvedValueOnce(textResponse('claude-fable-5', aboveRange))
+      .mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_FABLE5_JSON))
+
+    const { validationFallback } = await scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })
+
+    expect(mockCreate).toHaveBeenCalledTimes(3)
+    expect(validationFallback).toBe(true)
+  })
+
+  it('rejects a pillar score below its declared range (negative)', async () => {
+    const belowRange = fable5Json({ etho_score: 280 }, { trust: { score: -20, confidence: 'high', rationale: 'Verified.', key_factors: [] } })
+    mockCreate
+      .mockResolvedValueOnce(textResponse('claude-fable-5', belowRange))
+      .mockResolvedValueOnce(textResponse('claude-fable-5', belowRange))
+      .mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_FABLE5_JSON))
+
+    const { validationFallback } = await scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })
+
+    expect(mockCreate).toHaveBeenCalledTimes(3)
+    expect(validationFallback).toBe(true)
+  })
+
+  it('rejects an etho_score outside the declared 0-1000 range', async () => {
+    const outOfRange = fable5Json({ etho_score: 1400 })
+    mockCreate
+      .mockResolvedValueOnce(textResponse('claude-fable-5', outOfRange))
+      .mockResolvedValueOnce(textResponse('claude-fable-5', outOfRange))
+      .mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_FABLE5_JSON))
+
+    const { validationFallback } = await scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })
+
+    expect(mockCreate).toHaveBeenCalledTimes(3)
+    expect(validationFallback).toBe(true)
+  })
+
+  it('rejects a response whose pillar scores do not sum to etho_score', async () => {
+    // Valid individual pillars (270+280+180+90=820) but etho_score claims 500.
+    const inconsistentSum = fable5Json({ etho_score: 500 })
+    mockCreate
+      .mockResolvedValueOnce(textResponse('claude-fable-5', inconsistentSum))
+      .mockResolvedValueOnce(textResponse('claude-fable-5', inconsistentSum))
+      .mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_FABLE5_JSON))
+
+    const { validationFallback } = await scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })
+
+    expect(mockCreate).toHaveBeenCalledTimes(3)
+    expect(validationFallback).toBe(true)
+  })
+
+  it('throws if every attempt (including fallback) is invalid — same failure path as malformed JSON', async () => {
+    const missingPillar = JSON.parse(VALID_FABLE5_JSON)
+    delete missingPillar.pillars.esg_alignment
+    const bad = JSON.stringify(missingPillar)
+    mockCreate
+      .mockResolvedValueOnce(textResponse('claude-fable-5', bad))
+      .mockResolvedValueOnce(textResponse('claude-fable-5', bad))
+      .mockResolvedValueOnce(textResponse(DEFAULT_MODEL, bad))
+
+    await expect(scoreApplication(FORM, { promptVersion: FABLE5, model: 'claude-fable-5' })).rejects.toThrow(/esg_alignment/i)
+    expect(mockCreate).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not apply Fable5 shape validation to v1-prompt responses (v1 schema has no pillars object)', async () => {
+    mockCreate.mockResolvedValueOnce(textResponse(DEFAULT_MODEL, VALID_V1_JSON))
+
+    const { result, validationFallback } = await scoreApplication(FORM)
+
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+    expect(validationFallback).toBe(false)
+    expect(result.etho_score).toBe(72)
+  })
+})
+
 describe('buildEthoscoreAssessedPayload', () => {
   it('produces the expected metadata shape for the ethoscore_assessed event', () => {
     const payload = buildEthoscoreAssessedPayload({

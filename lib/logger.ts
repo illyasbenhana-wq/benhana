@@ -83,3 +83,18 @@ export function alertDecisionRecordPersistFailed(ctx: { applicationId: string; e
     error: ctx.error,
   })
 }
+
+// Production Closure observability: fired whenever /api/score marks an
+// application 'failed' instead of leaving it silently at 'pending' —
+// this is the operator-visible signal for orphan-application detection
+// (Production Readiness & Decision Integrity Audit, §11/P0). One alert
+// per failed request, not a background job — the goal is real-time
+// detection of scoring/persistence failures, not periodic reconciliation.
+export function alertScoringRequestFailed(ctx: { applicationId: string; stage: 'scoring' | 'decision_package'; error?: string }) {
+  warnToSentry('scoring request failed — application marked failed, no score/decision persisted', {
+    table: 'applications',
+    applicationId: ctx.applicationId,
+    stage: ctx.stage,
+    error: ctx.error,
+  })
+}

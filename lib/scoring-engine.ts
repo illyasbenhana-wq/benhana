@@ -30,6 +30,37 @@ export function getScoringModel(): string {
   return process.env.ETHOSCORE_MODEL || DEFAULT_MODEL
 }
 
+// Model/prompt governance guard (Production Closure, P1): ETHOSCORE_MODEL
+// alone can redirect production traffic to a different model with no
+// corresponding code change. That's fine for interchangeable models under
+// the same prompt contract (e.g. swapping Claude tiers under the v1
+// prompt — a legitimate, already-used calibration/ops pattern, left
+// untouched). It is NOT fine for a model whose response schema the
+// current promptVersion was never designed for — claude-fable-5 expects
+// the 2.0.0-fable5 prompt's 4-pillar JSON shape, not v1's. Only models
+// with a genuine schema-coupling requirement are listed here; every other
+// model remains freely substitutable, exactly as before.
+const MODEL_REQUIRES_PROMPT_VERSION: Partial<Record<string, PromptVersion>> = {
+  'claude-fable-5': PromptV2.PROMPT_VERSION,
+}
+
+export class ModelPromptMismatchError extends Error {
+  constructor(model: string, requiredPromptVersion: PromptVersion, actualPromptVersion: PromptVersion) {
+    super(
+      `Model "${model}" requires prompt version "${requiredPromptVersion}" but "${actualPromptVersion}" was resolved. ` +
+      `This model was requested (via options.model or ETHOSCORE_MODEL) without also requesting the matching prompt version — refusing to silently send a mismatched request.`
+    )
+    this.name = 'ModelPromptMismatchError'
+  }
+}
+
+function assertModelPromptCompatible(model: string, promptVersion: PromptVersion): void {
+  const required = MODEL_REQUIRES_PROMPT_VERSION[model]
+  if (required && required !== promptVersion) {
+    throw new ModelPromptMismatchError(model, required, promptVersion)
+  }
+}
+
 export interface ScoreApplicationOptions {
   promptVersion?: PromptVersion
   model?: string // overrides ETHOSCORE_MODEL, e.g. for a calibration run
@@ -116,22 +147,51 @@ function extractText(response: Anthropic.Message): string {
   return block?.type === 'text' ? block.text : ''
 }
 
-// Parse defensively: try, retry once with a corrective turn, then fall back
-// to DEFAULT_MODEL and flag the record. Never throws — callers always get a
+// A validator returns null when `parsed` is acceptable, or a short
+// human-readable reason string when it must be rejected. Rejection is
+// routed through the same retry/fallback path as a JSON.parse failure —
+// there is deliberately no separate error path for "parsed but wrong
+// shape" vs. "didn't parse at all".
+type ParseValidator = (parsed: any) => string | null
+
+function parseAndValidate(
+  rawResponse: string,
+  validate: ParseValidator
+): { ok: true; parsed: any } | { ok: false; error: string } {
+  let parsed: any
+  try {
+    parsed = JSON.parse(rawResponse)
+  } catch {
+    return { ok: false, error: 'response was not valid JSON' }
+  }
+  const validationError = validate(parsed)
+  if (validationError) {
+    return { ok: false, error: validationError }
+  }
+  return { ok: true, parsed }
+}
+
+// Parse and validate defensively: try, retry once with a corrective turn,
+// then fall back to DEFAULT_MODEL and flag the record. A response that
+// parses as JSON but fails `validate` (missing/malformed/out-of-range
+// fields) is treated exactly like a parse failure — same retry, same
+// fallback, same eventual throw — so there is one failure path, not two.
+// Never throws before the fallback is exhausted — callers always get a
 // usable (if degraded) result plus a flag so the record can be reviewed.
 async function requestAndParse(
   model: string,
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  validate: ParseValidator = () => null
 ): Promise<{ parsed: any; rawResponse: string; modelResponded: string; validationFallback: boolean }> {
   let response = await callClaude(model, systemPrompt, userPrompt)
   let rawResponse = extractText(response)
 
-  try {
-    return { parsed: JSON.parse(rawResponse), rawResponse, modelResponded: response.model, validationFallback: false }
-  } catch {
-    log.warn('EthoScore JSON parse failed, retrying once', { model })
+  let attempt = parseAndValidate(rawResponse, validate)
+  if (attempt.ok === true) {
+    return { parsed: attempt.parsed, rawResponse, modelResponded: response.model, validationFallback: false }
   }
+  log.warn('EthoScore response failed validation, retrying once', { model, reason: attempt.error })
 
   // Retry 1: same model, corrective follow-up turn
   response = await client.messages.create(buildMessageParams(model, systemPrompt, [
@@ -141,22 +201,79 @@ async function requestAndParse(
   ]))
   rawResponse = extractText(response)
 
-  try {
-    return { parsed: JSON.parse(rawResponse), rawResponse, modelResponded: response.model, validationFallback: false }
-  } catch {
-    log.warn('EthoScore JSON parse failed after retry, falling back to default model', { model, fallbackModel: DEFAULT_MODEL })
+  attempt = parseAndValidate(rawResponse, validate)
+  if (attempt.ok === true) {
+    return { parsed: attempt.parsed, rawResponse, modelResponded: response.model, validationFallback: false }
   }
+  log.warn('EthoScore response failed validation after retry, falling back to default model', { model, fallbackModel: DEFAULT_MODEL, reason: attempt.error })
 
   // Fallback: default model, flag the record for review
   response = await callClaude(DEFAULT_MODEL, systemPrompt, userPrompt)
   rawResponse = extractText(response)
 
-  try {
-    return { parsed: JSON.parse(rawResponse), rawResponse, modelResponded: response.model, validationFallback: true }
-  } catch (err) {
-    log.error('EthoScore JSON parse failed after fallback — giving up', { fallbackModel: DEFAULT_MODEL, error: err instanceof Error ? err.message : String(err) })
-    throw new Error('EthoScore assessment returned invalid JSON after retry and fallback')
+  attempt = parseAndValidate(rawResponse, validate)
+  if (attempt.ok === true) {
+    return { parsed: attempt.parsed, rawResponse, modelResponded: response.model, validationFallback: true }
   }
+  log.error('EthoScore response failed validation after fallback — giving up', { fallbackModel: DEFAULT_MODEL, reason: attempt.error })
+  throw new Error(`EthoScore assessment returned invalid JSON after retry and fallback: ${attempt.error}`)
+}
+
+// Fable 5 (2.0.0-fable5) output-shape validation. Rejects (does NOT clamp)
+// structurally invalid or semantically inconsistent output — a model that
+// violates the ranges/consistency it was explicitly instructed to honor
+// (lib/prompts/ethoscore-llm-v2.ts) is treated as an unreliable response,
+// not silently coerced into range.
+const FABLE5_PILLAR_MAX: Record<string, number> = {
+  trust: 300,
+  track_record: 300,
+  financial_health: 200,
+  esg_alignment: 200,
+}
+const FABLE5_ETHO_SCORE_MAX = 1000
+// Rounding slack only — the prompt instructs the model to sum the four
+// pillar scores exactly (lib/prompts/ethoscore-llm-v2.ts: "The total score
+// is the sum of the four pillar scores").
+const FABLE5_PILLAR_SUM_TOLERANCE = 1
+
+function validateFable5Shape(parsed: any): string | null {
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return 'response is not a JSON object'
+  }
+  if (typeof parsed.etho_score !== 'number' || !Number.isFinite(parsed.etho_score)) {
+    return 'etho_score is missing or not a number'
+  }
+  if (parsed.etho_score < 0 || parsed.etho_score > FABLE5_ETHO_SCORE_MAX) {
+    return `etho_score (${parsed.etho_score}) is outside the declared range 0-${FABLE5_ETHO_SCORE_MAX}`
+  }
+  if (typeof parsed.pillars !== 'object' || parsed.pillars === null || Array.isArray(parsed.pillars)) {
+    return 'pillars is missing or not an object'
+  }
+
+  let pillarSum = 0
+  for (const key of Object.keys(FABLE5_PILLAR_MAX)) {
+    const pillar = parsed.pillars[key]
+    if (typeof pillar !== 'object' || pillar === null || Array.isArray(pillar)) {
+      return `pillars.${key} is missing or not an object`
+    }
+    if (typeof pillar.score !== 'number' || !Number.isFinite(pillar.score)) {
+      return `pillars.${key}.score is missing or not a number`
+    }
+    if (typeof pillar.rationale !== 'string' || pillar.rationale.length === 0) {
+      return `pillars.${key}.rationale is missing or not a non-empty string`
+    }
+    const max = FABLE5_PILLAR_MAX[key]
+    if (pillar.score < 0 || pillar.score > max) {
+      return `pillars.${key}.score (${pillar.score}) is outside the declared range 0-${max}`
+    }
+    pillarSum += pillar.score
+  }
+
+  if (Math.abs(pillarSum - parsed.etho_score) > FABLE5_PILLAR_SUM_TOLERANCE) {
+    return `pillar scores sum to ${pillarSum} but etho_score is ${parsed.etho_score} (inconsistent with the prompt's "total is the sum of the four pillars" requirement)`
+  }
+
+  return null
 }
 
 export async function scoreApplication(
@@ -165,10 +282,12 @@ export async function scoreApplication(
 ): Promise<ScoreApplicationResult> {
   const promptVersion = options.promptVersion ?? (PromptV1.PROMPT_VERSION as PromptVersion)
   const model = options.model ?? getScoringModel()
+  assertModelPromptCompatible(model, promptVersion)
   const systemPrompt = PROMPTS[promptVersion].systemPrompt
   const userPrompt = buildUserPrompt(form)
 
-  const { parsed, rawResponse, modelResponded, validationFallback } = await requestAndParse(model, systemPrompt, userPrompt)
+  const validate: ParseValidator = promptVersion === PromptV2.PROMPT_VERSION ? validateFable5Shape : () => null
+  const { parsed, rawResponse, modelResponded, validationFallback } = await requestAndParse(model, systemPrompt, userPrompt, validate)
 
   if (promptVersion === PromptV2.PROMPT_VERSION) {
     // Fable 5 prompt: 0-1000 scale, 5-value risk_band, pillar detail.

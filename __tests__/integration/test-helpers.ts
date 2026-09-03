@@ -66,3 +66,28 @@ export async function cleanupTestApiKeys() {
   const supabase = getTestSupabase()
   await supabase.from('api_keys').delete().eq('name', 'test-key')
 }
+
+// Creates a brand-new, uniquely-named organization for tests that need to
+// INSERT their own applications/scores rows. ORG_A_ID/ORG_B_ID above are a
+// permanent, hand-seeded fixture (3 Org A applications, 3 Org A v2 scores,
+// 1 Org B application, 1 Org B v1 score, etc.) that other tests
+// (multi-tenancy.test.ts, scoring-pipeline.test.ts) assert exact counts
+// against — inserting additional applications/scores under ORG_A_ID/
+// ORG_B_ID permanently inflates those counts for every future run, since
+// this suite is never allowed to delete existing ethosfi-test data. Any
+// test that needs to create its own application/score fixture should call
+// this instead of writing under ORG_A_ID/ORG_B_ID, so it never touches the
+// counted fixture again. Real tenant-isolation coverage (Org-vs-Org) is
+// unaffected — this still creates two genuinely distinct organizations
+// when a test needs a cross-tenant negative case.
+export async function createFixtureOrg(label: string) {
+  const supabase = getTestSupabase()
+  const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const { data, error } = await supabase
+    .from('organizations')
+    .insert({ name: `Integration Fixture — ${label} — ${uniqueSuffix}`, slug: `int-fixture-${label}-${uniqueSuffix}` })
+    .select('id')
+    .single()
+  if (error) throw error
+  return data!.id as string
+}
