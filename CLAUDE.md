@@ -644,6 +644,38 @@ accept a summary/description as proof and demanding actual code/output:
 
 ---
 
+## Known Scaling Limits (not urgent, not blocking — address later)
+
+**`calculateAndPersistPerformanceWindows()` (`lib/performance-windows.ts`)
+does not scale past a few hundred decisions per organization.**
+
+- Diagnosed 2026-09-03, during Production Closure work: the function's
+  `outcomes` query filters with `.in('decision_record_id', decisionRecordIds)`,
+  where `decisionRecordIds` is *every* `decision_records.id` for the
+  organization. Supabase/PostgREST serializes an `.in()` filter directly
+  into the request URL's query string.
+- At 544 accumulated `decision_records` rows for the `ORG_A_ID` test
+  fixture (accumulated harmlessly over months of append-only integration
+  test runs — nothing wrong with the data itself), that filter alone
+  produced a ~20,000-character URL fragment, which exceeds common
+  URL-length limits and fails with a raw `TypeError: fetch failed` rather
+  than a structured Postgres/PostgREST error.
+- **This is real application logic, not just a test artifact** — any
+  production organization that accumulates a few hundred real decisions
+  will eventually hit the same ceiling in `GET /api/model-performance` and
+  anywhere else this function is called.
+- **Fix (not yet implemented):** batch the `.in()` filter (e.g. chunks of
+  ~100–200 ids per request, merged client-side) instead of one unbounded
+  query, or restructure to avoid listing every id (e.g. a single joined
+  query, or filtering `outcomes` by `organization_id` directly if that
+  column exists there too — needs checking).
+- **Not blocking**: does not affect scoring, decisions, immutability,
+  tenant isolation, or any of the September 8 meeting's subject matter.
+  Confirmed via direct root-cause diagnosis, not a network flake — see
+  the Production Closure conversation thread for the measurement.
+
+---
+
 ## What NOT To Do
 
 ### 🚫 Never
