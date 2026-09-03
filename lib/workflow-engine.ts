@@ -11,7 +11,11 @@ function getSupabase() {
 
 // ─── Transition Maps ─────────────────────────────────────────────────────────
 
-type EntityType = 'application' | 'case'
+// 'decision_record' is used only via recordEvent() (see app/api/outcomes/
+// route.ts) — an outcome event has no status-transition machine, so it's
+// deliberately absent from TRANSITION_MAPS/TABLE_NAMES below, which are
+// only consulted by transition(), never by recordEvent().
+type EntityType = 'application' | 'case' | 'decision_record'
 
 const APPLICATION_TRANSITIONS: Record<string, Set<string>> = {
   pending:   new Set(['scored', 'declined']),
@@ -28,12 +32,17 @@ const CASE_TRANSITIONS: Record<string, Set<string>> = {
   cleared:      new Set(),
 }
 
-const TRANSITION_MAPS: Record<EntityType, Record<string, Set<string>>> = {
+// Partial, not Record<EntityType, ...>: 'decision_record' deliberately has
+// no entry in either map — it has no status-transition machine and is
+// never passed to transition() (only to recordEvent(), which doesn't
+// consult these maps). isValidTransition() already handles a missing map
+// entry (returns false); transition() is simply never called with it.
+const TRANSITION_MAPS: Partial<Record<EntityType, Record<string, Set<string>>>> = {
   application: APPLICATION_TRANSITIONS,
   case: CASE_TRANSITIONS,
 }
 
-const TABLE_NAMES: Record<EntityType, string> = {
+const TABLE_NAMES: Partial<Record<EntityType, string>> = {
   application: 'applications',
   case: 'cases',
 }
@@ -186,6 +195,14 @@ export async function transition(params: TransitionParams): Promise<TransitionRe
   }
 
   const table = TABLE_NAMES[entityType]
+  if (!table) {
+    // Unreachable for 'application'/'case' (both have TABLE_NAMES entries);
+    // isValidTransition() already returns false for any entityType with no
+    // TRANSITION_MAPS entry (e.g. 'decision_record'), so this function
+    // returns above before reaching here in that case. Guard kept only to
+    // satisfy the now-Partial TABLE_NAMES type.
+    return { success: false, error: `No table mapping for entity type "${entityType}"` }
+  }
 
   // Step 1: Update entity status (scoped by org to prevent cross-tenant writes)
   const { error: updateErr } = await supabase
