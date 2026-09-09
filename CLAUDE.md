@@ -451,6 +451,10 @@ Marketplace.
 
 ### PHASE 5 — Network Effects & Ecosystem
 EthosFi Network, Lender Marketplace, Advisor Network, Data Products.
+See "Shared-Learning Network & Continuous Re-Scoring — Reference Design"
+below for the Step 1 proposal covering this phase's first two
+capabilities. NOT triggered — do not implement until a real client/
+partner signal occurs (see that section for the exact gate).
 
 ### PHASE 6 — Autonomous Operations
 AI Agents, Autonomous Underwriting, Self-Optimizing Workflows.
@@ -673,6 +677,108 @@ does not scale past a few hundred decisions per organization.**
   tenant isolation, or any of the September 8 meeting's subject matter.
   Confirmed via direct root-cause diagnosis, not a network flake — see
   the Production Closure conversation thread for the measurement.
+
+---
+
+## Shared-Learning Network & Continuous Re-Scoring — Reference Design
+
+**STATUS: PROPOSAL ONLY. NOT TRIGGERED. DO NOT IMPLEMENT.**
+
+Prepared 2026-09-09, approved as the reference design for this work by
+Ilyas the same day. Do not begin implementation until Ilyas explicitly
+confirms a real trigger event — a CDFI agreeing to a pilot/backtest, or
+Ocrolus/Lendflow confirming a concrete next step. If asked to build any
+part of this without that explicit confirmation in the same request,
+ask for it first rather than proceeding. This section is the *design*,
+not authorization to build.
+
+Two related but distinct capabilities, both extending the existing,
+already-shipped Phase 2 analytical layer (`outcomes`, `performance_windows`,
+`historical-ingestion`, `decision-replay`, `provenance`,
+`counterfactual-analysis`, `model-performance-observatory` — all live on
+`origin/feature/decision-lineage-phase1`) rather than rebuilding it:
+
+### A. Continuous re-scoring (per-borrower, single tenant)
+Track a borrower's real repayment behavior over time via `outcomes` and
+surface it as a **separate, honestly-labeled behavioral score** —
+never a silent rewrite of the original EthoScore. Key by `persons.id`
+(via `applications.applicant_person_id`, already in schema, currently
+unused for this purpose), not by a single `application_id`, since a
+borrower's real history spans every loan they've had.
+
+- New table (tentative name `borrower_score_history`): one row per
+  `(person_id, computed_at)`, derived purely from `outcomes.status`
+  aggregation for that person — not a new LLM call, not a new
+  deterministic-engine run. A third kind of number, architecturally
+  isolated from EthoScore v1 (LLM) and v2 (deterministic), by design.
+- Backend-only initially, no UI change — matches how every other Phase 2
+  capability (replay, provenance, counterfactual, observatory) shipped:
+  API-first, UI only once a concrete need drives it.
+- Low risk: this is a re-application of `performance_windows`' already-
+  proven point-in-time-correct aggregation logic at a different grouping
+  key. High confidence given the existing foundation.
+
+### B. Shared-learning network (cross-tenant, anonymized, opt-in)
+With explicit, revocable, audited per-organization consent, pool
+**aggregate statistics only** (never rows, never identifiers, never raw
+applicant data) across participating organizations to improve scoring
+calibration for all of them. This is the first cross-tenant-sharing
+mechanism ever proposed for this codebase — every existing cross-tenant
+guarantee to date has been "block by default" (RLS, zero policies). This
+is "share by design," and must be treated with proportionally more
+scrutiny than anything else in this project.
+
+- `consent_records` table: append-only (same pattern as `outcomes` —
+  a revocation is a new row, never an UPDATE), `organization_id` +
+  `scope` + `status` (`granted`/`revoked`) + actor + timestamps.
+- Anonymization approach: aggregate-only. A scheduled job (new
+  infrastructure — this project has none today) reads a contributing
+  org's own `performance_windows`/behavioral-score data, applies a
+  minimum-cohort-size floor (same principle as `MIN_SAMPLE_SIZE = 30` in
+  `lib/performance-windows.ts`), and writes only the pooled aggregate to
+  `shared_learning_aggregates` — with **no `organization_id` on the
+  visible row**; provenance lives in a separate, admin-only audit log.
+- Revocation semantics — **explicitly unresolved, needs legal/compliance
+  sign-off, not just an engineering default**: revoking consent stops
+  *future* contribution; it cannot retroactively un-mix a org's already-
+  pooled historical contribution from aggregates other orgs may have
+  already benefited from. This must be disclosed to a participating org
+  before they opt in, not discovered later.
+- Minimum-cohort-size calibration (what floor actually prevents
+  meaningful re-identification for loan-application-shaped data, as
+  opposed to borrowing `MIN_SAMPLE_SIZE = 30` from an unrelated context)
+  is flagged as needing real scrutiny — external expertise or a
+  dedicated adversarial-thinking pass — before any real org's data
+  touches this.
+
+### Non-negotiable constraints (apply to both A and B)
+- Never touch `lib/scoring-engine.ts`, `lib/decision-engine.ts`,
+  `lib/ethoscore-v2.ts`, or `commit_decision_package` — additive,
+  downstream, architecturally isolated from live scoring, exactly like
+  the rest of Phase 2, unless a separate, explicit, human-approved
+  decision is later made to feed anything back in.
+- Never weaken append-only/immutability on `data_snapshots` or
+  `decision_records`.
+- Cross-tenant sharing (B) is opt-in, fully anonymized, revocable, and
+  itself auditable (who contributed what, when consent changed) — never
+  a default-on weakening of tenant isolation.
+- No existing Intelligence module, scoring logic, or decision threshold
+  may be modified to build this.
+
+### What's straightforward vs. genuinely hard (full risk assessment)
+The anonymization boundary and revocation semantics are the two
+genuinely hard, non-engineering-only problems here — see above. Everything
+else (consent-record storage, the governance-test denylist addition,
+the point-in-time aggregation logic itself) is a re-application of
+patterns already proven elsewhere in this codebase. Full reasoning
+preserved in the conversation this design came from (2026-09-09,
+"Shared-Learning Network & Continuous Re-Scoring — Trigger: only after
+first real client signal").
+
+**Next step when triggered:** re-read this section, confirm it still
+matches the real partner's actual requirements (a real CDFI/Ocrolus/
+Lendflow conversation may surface constraints this proposal couldn't
+anticipate), get explicit approval on any changes, then implement.
 
 ---
 
