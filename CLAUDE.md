@@ -782,6 +782,119 @@ anticipate), get explicit approval on any changes, then implement.
 
 ---
 
+## Ocrolus Integration — Reference Design
+
+**STATUS: PROPOSAL ONLY. NOT TRIGGERED. DO NOT IMPLEMENT.**
+
+Prepared 2026-09-12, approved as the reference design for this work by
+Ilyas the same day, following Ocrolus sharing their API documentation
+and proposing a technical integration (structured, decision-ready
+financial data from bank-statement analysis, plus document fraud
+detection, as an input to EthoFi scoring). Do not begin implementation
+until there is a confirmed pilot agreement with Ocrolus — this is
+preparation, not a build signal. If asked to build any part of this
+without that confirmation in the same request, ask for it first rather
+than proceeding.
+
+### What this actually is
+
+Today, `ApplicationForm` is a single flat, entirely self-reported object
+(income, employment, rent history, gig income, savings), submitted once,
+synchronously, in one request (`buildUserPrompt()`,
+`lib/scoring-engine.ts`). Ocrolus would replace/augment the financial
+portion of that with independently verified data: 500+ cash-flow
+metrics derived from real bank statements, pay stub data, and document-
+level fraud signals — arriving from Ocrolus's own asynchronous,
+multi-step process (create book → upload documents → Ocrolus verifies,
+possibly with human-in-the-loop → webhook/poll for completion → query
+analytics), not from a single synchronous call the way `scoreApplication()`
+works today.
+
+### What would need to change
+
+1. **A new asynchronous external-process lifecycle.** `POST /api/score`
+   is single-request start-to-finish today; nothing in EthoFi has ever
+   had to wait on a multi-step external verification process before
+   scoring could proceed. This is the single biggest architectural
+   mismatch, not the data shape itself.
+2. **The frozen evidence snapshot grows, not gets replaced.**
+   `data_snapshots.raw_data` is documented as "the validated
+   ApplicationForm, verbatim" — becomes "...plus whatever Ocrolus data
+   was actually used at decision time." Additive to the jsonb column
+   (non-breaking), but the payload becomes meaningfully larger and more
+   sensitive (real bank account numbers, holder addresses — more PII
+   than `ApplicationForm` carries today).
+3. **A new, explicitly versioned prompt.** `buildUserPrompt()` cannot be
+   edited in place to include verified cash-flow data — needs a new
+   `prompt_version`, same discipline already in the schema, so a
+   historical decision made under the old applicant-only prompt remains
+   explainable as exactly that.
+4. **A new signal type: fraud — with a decision-integrity policy already
+   settled, not left implicit.**
+   **DECIDED (2026-09-12): fraud signals ALWAYS route to human review.
+   They never autonomously decline an application.** Given the false-
+   positive risk on document fraud detection, a fraud signal must never
+   create a second, competing path around `lib/decision-engine.ts`'s
+   `makeDecision()` — it can only ever push a decision into the existing
+   `requiresHumanReview` path, the same single authoritative decision
+   mechanism as everything else. This mirrors the exact principle the
+   Decision Package closure work (2026-09-03) was built to protect —
+   this is the first concrete case where it applies.
+5. **A new inbound trust boundary.** Ocrolus calls EthoFi via webhook
+   when processing completes — the reverse of EthoFi's existing outbound
+   webhook system (`lib/workflow-engine.ts`). Needs a new authenticated
+   inbound endpoint, Ocrolus API credential handling, and webhook
+   signature verification — none of which exists today.
+
+### What does NOT need to change
+
+- `commit_decision_package`'s atomicity — the Ocrolus fetch happens
+  before scoring, in the same place the Anthropic call happens today,
+  outside the atomic transaction. Same principle already established:
+  external calls never live inside the DB transaction.
+- `lib/decision-engine.ts`'s thresholds.
+- The one-authoritative-decision invariant — protected precisely because
+  (4) above was decided explicitly rather than left as an implicit
+  design gap.
+- Append-only/immutability on `data_snapshots`/`decision_records`.
+
+### Complexity verdict
+
+**Significant, not small/additive** — not because any single piece
+threatens the hardened architecture, but because five or six
+architecturally distinct changes land at once (an async external
+lifecycle EthoFi has never had, a new prompt version, a new signal type,
+a new inbound webhook trust boundary, a larger/more sensitive evidence
+payload). Each is individually tractable and consistent with existing
+patterns in this codebase; together this is closer in scope to the
+Decision Package closure work than to a single Phase 2 module.
+Deserves the same discipline: inspect, propose, get explicit approval,
+implement in small verified stages — not a quick bolt-on.
+
+The existing architecture (one decision engine, atomic evidence commit,
+append-only lineage, prompt versioning) is a genuinely good foundation
+for this — it's exactly the scaffolding that makes "add a richer,
+externally-verified input source" a safe extension rather than a
+rewrite, provided the fraud-signal decision-integrity question is
+respected as settled (see 4 above), not quietly reopened.
+
+### Also relevant when this is built
+The increased PII footprint (real bank account numbers, holder
+addresses) makes it more important, not less, that the Shared-Learning
+Network's anonymization boundary (see above) is airtight — there will
+be materially more sensitive raw data sitting in `data_snapshots` than
+existed when that design was written.
+
+**Next step when triggered (confirmed Ocrolus pilot agreement):**
+re-read this section, confirm it still matches the actual pilot scope
+and Ocrolus's real API behavior (credentials, rate limits, actual
+webhook payloads may differ from the shared documentation), get
+explicit approval on any changes, then implement — starting with the
+async lifecycle and evidence-snapshot extension before the prompt
+version or fraud-signal wiring.
+
+---
+
 ## What NOT To Do
 
 ### 🚫 Never
