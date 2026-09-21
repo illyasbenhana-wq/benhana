@@ -895,6 +895,73 @@ version or fraud-signal wiring.
 
 ---
 
+## Agentic Credit Decision Infrastructure — Phase 0-2 Audit (Reference)
+
+**STATUS: READ-ONLY AUDIT COMPLETE. NO PHASE 3. NO IMPLEMENTATION.**
+
+Audited 2026-09-21, against a full "EthosFi Master Evolution Prompt" (agentic
+multi-agent credit analysis, Financial Intelligence Graph, Living Credit
+Passport, Lender Fit Engine, Financing Structure Intelligence, Agent
+Authorization, Continuous Monitoring/Early Warning, Outcome Learning) —
+grounded in WEF's AI Playbook for Financial Services and McKinsey's agentic
+corporate-credit/capital-origination research, not a rush to build an "AI
+demo." Full 14-capability classification (EXISTING / PARTIALLY IMPLEMENTED /
+MISSING / FUTURE) lives in that audit conversation, not reproduced here in
+full — this entry records only the one finding that changes how future work
+should be sequenced, plus the overall disposition.
+
+### Hard dependency, not a priority call: Lender Fit Engine & Financing Structure Intelligence
+
+**Both are classified MISSING — and specifically, MISSING because their
+required input data does not exist anywhere in this system, not because they
+are unbuilt features with an available data foundation.** This is a different
+and more serious kind of "missing" than everything else in that audit:
+
+- **Lender Fit Engine** ("what type of financing provider/product may fit
+  this profile") needs lender policy/product-constraint data — risk
+  appetite, loan-size bands, term limits, collateral rules — **none of which
+  is collected or modeled anywhere in this codebase today**, not even as a
+  stub table.
+- **Financing Structure Intelligence** (comparing financing scenarios —
+  amount/term/repayment-structure tradeoffs) has the identical problem: no
+  financing-scenario/affordability schema or calculation exists to extend.
+
+**Do not build either of these until real Lendflow data is flowing** — per
+Ilyas's explicit instruction (2026-09-21), Lendflow is the expected real
+source of lender policy/product-constraint data this depends on. Building UI
+or agent logic for either capability before that data foundation exists would
+be building on nothing, which is exactly what this project's own
+`REAL DATA over MOCK DATA` principle (see Architecture Principles) exists to
+prevent. **Revisit this specific gap once Lendflow's integration is live and
+real policy/product data is actually available** — at that point, re-run the
+gap analysis for just these two capabilities against what Lendflow actually
+provides, since the real schema may not match what was assumed when this
+audit was written.
+
+### Everything else in that audit
+
+Stays documented as reference design in that conversation — the multi-agent
+orchestrator (Section B of the evolution prompt), Living Credit Passport,
+Financial Intelligence Graph extension, Human Oversight state-machine
+expansion, Agent Authorization, and Model/Agent Observability. All
+**deprioritized, not rejected** — hold until the Lendflow/Ocrolus integration
+work (see the Ocrolus Integration reference design above, and the Lendflow
+work referenced throughout this file) stabilizes. No Phase 3 prioritization,
+no implementation, on any of it until Ilyas explicitly restarts this thread.
+
+One finding from that audit worth repeating here because it's a recurring
+mistake in this project specifically: **Continuous Monitoring and
+Early-Warning Intelligence were both found PARTIALLY IMPLEMENTED, not
+MISSING** — `lib/anomaly-detector.ts` + `lib/risk-dashboard.ts` already cover
+most of this under different names. See "Intelligence Reconciliation" in the
+Master Truth Record work earlier in this file's history. Anyone picking this
+back up should check what already exists under a different name before
+treating something here as a from-scratch build — this has already happened
+once this project (the original Population Intelligence/Early Warning
+reconciliation).
+
+---
+
 ## What NOT To Do
 
 ### 🚫 Never
