@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requirePartnerAuth } from '../../../../../../lib/partner-auth'
+import { redactPartnerEvents } from '../../../../../../lib/partner-redaction'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -62,7 +63,7 @@ export async function GET(
   return NextResponse.json({
     data: {
       case: caseRow,
-      workflow_events: events ?? [],
+      workflow_events: redactPartnerEvents(events),
       case_actions: actions ?? [],
     },
     meta: { api_version: 'v1' },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePartnerAuth } from '../../../../../../lib/partner-auth'
 import { analyzeApplication } from '../../../../../../lib/ai-review'
+import { toPartnerModelVersion } from '../../../../../../lib/partner-redaction'
 
 export async function POST(
   req: NextRequest,
@@ -20,7 +21,7 @@ export async function POST(
   }
 
   return NextResponse.json({
-    data: result.review,
+    data: { ...result.review, model_version: toPartnerModelVersion(result.review.model_version) },
     meta: { api_version: 'v1' },
   })
 }

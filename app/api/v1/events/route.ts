@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requirePartnerAuth } from '../../../../lib/partner-auth'
 import { createClient } from '@supabase/supabase-js'
+import { redactPartnerEvents } from '../../../../lib/partner-redaction'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
-    data: data ?? [],
+    data: redactPartnerEvents(data),
     meta: { api_version: 'v1', count: data?.length ?? 0, limit },
   })
 }

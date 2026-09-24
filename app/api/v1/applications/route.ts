@@ -8,6 +8,7 @@ import { commitDecisionPackage } from '../../../../lib/audit-engine'
 import { transition } from '../../../../lib/workflow-engine'
 import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../../types'
 import { log, alertScoringRequestFailed } from '../../../../lib/logger'
+import { toPartnerModelVersion } from '../../../../lib/partner-redaction'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -209,7 +210,9 @@ export async function POST(req: NextRequest) {
         },
         risk_signals: riskSignals,
       },
-      meta: { model_version: result.model_version, api_version: 'v1' },
+      // Real model identity stays in the Decision Package above; partners
+      // only ever see the EthosFi label (lib/partner-redaction.ts).
+      meta: { model_version: toPartnerModelVersion(result.model_version), api_version: 'v1' },
     })
   } catch (err) {
     log.error('v1 scoring pipeline failed', { route: 'v1/applications', error: err instanceof Error ? err.message : String(err) })

@@ -108,6 +108,17 @@ describe('POST /api/score — score_version pillar-lineage correction', () => {
       expect.objectContaining({ scoreVersion: 'v2' }),
       expect.any(String)
     )
+
+    // Model identity: real value into the Decision Package, EthosFi label
+    // out (lib/partner-redaction.ts) — the response must never name it.
+    expect(mockCommitDecisionPackage).toHaveBeenCalledWith(
+      expect.objectContaining({ modelVersionLabel: 'claude-fable-5', modelResponded: 'claude-fable-5' }),
+      expect.any(String)
+    )
+    const body = await res.json()
+    expect(body.model_version).toBe('ethoscore-v1')
+    expect(body.ai_assessment.model_version).toBe('ethoscore-v1')
+    expect(JSON.stringify(body)).not.toMatch(/claude|anthropic|opus|sonnet|haiku|fable/i)
   })
 
   it('a v1-prompt (mock fallback) decision stores score_version = \'v1\', even though the deterministic engine always succeeds', async () => {

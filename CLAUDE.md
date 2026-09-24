@@ -587,6 +587,27 @@ JSON parsing is defensive: parse → retry once with a corrective turn →
 fall back to `claude-opus-4-8` and set `validation_fallback: true` on the
 logged event. Never throws on a single malformed response.
 
+**`model_version` mismatch — checked 2026-09-23, already fixed.** An old
+snapshot of `scoreApplication()` called `claude-sonnet-4-20250514` but saved
+a hardcoded `model_version: 'claude-sonnet-4-6'`. The current code sets
+`model_version` dynamically to `modelResponded` (`response.model`) on both
+the v1 and `2.0.0-fable5` paths. No action needed. Mock paths (no API key)
+still store `'mock-v1'` — intentional.
+
+**Partner-facing rule (2026-09-24):** no API response or webhook may name
+the AI vendor/model. `/api/v1/*`, `/api/score` and webhook delivery pass
+model identity through `lib/partner-redaction.ts` (`model_version` →
+`ethoscore-v1`, `mock-v1` passes through; model keys incl.
+`prompt_version` stripped from event metadata). Storage keeps the real
+values. Any new partner-facing route must use the same helper.
+
+**Source of truth:** this repo (`C:\Users\illya\Downloads\ethosfiai-mvp`,
+origin `illyasbenhana-wq/benhana`), branch `feature/decision-lineage-phase1`
+@ `5809d15` (in sync with origin; `origin/main` is `2b96547`). Unzipped
+copies under `%TEMP%` (e.g. `...ethosfiai-mvp (2).zip.326`, which has a
+broken `.git` with no HEAD/refs) and `Downloads\_zip_probe\ethosfiai` are
+stale May-2026 snapshots — never read or cite code from them.
+
 ### 🚨 DEPLOY ORDER — migration MUST be applied before this code ships
 
 `supabase/migrations/20260702000000_add_ethoscore_v2_calibration_fields.sql`

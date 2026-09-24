@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requirePartnerAuth } from '../../../../../lib/partner-auth'
+import { toPartnerModelVersion } from '../../../../../lib/partner-redaction'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -43,7 +44,10 @@ export async function GET(
     .maybeSingle()
 
   return NextResponse.json({
-    data: { application, score: score ?? null },
+    data: {
+      application,
+      score: score ? { ...score, model_version: toPartnerModelVersion(score.model_version) } : null,
+    },
     meta: { api_version: 'v1' },
   })
 }

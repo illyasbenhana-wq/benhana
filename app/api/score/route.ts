@@ -11,6 +11,7 @@ import { computeEthoScoreV2 } from '../../../lib/ethoscore-v2'
 import { PROMPT_VERSION as FABLE5_PROMPT_VERSION } from '../../../lib/prompts/ethoscore-llm-v2'
 import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../types'
 import { log, alertEthoscoreAssessedEventFailed, alertScoringRequestFailed } from '../../../lib/logger'
+import { toPartnerModelVersion } from '../../../lib/partner-redaction'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -368,7 +369,10 @@ export async function POST(req: NextRequest) {
         recommendation: result.recommendation,
         summary: result.ai_summary,
         factors: result.factors,
-        model_version: result.model_version,
+        // Unauthenticated callers can reach this route — same rule as
+        // /api/v1: the real model identity lives only in the Decision
+        // Package, never in the response (lib/partner-redaction.ts).
+        model_version: toPartnerModelVersion(result.model_version),
       },
       // Explicit, unambiguous alias of ai_assessment — this is model
       // output, NOT the EthoFi decision.
@@ -391,7 +395,7 @@ export async function POST(req: NextRequest) {
       recommendation: result.recommendation,
       ai_summary: result.ai_summary,
       factors: result.factors,
-      model_version: result.model_version,
+      model_version: toPartnerModelVersion(result.model_version),
       decision: {
         approved: decision.approved,
         confidence: decision.confidence,

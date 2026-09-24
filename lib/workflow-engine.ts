@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHmac } from 'crypto'
 import { log } from './logger'
+import { redactPartnerMetadata } from './partner-redaction'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -325,7 +326,9 @@ function deliverWebhooks(event: WorkflowEvent, supabase: ReturnType<typeof getSu
           from_state: event.from_state,
           to_state: event.to_state,
           actor_id: event.actor_id,
-          metadata: event.metadata,
+          // Webhooks go to partners — strip model identity even though no
+          // transition() caller puts it in metadata today.
+          metadata: redactPartnerMetadata(event.metadata),
         },
       }
 
