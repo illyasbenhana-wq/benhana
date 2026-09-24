@@ -669,6 +669,29 @@ accept a summary/description as proof and demanding actual code/output:
 
 ---
 
+## Known Issue — Vercel Preview deployments point at PRODUCTION (open)
+
+Found 2026-09-24 via `vercel env ls` while preparing the Lendflow sandbox.
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_KEY` are scoped **Preview + Production**, so every
+preview deployment of any branch reads and writes the production database
+(`ehmingbvknavehcjgkou`) — the same test/prod separation gap closed for
+local dev on 2026-07-21, still open on Vercel.
+
+The Lendflow partner sandbox deliberately avoids this: it is a **separate
+Vercel project, `ethosfiai-sandbox`** (https://ethosfiai-sandbox.vercel.app),
+whose Production env holds only the test project's
+(`gwvhlemfubmcnbzdarnx`) Supabase vars and no `ANTHROPIC_API_KEY` (mock
+scores, `mock-v1`). Deployed from `git archive` of a commit (never the
+working tree, which holds `.env.local`). Its partner key lives only in
+the test DB (org "Lendflow (sandbox)").
+
+**Fix later (deliberately deferred):** scope the three vars to Production
+only and add Preview-wide values pointing at the test project. Until then,
+treat any preview URL as production.
+
+---
+
 ## Known Scaling Limits (not urgent, not blocking — address later)
 
 **`calculateAndPersistPerformanceWindows()` (`lib/performance-windows.ts`)
