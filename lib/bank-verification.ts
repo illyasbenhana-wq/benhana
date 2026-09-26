@@ -21,7 +21,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { ApplicationForm, ScoreFactor, validateApplicationForm } from '@/types'
+import { ApplicationForm, RiskBand, ScoreFactor, validateApplicationForm } from '@/types'
 import { scoreApplication, computeRiskBand, BANK_VERIFIED_PROMPT_VERSION } from './scoring-engine'
 import { makeDecision, decisionRuleVersionFor } from './decision-engine'
 import { commitDecisionPackage, RawInputProvenance } from './audit-engine'
@@ -176,14 +176,7 @@ export async function handleProviderEvent(bookUuid: string, event: ProviderEvent
     // Single-document books: a rejected statement ends this verification.
     // (Whether a rejected document can still let the book complete is an
     // open question with Ocrolus — irrelevant with one document per book.)
-    await supabase.from('bank_verifications').update({
-      status: 'rejected', failure_reason: event.reason ?? 'Document rejected by verification provider', completed_at: now, updated_at: now,
-    }).eq('id', row.id).eq('status', 'processing')
-    await recordEvent({
-      entityType: 'application', entityId: row.application_id, orgId: row.organization_id,
-      eventType: 'bank_verification_completed', actorId: 'system:bank_verification',
-      payload: { verificationId: row.id, outcome: 'rejected' },
-    })
+    await rejectAndForceReview(row as BankVerificationRow, event.reason ?? 'Document rejected by verification provider')
     return 'applied'
   }
 
@@ -312,6 +305,107 @@ async function finalize(row: BankVerificationRow, client: OcrolusClient | null):
   }
 }
 
+// A rejected document is treated as a safety signal (decided 2026-09-26,
+// until Ocrolus confirms what rejection means): exactly like a Detect
+// signal, it forces human review — never an automatic approval or decline.
+// Nothing new was scored, so the latest score is carried forward verbatim
+// (including its prompt/model lineage) into a new Decision Package whose
+// decision is re-derived by makeDecision() with the review flag set.
+export function rejectedDocumentDecisionInput(prior: { etho_score: number; risk_band: string; factors: ScoreFactor[] }) {
+  return {
+    ethoScore: prior.etho_score,
+    riskBand: prior.risk_band as RiskBand,
+    riskFactors: prior.factors ?? [],
+    documentAuthenticity: { reviewRequired: true },
+  }
+}
+
+async function rejectAndForceReview(row: BankVerificationRow, reason: string): Promise<void> {
+  const supabase = getSupabase()
+  if (!supabase) return
+
+  // Same atomic claim as finalize(): only one handler records the decision.
+  const { data: claimed } = await supabase.from('bank_verifications')
+    .update({ status: 'scoring', updated_at: new Date().toISOString() })
+    .eq('id', row.id).eq('status', 'processing').select().maybeSingle()
+  if (!claimed) return
+
+  try {
+    const form = await loadOriginalForm(row.application_id)
+    if (!form) throw new Error('original application snapshot not found')
+    const { data: prior } = await supabase.from('scores')
+      .select('id, etho_score, risk_band, ai_summary, factors, model_version, raw_prompt, raw_response, score_version, score_pillars, prompt_version, model_requested, model_responded, confidence_overall')
+      .eq('application_id', row.application_id).eq('organization_id', row.organization_id)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (!prior) throw new Error('no prior score to carry forward')
+
+    const decisionInput = rejectedDocumentDecisionInput(prior)
+    const decision = makeDecision(decisionInput)
+    const bookUuid = row.provider_book_uuid as string
+    const formSource = row.channel === 'apply_flow' ? 'applicant_provided' : 'lender_provided'
+    const rejection = { outcome: 'document_rejected', reason }
+
+    const pkg = await commitDecisionPackage({
+      applicationId: row.application_id,
+      orgId: row.organization_id,
+      source: 'ocrolus',
+      inputSnapshot: {
+        application_form: form,
+        bank_verification: {
+          provider: PROVIDER,
+          mode: row.mode,
+          provider_book_uuid: bookUuid,
+          document_rejected: rejection,
+          carried_forward_score_id: prior.id,
+        },
+      },
+      rawInputProvenance: [
+        ...Object.entries(form).map(([field_name, raw_value]) => ({ field_name, source_type: formSource as RawInputProvenance['source_type'], raw_value })),
+        {
+          field_name: 'bank_statement.document_rejected', source_type: 'external_provider', provider: PROVIDER, provider_reference: bookUuid,
+          raw_value: rejection,
+        },
+      ],
+      scoreVersion: prior.score_version === 'v2' ? 'v2' : 'v1',
+      promptVersion: prior.prompt_version,
+      modelRequested: prior.model_requested ?? null,
+      modelResponded: prior.model_responded ?? null,
+      modelVersionLabel: prior.model_version,
+      rawPrompt: prior.raw_prompt,
+      rawResponse: prior.raw_response,
+      confidenceOverall: prior.confidence_overall ?? null,
+      ethoScore: prior.etho_score,
+      riskBand: prior.risk_band,
+      aiSummary: prior.ai_summary,
+      factors: prior.factors ?? [],
+      recommendation: 'review',
+      scorePillars: prior.score_pillars ?? null,
+      decision: 'review',
+      reasonCodes: decision.reasonCodes,
+      confidence: decision.confidence,
+      requiresHumanReview: decision.requiresHumanReview,
+    }, decisionRuleVersionFor(decisionInput))
+
+    if (pkg.success === false) throw new Error(`decision package: ${pkg.error}`)
+
+    const now = new Date().toISOString()
+    await supabase.from('bank_verifications').update({
+      status: 'rejected', review_required: true, failure_reason: reason,
+      result_score_id: pkg.scoreId, result_decision_record_id: pkg.decisionRecordId,
+      completed_at: now, updated_at: now,
+    }).eq('id', row.id)
+    await recordEvent({
+      entityType: 'application', entityId: row.application_id, orgId: row.organization_id,
+      eventType: 'bank_verification_completed', actorId: 'system:bank_verification',
+      payload: { verificationId: row.id, outcome: 'rejected', scoreId: pkg.scoreId, review_required: true },
+    })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    log.error('bank verification rejection review failed', { verificationId: row.id, applicationId: row.application_id, error: message })
+    await markFailed(row.id, `rejected-review: ${message}`)
+  }
+}
+
 async function markFailed(id: string, reason: string) {
   const supabase = getSupabase()
   if (!supabase) return
@@ -358,7 +452,7 @@ export function toPartnerVerification(row: BankVerificationRow | null) {
     status,
     submitted_at: row.created_at,
     completed_at: row.completed_at,
-    ...(status === 'verified' ? { document_review_required: row.review_required === true } : {}),
+    ...(status === 'verified' || status === 'rejected' ? { document_review_required: row.review_required === true } : {}),
     ...(status === 'rejected' ? { reason: 'DOCUMENT_REJECTED' } : {}),
     ...(status === 'failed' ? { reason: 'VERIFICATION_FAILED' } : {}),
     ...(row.mode === 'mock' ? { simulated: true } : {}),

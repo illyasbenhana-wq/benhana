@@ -9,7 +9,7 @@ import { selectBankMetrics } from '../lib/ocrolus/cash-flow'
 import { isAuthenticWebhook, toProviderEvent } from '../lib/ocrolus/webhook'
 import { mockScenarioFor } from '../lib/ocrolus/mock'
 import { issueUploadToken, verifyUploadToken } from '../lib/upload-token'
-import { toPartnerVerification } from '../lib/bank-verification'
+import { toPartnerVerification, rejectedDocumentDecisionInput } from '../lib/bank-verification'
 import { redactPartnerMetadata } from '../lib/partner-redaction'
 import * as BankPrompt from '../lib/prompts/ethoscore-v1-bank-verified'
 
@@ -31,6 +31,18 @@ describe('document-authenticity decision rule', () => {
     const verified = makeDecision({ ethoScore: 90, riskBand: 'low', riskFactors: factors, documentAuthenticity: { reviewRequired: false } })
     expect(verified).toEqual(base)
     expect(verified.approved).toBe(true)
+  })
+
+  it('a rejected document forces human review in every band, on the carried-forward score', () => {
+    for (const [score, band] of [[90, 'low'], [60, 'medium'], [20, 'high']] as const) {
+      const input = rejectedDocumentDecisionInput({ etho_score: score, risk_band: band, factors })
+      const d = makeDecision(input)
+      expect(input.ethoScore).toBe(score)
+      expect(d.approved).toBe(false)
+      expect(d.requiresHumanReview).toBe(true)
+      expect(d.reasonCodes).toContain('DOCUMENT_AUTHENTICITY_REVIEW')
+      expect(decisionRuleVersionFor(input)).toBe(DECISION_RULE_VERSION_BANK_VERIFIED)
+    }
   })
 
   it('records a distinct rule version only when verification was an input', () => {
@@ -186,6 +198,11 @@ describe('partner-facing bank verification view', () => {
     expect(v).toEqual({ status: 'verified', submitted_at: 't0', completed_at: 't1', document_review_required: true, simulated: true })
     expect(JSON.stringify(v)).not.toMatch(VENDOR)
     expect(toPartnerVerification({ ...row, status: 'scoring' })?.status).toBe('processing')
+  })
+  it('a rejected document reports the forced review, without the provider reason', () => {
+    const v = toPartnerVerification({ ...row, status: 'rejected', failure_reason: 'Ocrolus: unsupported document' })
+    expect(v).toEqual({ status: 'rejected', submitted_at: 't0', completed_at: 't1', document_review_required: true, reason: 'DOCUMENT_REJECTED', simulated: true })
+    expect(JSON.stringify(v)).not.toMatch(VENDOR)
   })
   it('event metadata loses provider identity', () => {
     const out = redactPartnerMetadata({ verificationId: 'v', provider: 'ocrolus', provider_book_uuid: 'b', mode: 'mock' })

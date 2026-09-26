@@ -102,6 +102,9 @@ export interface ScoreApplicationResult {
 }
 
 // Exported for tests only. v1 user prompt, unchanged, plus one section.
+// "amounts in £" is deliberate: statements are GBP-only for now (decided
+// 2026-09-26). If non-GBP statements are ever accepted, the currency must
+// come from the provider payload instead of this label.
 export function buildVerifiedUserPrompt(form: ApplicationForm, bank: VerifiedBankData): string {
   const lines = Object.entries(bank.metrics).map(([k, v]) => `- ${k}: ${typeof v === 'number' ? v.toLocaleString() : v}`)
   return `${buildUserPrompt(form)}

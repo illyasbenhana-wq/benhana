@@ -125,6 +125,11 @@ export default function LenderDashboard() {
         .select('id, created_at, full_name, email, loan_amount, loan_purpose, employment_type, status, scores(etho_score, risk_band, recommendation)')
         .order('created_at', { ascending: false })
         .limit(50)
+        // An application can have several scores (a bank-verified re-score
+        // supersedes the first one) — the embedded list is unordered unless
+        // told otherwise, so pin it to the newest score.
+        .order('created_at', { referencedTable: 'scores', ascending: false })
+        .limit(1, { referencedTable: 'scores' })
         .then(({ data, error }) => {
           if (error) console.error('[lender] applications query failed:', error)
           const rows: Application[] = (data ?? []).map((row: any) => ({
