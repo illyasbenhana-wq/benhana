@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requirePartnerAuth } from '../../../../../lib/partner-auth'
-import { toPartnerModelVersion } from '../../../../../lib/partner-redaction'
+import { getLatestPartnerDecision, getLatestPartnerScore } from '../../../../../lib/application-view'
+import { getLatestVerification, toPartnerVerification } from '../../../../../lib/bank-verification'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -34,19 +35,20 @@ export async function GET(
     return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Application not found' } }, { status: 404 })
   }
 
-  const { data: score } = await supabase
-    .from('scores')
-    .select('id, etho_score, risk_band, recommendation, ai_summary, factors, model_version, created_at')
-    .eq('application_id', id)
-    .eq('organization_id', auth.context.orgId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  // Latest score + latest decision: after a bank-verified re-score these
+  // are the verified ones, superseding the first self-reported decision.
+  const [score, ethosfiDecision, verification] = await Promise.all([
+    getLatestPartnerScore(id, auth.context.orgId),
+    getLatestPartnerDecision(id, auth.context.orgId),
+    getLatestVerification(id, auth.context.orgId),
+  ])
 
   return NextResponse.json({
     data: {
       application,
-      score: score ? { ...score, model_version: toPartnerModelVersion(score.model_version) } : null,
+      score,
+      ethosfi_decision: ethosfiDecision,
+      bank_verification: toPartnerVerification(verification),
     },
     meta: { api_version: 'v1' },
   })

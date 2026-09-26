@@ -28,6 +28,8 @@ export function toPartnerModelVersion(modelVersion: string | null | undefined): 
 // workflow_events.metadata keys that carry vendor/model identity.
 // prompt_version is included because its values name the target model
 // (e.g. '2.0.0-fable5'); fable5_assessment is the raw model output.
+// provider / provider_* identify the upstream data vendor (bank-statement
+// verification) and its internal ids — also internal-only.
 const MODEL_METADATA_KEYS = new Set([
   'model_version',
   'model_requested',
@@ -35,6 +37,10 @@ const MODEL_METADATA_KEYS = new Set([
   'model_id',
   'prompt_version',
   'fable5_assessment',
+  'provider',
+  'provider_book_uuid',
+  'provider_doc_uuid',
+  'provider_reference',
 ])
 
 export function redactPartnerMetadata(

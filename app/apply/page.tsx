@@ -71,6 +71,22 @@ export default function ApplyPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  // Optional bank statement (PDF) — verified after scoring, then re-scored.
+  const [statement, setStatement] = useState<File | null>(null)
+  const [statementError, setStatementError] = useState('')
+  const [loadingLabel, setLoadingLabel] = useState('Scoring...')
+
+  const pickStatement = (f: File | null) => {
+    setStatementError('')
+    if (!f) return setStatement(null)
+    if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
+      setStatement(null); return setStatementError('Please choose a PDF file.')
+    }
+    if (f.size > 4 * 1024 * 1024) {
+      setStatement(null); return setStatementError('The statement must be 4 MB or smaller.')
+    }
+    setStatement(f)
+  }
   const [form, setForm] = useState({
     full_name: '', email: '',
     monthly_income: '', employment_type: 'employed',
@@ -121,6 +137,18 @@ export default function ApplyPage() {
       })
       const data = await res.json()
       if (data.application_id) {
+        // Best-effort: the score already exists; a failed upload must not
+        // block the applicant from seeing it.
+        if (statement && data.bank_statement_upload_token) {
+          setLoadingLabel('Verifying bank statement...')
+          const body = new FormData()
+          body.append('file', statement)
+          await fetch(`/api/applications/${data.application_id}/bank-statement`, {
+            method: 'POST',
+            headers: { 'X-Upload-Token': data.bank_statement_upload_token },
+            body,
+          }).catch(e => console.error('bank statement upload failed', e))
+        }
         router.push(`/score/${data.application_id}`)
       }
     } catch (e) {
@@ -285,6 +313,14 @@ export default function ApplyPage() {
               </div>
             )}
 
+            <Field label="Bank statement (optional, PDF, max 4 MB)">
+              <input style={inputCss} type="file" accept="application/pdf,.pdf"
+                onChange={e => pickStatement(e.target.files?.[0] ?? null)} />
+              <div style={{ fontSize: FS.sm, color: statementError ? C.riskHigh : C.textSecondary, marginTop: 6, lineHeight: 1.5 }}>
+                {statementError || 'Upload your latest bank statement to have your income and balances independently verified. It is sent to our verification partner and not stored by EthosFi.'}
+              </div>
+            </Field>
+
             {/* Legal/compliance consent — deliberately boxed, distinct and unmissable */}
             <div style={{ background: C.surface, border: borderLine, borderRadius: R.card, padding: '18px 20px', marginBottom: SP.xl }}>
               <label style={{ display: 'flex', gap: SP.md, cursor: 'pointer', marginBottom: SP.md }}>
@@ -302,7 +338,7 @@ export default function ApplyPage() {
               <button className="btn-primary" style={{ ...stepBtnPrimary, flex: 1 }}
                 disabled={!form.loan_amount || !form.loan_purpose || !form.consent_data_use || !form.consent_ai_decision || loading}
                 onClick={submit}>
-                {loading ? 'Scoring...' : 'Get my EthoScore™ →'}
+                {loading ? loadingLabel : 'Get my EthoScore™ →'}
               </button>
             </div>
           </div>

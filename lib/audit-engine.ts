@@ -33,11 +33,26 @@ export type AiProvider = 'claude' | 'palantir' | 'fallback'
 
 export type SystemDecision = 'approved' | 'declined' | 'review'
 
+// One raw-input lineage row. Callers only pass these when the default
+// derivation below (one row per top-level inputSnapshot key, attributed to
+// the request channel) would be wrong — today only the bank-verification
+// re-score, whose snapshot mixes self-reported and externally verified data.
+export interface RawInputProvenance {
+  field_name: string
+  source_type: 'applicant_provided' | 'lender_provided' | 'external_provider'
+  raw_value: unknown
+  provider?: string
+  provider_reference?: string
+}
+
 export interface DecisionPackageInput {
   applicationId: string
   orgId: string
-  source: 'apply_flow' | 'partner_api'
+  // 'ocrolus' = re-score after bank-statement verification (requires
+  // supabase/migrations/20260926000000_add_bank_verification.sql).
+  source: 'apply_flow' | 'partner_api' | 'ocrolus'
   inputSnapshot: Record<string, unknown>
+  rawInputProvenance?: RawInputProvenance[]
 
   scoreVersion: 'v1' | 'v2'
   promptVersion: string
@@ -100,10 +115,10 @@ export async function commitDecisionPackage(input: DecisionPackageInput, decisio
   }
 
   const sourceType = input.source === 'apply_flow' ? 'applicant_provided' : 'lender_provided'
+  const rawInputs = input.rawInputProvenance
+    ?? Object.entries(input.inputSnapshot).map(([field_name, raw_value]) => ({ field_name, source_type: sourceType, raw_value }))
   const provenanceEntries = [
-    ...Object.entries(input.inputSnapshot).map(([field_name, raw_value]) => ({
-      field_name, signal_level: 'raw_input', source_type: sourceType, raw_value, model_version_ref: false,
-    })),
+    ...rawInputs.map(r => ({ ...r, signal_level: 'raw_input', model_version_ref: false })),
     ...input.factors.map(f => ({
       field_name: f.name, signal_level: 'model_interpretation', source_type: 'model_generated',
       normalized_value: { score: f.score, weight: f.weight }, transformation: f.rationale, model_version_ref: true,

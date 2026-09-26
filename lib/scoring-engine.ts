@@ -3,6 +3,7 @@ import { ApplicationForm, ScoreResult, RiskBand, Recommendation } from '@/types'
 import { log } from './logger'
 import * as PromptV1 from './prompts/ethoscore-v1'
 import * as PromptV2 from './prompts/ethoscore-llm-v2'
+import * as PromptBankVerified from './prompts/ethoscore-v1-bank-verified'
 import { computeRiskBand } from './risk-band'
 
 // Moved to lib/risk-band.ts (dependency-free — safe to import from
@@ -13,11 +14,27 @@ export { computeRiskBand }
 
 const client = new Anthropic()
 
-export type PromptVersion = typeof PromptV1.PROMPT_VERSION | typeof PromptV2.PROMPT_VERSION
+export type PromptVersion =
+  | typeof PromptV1.PROMPT_VERSION
+  | typeof PromptV2.PROMPT_VERSION
+  | typeof PromptBankVerified.PROMPT_VERSION
+
+export const BANK_VERIFIED_PROMPT_VERSION = PromptBankVerified.PROMPT_VERSION
 
 const PROMPTS: Record<PromptVersion, { systemPrompt: string }> = {
   [PromptV1.PROMPT_VERSION]: { systemPrompt: PromptV1.ETHOSCORE_SYSTEM_PROMPT },
   [PromptV2.PROMPT_VERSION]: { systemPrompt: PromptV2.ETHOSCORE_SYSTEM_PROMPT },
+  [PromptBankVerified.PROMPT_VERSION]: { systemPrompt: PromptBankVerified.ETHOSCORE_SYSTEM_PROMPT },
+}
+
+// Provider-agnostic verified bank data for the 1.1.0-bank-verified prompt.
+// Only cash-flow figures — never authenticity/fraud signals (see
+// lib/prompts/ethoscore-v1-bank-verified.ts for why).
+export interface VerifiedBankData {
+  // Flat metric name → value, already selected and capped by the caller
+  // (lib/ocrolus/cash-flow.ts). Rendered verbatim, one line per metric.
+  metrics: Record<string, number | string>
+  statementPeriod?: string
 }
 
 // Production default. NOT claude-fable-5 — that only happens after the
@@ -64,6 +81,10 @@ function assertModelPromptCompatible(model: string, promptVersion: PromptVersion
 export interface ScoreApplicationOptions {
   promptVersion?: PromptVersion
   model?: string // overrides ETHOSCORE_MODEL, e.g. for a calibration run
+  // Present only for a re-score after bank-statement verification. Pins
+  // promptVersion to 1.1.0-bank-verified — verified data is never sent
+  // under a prompt that wasn't written for it.
+  verifiedBankData?: VerifiedBankData
 }
 
 export interface ScoreApplicationResult {
@@ -78,6 +99,15 @@ export interface ScoreApplicationResult {
   // Only populated for prompt_version 2.0.0-fable5 — full pillar detail,
   // kept out of the ScoreResult shape so v1 consumers are unaffected.
   fable5Assessment: Record<string, unknown> | null
+}
+
+// Exported for tests only. v1 user prompt, unchanged, plus one section.
+export function buildVerifiedUserPrompt(form: ApplicationForm, bank: VerifiedBankData): string {
+  const lines = Object.entries(bank.metrics).map(([k, v]) => `- ${k}: ${typeof v === 'number' ? v.toLocaleString() : v}`)
+  return `${buildUserPrompt(form)}
+
+VERIFIED BANK STATEMENT DATA (independently extracted from the applicant's bank statements${bank.statementPeriod ? `, ${bank.statementPeriod}` : ''}; amounts in £)
+${lines.length > 0 ? lines.join('\n') : '- No usable figures could be extracted — rely on self-reported data'}`
 }
 
 function buildUserPrompt(form: ApplicationForm): string {
@@ -280,11 +310,18 @@ export async function scoreApplication(
   form: ApplicationForm,
   options: ScoreApplicationOptions = {}
 ): Promise<ScoreApplicationResult> {
-  const promptVersion = options.promptVersion ?? (PromptV1.PROMPT_VERSION as PromptVersion)
+  if (options.verifiedBankData && options.promptVersion && options.promptVersion !== PromptBankVerified.PROMPT_VERSION) {
+    throw new Error(`verifiedBankData requires prompt version ${PromptBankVerified.PROMPT_VERSION}, got ${options.promptVersion}`)
+  }
+  const promptVersion = options.verifiedBankData
+    ? (PromptBankVerified.PROMPT_VERSION as PromptVersion)
+    : options.promptVersion ?? (PromptV1.PROMPT_VERSION as PromptVersion)
   const model = options.model ?? getScoringModel()
   assertModelPromptCompatible(model, promptVersion)
   const systemPrompt = PROMPTS[promptVersion].systemPrompt
-  const userPrompt = buildUserPrompt(form)
+  const userPrompt = options.verifiedBankData
+    ? buildVerifiedUserPrompt(form, options.verifiedBankData)
+    : buildUserPrompt(form)
 
   const validate: ParseValidator = promptVersion === PromptV2.PROMPT_VERSION ? validateFable5Shape : () => null
   const { parsed, rawResponse, modelResponded, validationFallback } = await requestAndParse(model, systemPrompt, userPrompt, validate)

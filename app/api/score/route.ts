@@ -12,6 +12,7 @@ import { PROMPT_VERSION as FABLE5_PROMPT_VERSION } from '../../../lib/prompts/et
 import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../types'
 import { log, alertEthoscoreAssessedEventFailed, alertScoringRequestFailed } from '../../../lib/logger'
 import { toPartnerModelVersion } from '../../../lib/partner-redaction'
+import { issueUploadToken } from '../../../lib/upload-token'
 
 function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -363,6 +364,10 @@ export async function POST(req: NextRequest) {
       application_id: applicationId,
       score_id: scoreId,
       full_name: form.full_name,
+      // Lets this applicant (and only for this application) attach a bank
+      // statement via POST /api/applications/{id}/bank-statement. null
+      // when BANK_UPLOAD_TOKEN_SECRET isn't configured.
+      bank_statement_upload_token: issueUploadToken(applicationId),
       ai_assessment: {
         score: result.etho_score,
         risk_band: result.risk_band,

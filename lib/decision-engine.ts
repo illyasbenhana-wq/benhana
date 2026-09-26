@@ -12,10 +12,26 @@ import { RiskBand, ScoreFactor } from '@/types'
 // same principle already applied to decision_records itself).
 export const DECISION_RULE_VERSION = 'threshold-70-50-v1'
 
+// Same thresholds as v1 plus the document-authenticity rule below. Only
+// decisions that actually had a bank-verification outcome as input use
+// this version (see decisionRuleVersionFor) — every other decision keeps
+// recording v1, because for them nothing about the rule changed.
+export const DECISION_RULE_VERSION_BANK_VERIFIED = 'threshold-70-50-docauth-review-v1'
+
 export interface DecisionInput {
   ethoScore: number
   riskBand: RiskBand
   riskFactors: ScoreFactor[]
+  // Bank-statement authenticity outcome (fraud/tampering signals). Policy
+  // decided 2026-09-12 (CLAUDE.md, Ocrolus reference design): a document
+  // signal can ONLY push a decision into human review — it never approves
+  // and never declines on its own, and it never reaches the score (it is
+  // deliberately kept out of the scoring prompt). Absent = no verification.
+  documentAuthenticity?: { reviewRequired: boolean }
+}
+
+export function decisionRuleVersionFor(input: Pick<DecisionInput, 'documentAuthenticity'>): string {
+  return input.documentAuthenticity ? DECISION_RULE_VERSION_BANK_VERIFIED : DECISION_RULE_VERSION
 }
 
 export interface DecisionOutput {
@@ -62,6 +78,15 @@ export function makeDecision(input: DecisionInput): DecisionOutput {
 
   if (riskBand === 'high') {
     reasonCodes.push('HIGH_RISK_BAND')
+  }
+
+  // Document-authenticity rule: routes to the existing human-review path,
+  // in every score band. Overrides an automatic approval AND an automatic
+  // decline — a person decides, never the fraud signal alone.
+  if (input.documentAuthenticity?.reviewRequired) {
+    approved = false
+    requiresHumanReview = true
+    reasonCodes.push('DOCUMENT_AUTHENTICITY_REVIEW')
   }
 
   return { approved, confidence, requiresHumanReview, reasonCodes }
