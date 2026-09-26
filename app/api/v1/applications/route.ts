@@ -6,6 +6,8 @@ import { extractRiskSignals } from '../../../../lib/risk-factors'
 import { makeDecision } from '../../../../lib/decision-engine'
 import { recordAuditEvent } from '../../../../lib/audit-engine'
 import { transition } from '../../../../lib/workflow-engine'
+import { injectBusinessTrustFactor } from '../../../../lib/business-trust'
+import { linkApplicationCounterparty } from '../../../../lib/counterparty'
 import { ApplicationForm, ScoreFactor, validateApplicationForm } from '../../../../types'
 
 function getSupabase() {
@@ -71,6 +73,7 @@ export async function POST(req: NextRequest) {
         loan_term_months: form.loan_term_months,
         consent_data_use: form.consent_data_use,
         consent_ai_decision: form.consent_ai_decision,
+        business_profile: form.business ?? null,
         status: 'pending',
       })
       .select()
@@ -86,6 +89,11 @@ export async function POST(req: NextRequest) {
       ? await scoreApplication(form)
       : getMockScore()
     const { result, rawPrompt, rawResponse } = scoreData
+
+    // 2b. Business trust factor (no-op unless form.business is present —
+    // see lib/business-trust.ts). Runs before risk signals/decision so
+    // both see the rebalanced, still-sums-to-100 factor set.
+    result.factors = injectBusinessTrustFactor(result.factors, form.business)
 
     // 3. Risk signals + decision
     const riskSignals = extractRiskSignals({
@@ -144,6 +152,19 @@ export async function POST(req: NextRequest) {
       orgId: auth.context.orgId,
       metadata: { scoreId: score.id, ethoScore: result.etho_score, riskBand: result.risk_band },
     })
+
+    // 6b. Best-effort counterparty link for business-loan applications.
+    // Never blocks or fails the response — see lib/counterparty.ts.
+    // counterparty_id is deliberately not added to the response below:
+    // it's internal bookkeeping, not something Lendflow asked for.
+    if (form.business) {
+      await linkApplicationCounterparty({
+        orgId: auth.context.orgId,
+        applicationId: application.id,
+        business: form.business,
+        actorId: `api_key:${auth.context.keyId}`,
+      })
+    }
 
     // 7. Response
     return NextResponse.json({

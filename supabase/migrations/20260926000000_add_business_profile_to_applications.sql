@@ -1,0 +1,12 @@
+-- Business-loan applicant support (Lendflow integration).
+--
+-- The Lendflow integration guide (EthosFi_Partner_API_-_Integration_Guide_
+-- for_Lendflow.docx, 2026-09-24) scores every applicant as a person and
+-- requires business applicants to be mapped onto person fields
+-- (employer_name etc.). This adds a nullable, additive column to store the
+-- optional business profile that now rides alongside the personal fields
+-- (types.ApplicationForm.business) and feeds lib/business-trust.ts.
+--
+-- Extend, don't replace (CLAUDE.md principle 5): existing rows are
+-- unaffected, no backfill, no change to any existing column.
+alter table applications add column if not exists business_profile jsonb;
