@@ -4,6 +4,22 @@ export type ApplicationStatus = 'pending' | 'scored' | 'approved' | 'declined' |
 export type Recommendation = 'approve' | 'decline' | 'review'
 export type Decision = 'approved' | 'declined' | 'more_info'
 
+// Optional business-borrower profile. Additive only (Lendflow business-loan
+// use case — see docs/PHASE4_ONTOLOGY_DESIGN.md §6.3 and the Lendflow
+// integration guide, which today scores every applicant as a person and
+// requires business fields to be mapped onto employer_name etc.). When
+// `business` is present on the request it (a) feeds an extra scoring factor
+// via lib/business-trust.ts and (b) drives a best-effort counterparty link
+// (lib/counterparty.ts) — it never changes the required personal fields.
+export interface BusinessProfile {
+  legal_name: string
+  registration_number?: string
+  jurisdiction?: string
+  trading_since_months?: number // how long the business has been trading
+  annual_revenue?: number       // GBP
+  sector?: string
+}
+
 export interface ApplicationForm {
   full_name: string
   email: string
@@ -21,6 +37,7 @@ export interface ApplicationForm {
   loan_term_months: number
   consent_data_use: boolean
   consent_ai_decision: boolean
+  business?: BusinessProfile
 }
 
 export interface ScoreFactor {
@@ -60,6 +77,25 @@ export function validateApplicationForm(form: unknown): { valid: true; data: App
   if (typeof f.consent_data_use !== 'boolean' || !f.consent_data_use) return { valid: false, error: 'consent_data_use must be true' }
   if (typeof f.consent_ai_decision !== 'boolean' || !f.consent_ai_decision) return { valid: false, error: 'consent_ai_decision must be true' }
 
+  // business is optional; when present it's a business-loan borrower and
+  // legal_name is the one required field inside it (mirrors how the rest
+  // of this validator treats optional blocks — present-but-empty is a
+  // validation error, absent is fine).
+  let business: BusinessProfile | undefined
+  if (f.business !== undefined) {
+    if (typeof f.business !== 'object' || f.business === null) return { valid: false, error: 'business must be an object when provided' }
+    const b = f.business as Record<string, unknown>
+    if (typeof b.legal_name !== 'string' || b.legal_name.trim().length === 0) return { valid: false, error: 'business.legal_name is required (non-empty string) when business is provided' }
+    business = {
+      legal_name: b.legal_name as string,
+      registration_number: typeof b.registration_number === 'string' ? b.registration_number : undefined,
+      jurisdiction: typeof b.jurisdiction === 'string' ? b.jurisdiction : undefined,
+      trading_since_months: typeof b.trading_since_months === 'number' ? b.trading_since_months : undefined,
+      annual_revenue: typeof b.annual_revenue === 'number' ? b.annual_revenue : undefined,
+      sector: typeof b.sector === 'string' ? b.sector : undefined,
+    }
+  }
+
   return {
     valid: true,
     data: {
@@ -79,6 +115,7 @@ export function validateApplicationForm(form: unknown): { valid: true; data: App
       loan_term_months: f.loan_term_months as number,
       consent_data_use: true,
       consent_ai_decision: true,
+      business,
     },
   }
 }
